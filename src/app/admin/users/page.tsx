@@ -1,0 +1,329 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { BadgeCheck, ShieldCheck, ShieldPlus, User, UserPlus } from "lucide-react";
+import { useFetch, AdminCard } from "@/components/admin/ui";
+
+type AdminUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: "user" | "admin";
+  company: string | null;
+  phone: string | null;
+  verified: number;
+  created_at: string;
+};
+
+const sorts = [
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+  { value: "name-asc", label: "Name A → Z" },
+  { value: "name-desc", label: "Name Z → A" },
+] as const;
+
+const selectCls =
+  "rounded-lg border border-line bg-white px-2.5 py-2 text-xs font-bold text-navy-900 outline-none focus:border-safety-400";
+
+export default function AdminUsersPage() {
+  const { data, loading, refresh } = useFetch<{ users: AdminUser[] }>("/api/admin/users");
+  const [me, setMe] = useState<{ id: string } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [sort, setSort] = useState<(typeof sorts)[number]["value"]>("newest");
+  const users = data?.users ?? [];
+
+  useEffect(() => {
+    fetch("/api/auth/session").then((r) => r.json()).then((s) => s?.user && setMe(s.user));
+  }, []);
+
+  const sorted = useMemo(() => {
+    const arr = [...users];
+    switch (sort) {
+      case "oldest":
+        arr.sort((a, b) => a.created_at.localeCompare(b.created_at));
+        break;
+      case "name-asc":
+        arr.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "name-desc":
+        arr.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      default:
+        arr.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    }
+    return arr;
+  }, [users, sort]);
+
+  const staff = sorted.filter((u) => u.role === "admin");
+  const customers = sorted.filter((u) => u.role === "user");
+
+  const call = async (fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) => {
+    const res = await fn();
+    setNotice(res.ok ? okMsg : res.error ?? "Update failed");
+    refresh();
+  };
+
+  const setRole = (u: AdminUser, role: "user" | "admin") => {
+    if (u.id === me?.id) {
+      setNotice("You cannot change your own role.");
+      return;
+    }
+    call(
+      () =>
+        fetch("/api/admin/users", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: u.id, role }),
+        }).then(async (r) => ({ ok: r.ok, error: (await r.json().catch(() => ({}))).error })),
+      `${u.name} is now ${role}`
+    );
+  };
+
+  const verify = (u: AdminUser) => {
+    call(
+      () =>
+        fetch("/api/admin/users", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: u.id, verified: true }),
+        }).then(async (r) => ({ ok: r.ok, error: (await r.json().catch(() => ({}))).error })),
+      `${u.name} verified`
+    );
+  };
+
+  const unverifiedCount = customers.filter((c) => !c.verified).length;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-extrabold text-navy-900">Users</h1>
+          <p className="text-sm text-gray-500">
+            {users.length} accounts · {staff.length} staff · {customers.length} customers
+            {unverifiedCount > 0 && <span className="font-bold text-amber-600"> · {unverifiedCount} pending verification</span>}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="block">
+            <span className="sr-only">Sort users</span>
+            <select className={selectCls} value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+              {sorts.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </label>
+          <Link
+            href="/admin/users/new"
+            className="flex items-center gap-2 rounded-xl bg-navy-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-safety-500"
+          >
+            <UserPlus className="h-4 w-4" /> Create staff
+          </Link>
+        </div>
+      </div>
+
+      {notice && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{notice}</p>}
+
+      {loading ? (
+        <p className="py-10 text-center text-sm text-gray-400">Loading…</p>
+      ) : (
+        <>
+          <AdminCard
+            title="Staff & admins"
+            subtitle={`${staff.length} account${staff.length === 1 ? "" : "s"} with admin access`}
+          >
+            {staff.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-400">No staff accounts yet.</p>
+            ) : (
+              <>
+                <div className="space-y-3 md:hidden">
+                  {staff.map((u) => (
+                    <div key={u.id} className="flex items-start justify-between gap-3 rounded-xl border border-line bg-white p-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-navy-700 to-navy-900 text-xs font-bold text-white">
+                          {u.name.charAt(0)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-1.5 font-semibold text-navy-900">
+                            {u.name}
+                            {u.id === me?.id && <span className="text-[10px] font-bold text-gray-400">(you)</span>}
+                          </p>
+                          <p className="truncate text-[11px] text-gray-400">{u.email}{u.phone ? ` · ${u.phone}` : ""}</p>
+                          <p className="mt-0.5 text-[11px] text-gray-400">
+                            {u.company ?? "—"} · {new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setRole(u, "user")}
+                        disabled={u.id === me?.id}
+                        className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface disabled:opacity-40"
+                      >
+                        Make user
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[560px] text-sm">
+                    <thead>
+                      <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                        <th className="pb-3">User</th>
+                        <th className="hidden pb-3 md:table-cell">Company</th>
+                        <th className="hidden pb-3 md:table-cell">Joined</th>
+                        <th className="pb-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {staff.map((u) => (
+                        <tr key={u.id} className="border-b border-line/60 last:border-0">
+                          <td className="py-3.5">
+                            <div className="flex items-center gap-3">
+                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-navy-700 to-navy-900 text-xs font-bold text-white">
+                                {u.name.charAt(0)}
+                              </span>
+                              <div>
+                                <p className="flex items-center gap-1.5 font-semibold text-navy-900">
+                                  {u.name}
+                                  {u.id === me?.id && <span className="text-[10px] font-bold text-gray-400">(you)</span>}
+                                </p>
+                                <p className="text-[11px] text-gray-400">{u.email}{u.phone ? ` · ${u.phone}` : ""}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="hidden py-3.5 text-gray-500 md:table-cell">{u.company ?? "—"}</td>
+                          <td className="hidden py-3.5 text-gray-500 md:table-cell">{new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</td>
+                          <td className="py-3.5 text-right">
+                            <button
+                              onClick={() => setRole(u, "user")}
+                              disabled={u.id === me?.id}
+                              className="rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface disabled:opacity-40"
+                            >
+                              Make user
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </AdminCard>
+
+          <AdminCard
+            title="Customers"
+            subtitle={`${customers.length} account${customers.length === 1 ? "" : "s"} · verify new signups to mark them approved`}
+          >
+            {customers.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-400">No customer accounts yet.</p>
+            ) : (
+              <>
+                <div className="space-y-3 md:hidden">
+                  {customers.map((u) => (
+                    <div key={u.id} className="rounded-xl border border-line bg-white p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-safety-400 to-safety-600 text-xs font-bold text-white">
+                            {u.name.charAt(0)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-navy-900">{u.name}</p>
+                            <p className="truncate text-[11px] text-gray-400">{u.email}{u.phone ? ` · ${u.phone}` : ""}</p>
+                          </div>
+                        </div>
+                        {u.verified ? (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                            <BadgeCheck className="h-3 w-3" /> Verified
+                          </span>
+                        ) : (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                            <User className="h-3 w-3" /> Unverified
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-2 text-[11px] text-gray-400">
+                        {u.company ?? "—"} · {new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {!u.verified && (
+                          <button
+                            onClick={() => verify(u)}
+                            className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+                          >
+                            <BadgeCheck className="h-3.5 w-3.5" /> Verify
+                          </button>
+                        )}
+                        <button onClick={() => setRole(u, "admin")} className="flex items-center gap-1 rounded-lg bg-navy-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-safety-500">
+                          <ShieldPlus className="h-3.5 w-3.5" /> Make staff
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[640px] text-sm">
+                    <thead>
+                      <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                        <th className="pb-3">User</th>
+                        <th className="hidden pb-3 lg:table-cell">Company</th>
+                        <th className="hidden pb-3 lg:table-cell">Joined</th>
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {customers.map((u) => (
+                        <tr key={u.id} className="border-b border-line/60 last:border-0">
+                          <td className="py-3.5">
+                            <div className="flex items-center gap-3">
+                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-safety-400 to-safety-600 text-xs font-bold text-white">
+                                {u.name.charAt(0)}
+                              </span>
+                              <div>
+                                <p className="font-semibold text-navy-900">{u.name}</p>
+                                <p className="text-[11px] text-gray-400">{u.email}{u.phone ? ` · ${u.phone}` : ""}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="hidden py-3.5 text-gray-500 lg:table-cell">{u.company ?? "—"}</td>
+                          <td className="hidden py-3.5 text-gray-500 lg:table-cell">{new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</td>
+                          <td className="py-3.5">
+                            {u.verified ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                                <BadgeCheck className="h-3 w-3" /> Verified
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                                <User className="h-3 w-3" /> Unverified
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {!u.verified && (
+                                <button
+                                  onClick={() => verify(u)}
+                                  className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+                                >
+                                  <BadgeCheck className="h-3.5 w-3.5" /> Verify
+                                </button>
+                              )}
+                              <button onClick={() => setRole(u, "admin")} className="flex items-center gap-1 rounded-lg bg-navy-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-safety-500">
+                                <ShieldPlus className="h-3.5 w-3.5" /> Make staff
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </AdminCard>
+        </>
+      )}
+    </div>
+  );
+}
