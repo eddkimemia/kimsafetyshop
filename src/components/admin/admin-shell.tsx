@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Package, ShoppingCart, Users, ClipboardList, Building2, BookOpen, Newspaper, LogOut, ShieldCheck, Menu, X, ArrowLeft, Truck, Store } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, ClipboardList, Building2, BookOpen, Newspaper, LogOut, ShieldCheck, Menu, X, ArrowLeft, Truck, Store, Settings, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/logo";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
+import { useSettings } from "@/lib/settings";
 
 const nav = [
   ["/admin", "Dashboard", LayoutDashboard],
@@ -19,6 +20,7 @@ const nav = [
   ["/admin/corporate", "Corporate Accounts", Building2],
   ["/admin/content", "Knowledge Content", BookOpen],
   ["/admin/blog", "Blog", Newspaper],
+  ["/admin/docs", "Docs", FileText],
 ] as const;
 
 function isActive(pathname: string, href: string) {
@@ -27,7 +29,24 @@ function isActive(pathname: string, href: string) {
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { whatsapp } = useSettings();
+  const [role, setRole] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/admin/me")
+      .then((r) => r.json())
+      .then((s) => {
+        if (alive) setRole(s?.user?.role ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const navItems = (role === "superadmin" ? nav : nav.filter(([href]) => (href as string) !== "/admin/settings")) as typeof nav;
 
   useEffect(() => {
     setDrawer(false);
@@ -58,6 +77,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            {role === "superadmin" && (
+              <Link
+                href="/admin/settings"
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition-colors",
+                  pathname.startsWith("/admin/settings")
+                    ? "border-safety-300 bg-safety-50 text-safety-600"
+                    : "border-line text-navy-900 hover:bg-surface"
+                )}
+              >
+                <Settings className="h-3.5 w-3.5" /> Settings
+              </Link>
+            )}
             <Link
               href="/"
               className="hidden items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-bold text-navy-900 transition-colors hover:bg-surface md:flex"
@@ -74,7 +106,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="hidden border-t border-line lg:block" aria-label="Admin navigation">
           <div className="no-scrollbar mx-auto flex max-w-shell items-center gap-1 overflow-x-auto px-8">
-            {nav.map(([href, label, Icon]) => {
+            {navItems.map(([href, label, Icon]) => {
               const active = isActive(pathname, href);
               return (
                 <Link
@@ -125,7 +157,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <p className="mb-2 flex items-center gap-1.5 px-3 text-[10px] font-bold uppercase tracking-widest text-white/40">
                 <ShieldCheck className="h-3.5 w-3.5 text-safety-400" /> Admin Panel
               </p>
-              {nav.map(([href, label, Icon]) => {
+              {navItems.map(([href, label, Icon]) => {
                 const active = isActive(pathname, href);
                 return (
                   <Link
@@ -152,7 +184,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 <ArrowLeft className="h-3.5 w-3.5" /> Back to storefront
               </Link>
               <a
-                href="https://wa.me/254712345678"
+                href={`https://wa.me/${whatsapp}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 rounded-xl bg-[#25D366]/15 px-3.5 py-2.5 text-xs font-bold text-[#25D366]"

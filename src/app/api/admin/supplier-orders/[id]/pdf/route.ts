@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
-import { getSupplierOrder } from "@/lib/db";
+import { getSupplierOrder, getAllSettings } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-helpers";
 import { join } from "path";
+import fs from "fs";
 
 export const runtime = "nodejs";
 
 const NAVY = "#0F2847";
 const SAFETY = "#F57C00";
-const EMERALD = "#059669";
 const GRAY = "#6B7280";
 const LIGHT = "#F3F4F6";
 
-const COMPANY = {
+const FALLBACK_COMPANY = {
   name: "KimSafety Ltd",
   address: "KimSafety House, Enterprise Road,\nIndustrial Area, Nairobi, Kenya",
-  phone: "+254 712 345 678",
+  phone: "+254 715135141",
   email: "sales@kimsafety.co.ke",
   website: "www.kimsafety.co.ke",
 };
@@ -26,6 +26,15 @@ const fmt = (n: number) =>
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const denied = await requireAdmin();
   if (denied) return denied;
+
+  const s = getAllSettings();
+  const COMPANY = {
+    name: s.site_name || FALLBACK_COMPANY.name,
+    address: s.address || FALLBACK_COMPANY.address,
+    phone: s.phone || FALLBACK_COMPANY.phone,
+    email: s.purchases_email || FALLBACK_COMPANY.email,
+    website: FALLBACK_COMPANY.website,
+  };
 
   const po = getSupplierOrder(params.id);
   if (!po) return NextResponse.json({ error: "Purchase order not found" }, { status: 404 });
@@ -50,8 +59,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const drawPageChrome = () => {
     doc.rect(0, 0, pageW, 12).fill(NAVY);
     doc.rect(0, 12, pageW, 3).fill(SAFETY);
-    doc.rect(0, pageH - 50, pageW, 50).fill(NAVY);
-    doc.rect(0, pageH - 53, pageW, 3).fill(SAFETY);
+    doc.rect(0, pageH - 66, pageW, 66).fill(NAVY);
+    doc.rect(0, pageH - 69, pageW, 3).fill(SAFETY);
     doc
       .font("Helvetica-Bold")
       .fontSize(8.5)
@@ -85,9 +94,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   drawPageChrome();
 
   // ---- Header: logo + PURCHASE ORDER (page 1 only) ----
-  const logoPath = join(process.cwd(), "public", "images", "logo", "logoy.jpg");
+  const logoPath = join(process.cwd(), "public", s.logo || "/images/logo/logoy.jpg");
   const logoH = 62;
-  doc.image(logoPath, padL, 32, { height: logoH });
+  if (fs.existsSync(logoPath)) doc.image(logoPath, padL, 32, { height: logoH });
   doc
     .font("Helvetica-Bold")
     .fontSize(26)
@@ -225,6 +234,26 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       ty,
       { width: totalW }
     );
+
+  // ---- Stamp on the last page, above the footer ----
+  const stampPath = join(process.cwd(), "public", "images", "logo", "stamp.png");
+  if (fs.existsSync(stampPath)) {
+    const stampW = 150;
+    const stampY = pageH - 66 - 118;
+    const range = doc.bufferedPageRange();
+    doc.switchToPage(range.count - 1);
+    const stampBuf = fs.readFileSync(stampPath);
+    const stampH = stampW * (stampBuf.readUInt32BE(20) / stampBuf.readUInt32BE(16));
+    doc.image(stampPath, padR - stampW, stampY, { width: stampW });
+    const dateStr = new Date(po.created_at)
+      .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+      .toUpperCase();
+    doc
+      .font("Courier-Bold")
+      .fontSize(11)
+      .fillColor("#DC2626")
+      .text(dateStr, padR - stampW, stampY + (stampH - 13) / 2, { width: stampW, align: "center" });
+  }
 
   doc.end();
   const pdf = await new Promise<Buffer>((resolve) => {

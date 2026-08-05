@@ -61,7 +61,7 @@ export function AuthStatus() {
             <Link href="/account" className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-navy-900 hover:bg-surface">
               <User className="h-4 w-4 text-gray-400" /> My Account
             </Link>
-            {user.role === "admin" && (
+            {(user.role === "admin" || user.role === "superadmin") && (
               <Link href="/admin" className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-navy-900 hover:bg-surface">
                 <ShieldCheck className="h-4 w-4 text-safety-500" /> Admin Panel
               </Link>

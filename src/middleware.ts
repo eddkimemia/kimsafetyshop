@@ -13,7 +13,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (pathname.startsWith("/admin") && token.role !== "admin") {
+  if (pathname.startsWith("/admin") && token.role !== "admin" && token.role !== "superadmin") {
     return NextResponse.redirect(new URL("/account", req.url));
   }
 

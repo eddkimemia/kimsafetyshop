@@ -65,7 +65,7 @@ export default function SupportPage() {
                 Our support team replies within the hour, Monday to Saturday.
               </p>
               <a
-                href="https://wa.me/254712345678"
+                href="https://wa.me/254715135141"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 text-sm font-bold text-white"

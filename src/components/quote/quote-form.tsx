@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
+import { useSettings } from "@/lib/settings";
 import { ProductArt } from "@/components/product/product-art";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -29,6 +30,7 @@ const field =
 export function QuoteForm() {
   const params = useSearchParams();
   const { cart, liveProduct, liveBySlug } = useStore();
+  const { phone, email, whatsapp, hours } = useSettings();
 
   const productId = params.get("product");
   const product = useMemo(() => (productId ? liveBySlug(productId) : undefined), [productId, liveBySlug]);
@@ -375,33 +377,33 @@ export function QuoteForm() {
           <div className="rounded-2xl bg-gradient-to-br from-navy-800 to-navy-900 p-6 text-white">
             <h2 className="font-display text-lg font-extrabold">Prefer to talk?</h2>
             <p className="mt-1 text-xs text-white/70">
-              Our corporate sales desk is available Mon–Sat, 8:00–18:00.
+              Our corporate sales desk is available {hours}.
             </p>
             <ul className="mt-5 space-y-3 text-sm">
               <li>
                 <a
-                  href="https://wa.me/254712345678"
+                  href={`https://wa.me/${whatsapp}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 font-bold transition-colors hover:text-safety-300"
                 >
-                  <MessageCircle className="h-4.5 w-4.5 text-safety-400" /> +254 712 345 678
+                  <MessageCircle className="h-4.5 w-4.5 text-safety-400" /> {phone}
                 </a>
               </li>
               <li>
                 <a
-                  href="tel:+254712345678"
+                  href={`tel:${phone.replace(/[^\d+]/g, "")}`}
                   className="flex items-center gap-3 font-bold transition-colors hover:text-safety-300"
                 >
-                  <Phone className="h-4.5 w-4.5 text-safety-400" /> +254 712 345 678
+                  <Phone className="h-4.5 w-4.5 text-safety-400" /> {phone}
                 </a>
               </li>
               <li>
                 <a
-                  href="mailto:corporate@kimsafety.co.ke"
+                  href={`mailto:${email}`}
                   className="flex items-center gap-3 font-bold transition-colors hover:text-safety-300"
                 >
-                  <Mail className="h-4.5 w-4.5 text-safety-400" /> corporate@kimsafety.co.ke
+                  <Mail className="h-4.5 w-4.5 text-safety-400" /> {email}
                 </a>
               </li>
             </ul>

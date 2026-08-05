@@ -305,7 +305,7 @@ export default function CheckoutPage() {
                 {payment === "bank" && (
                   <p className="text-sm text-gray-500">
                     Pay to <strong>KimSafety Ltd — 0110 2123 4567</strong>, Equity Bank (Business account). Use order
-                    reference <strong>KSCK-{Date.now() % 100000}</strong> and SMS proof of payment to +254 712 345 678.
+                    reference <strong>KSCK-{Date.now() % 100000}</strong> and SMS proof of payment to +254 715135141.
                   </p>
                 )}
                 {payment === "card" && (

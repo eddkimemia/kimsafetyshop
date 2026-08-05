@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, BookOpen, Save, Trash2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Eye, EyeOff } from "lucide-react";
 import { AdminCard, adminField, useFetch } from "@/components/admin/ui";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { CoverImagePicker } from "@/components/admin/image-picker";

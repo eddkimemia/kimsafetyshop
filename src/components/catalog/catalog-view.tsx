@@ -29,6 +29,7 @@ type CatalogProps = {
   category?: string;
   brand?: string;
   deals?: boolean;
+  hideBrandFilter?: boolean;
 };
 
 const SORTS = [
@@ -52,7 +53,7 @@ const FILTER_FIELDS = [
 
 const PAGE_SIZE = 12;
 
-export function CatalogView({ title, subtitle, search, category, brand, deals }: CatalogProps) {
+export function CatalogView({ title, subtitle, search, category, brand, deals, hideBrandFilter }: CatalogProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -74,8 +75,8 @@ export function CatalogView({ title, subtitle, search, category, brand, deals }:
 
   useEffect(() => {
     setPage(1);
-    setHasFiltered(Boolean(q || cat !== "all" || br !== "all" || availability !== "all" || rating !== "all" || minPrice || maxPrice || onSale));
-  }, [q, cat, br, availability, rating, minPrice, maxPrice, onSale]);
+    setHasFiltered(Boolean(q || cat !== "all" || (!hideBrandFilter && br !== "all") || availability !== "all" || rating !== "all" || minPrice || maxPrice || onSale));
+  }, [q, cat, br, availability, rating, minPrice, maxPrice, onSale, hideBrandFilter]);
 
   const results = useMemo(() => {
     let list = [...(liveCatalogItems.length ? liveCatalogItems : products)];
@@ -131,7 +132,7 @@ export function CatalogView({ title, subtitle, search, category, brand, deals }:
 
   const activeCount = [
     cat !== "all",
-    br !== "all",
+    !hideBrandFilter && br !== "all",
     availability !== "all",
     rating !== "all",
     Boolean(minPrice),
@@ -197,7 +198,9 @@ export function CatalogView({ title, subtitle, search, category, brand, deals }:
           </button>
           <div className="hidden items-center gap-2 lg:flex">
             <span className="text-sm font-bold text-navy-900">Filters:</span>
-            {FILTER_FIELDS.slice(0, 4).map(([key, label, type]) =>
+            {FILTER_FIELDS.slice(0, 4)
+              .filter(([key]) => !(hideBrandFilter && key === "brand"))
+              .map(([key, label, type]) =>
               type === "checkbox" ? null : (
                 <label key={key} className="relative">
                   <span className="sr-only">{label}</span>
@@ -392,6 +395,7 @@ export function CatalogView({ title, subtitle, search, category, brand, deals }:
         onClose={() => setMobileFilters(false)}
         cat={cat}
         br={br}
+        hideBrandFilter={hideBrandFilter}
         availability={availability}
         rating={rating}
         minPrice={minPrice}
@@ -408,6 +412,7 @@ function MobileFilters({
   onClose,
   cat,
   br,
+  hideBrandFilter,
   availability,
   rating,
   minPrice,
@@ -419,6 +424,7 @@ function MobileFilters({
   onClose: () => void;
   cat: string;
   br: string;
+  hideBrandFilter?: boolean;
   availability: string;
   rating: string;
   minPrice: string;
@@ -461,16 +467,18 @@ function MobileFilters({
                   ))}
                 </div>
               </FilterGroup>
-              <FilterGroup label="Brand">
-                <div className="flex flex-wrap gap-2">
-                  <FilterChip active={br === "all"} onClick={() => updateParam("brand", "")}>All</FilterChip>
-                  {brands.map((b) => (
-                    <FilterChip key={b.slug} active={br === b.slug} onClick={() => updateParam("brand", br === b.slug ? "" : b.slug)}>
-                      {b.name}
-                    </FilterChip>
-                  ))}
-                </div>
-              </FilterGroup>
+              {!hideBrandFilter && (
+                <FilterGroup label="Brand">
+                  <div className="flex flex-wrap gap-2">
+                    <FilterChip active={br === "all"} onClick={() => updateParam("brand", "")}>All</FilterChip>
+                    {brands.map((b) => (
+                      <FilterChip key={b.slug} active={br === b.slug} onClick={() => updateParam("brand", br === b.slug ? "" : b.slug)}>
+                        {b.name}
+                      </FilterChip>
+                    ))}
+                  </div>
+                </FilterGroup>
+              )}
               <FilterGroup label="Price">
                 <div className="grid grid-cols-2 gap-2">
                   {priceOptions.map(([value, label]) => (

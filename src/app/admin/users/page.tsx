@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, ShieldCheck, ShieldPlus, User, UserPlus } from "lucide-react";
+import { BadgeCheck, ShieldPlus, User, UserPlus } from "lucide-react";
 import { useFetch, AdminCard } from "@/components/admin/ui";
 
 type AdminUser = {
   id: string;
   name: string;
   email: string;
-  role: "user" | "admin";
+  role: "user" | "admin" | "superadmin";
   company: string | null;
   phone: string | null;
   verified: number;
@@ -55,7 +55,7 @@ export default function AdminUsersPage() {
     return arr;
   }, [users, sort]);
 
-  const staff = sorted.filter((u) => u.role === "admin");
+  const staff = sorted.filter((u) => u.role === "admin" || u.role === "superadmin");
   const customers = sorted.filter((u) => u.role === "user");
 
   const call = async (fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) => {

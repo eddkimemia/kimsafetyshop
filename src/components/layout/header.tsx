@@ -21,6 +21,7 @@ import { AuthStatus } from "./auth-status";
 import { useStore } from "@/lib/store";
 import { megaCategories } from "@/lib/data/catalog";
 import { cn } from "@/lib/utils";
+import { useSettings } from "@/lib/settings";
 
 const megaLabels: Record<string, string> = {
   "Medical Safety": "medical-safety",
@@ -42,6 +43,7 @@ const megaLabels: Record<string, string> = {
 
 export function Header() {
   const { cartCount, wishlist, compare } = useStore();
+  const { whatsapp } = useSettings();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [mobileSearch, setMobileSearch] = useState(false);
@@ -207,7 +209,7 @@ export function Header() {
               <div className="mx-auto flex max-w-shell items-center justify-between px-8 py-4">
                 <p className="text-sm text-white/80">
                   Need help choosing the right PPE?{" "}
-                  <a href="https://wa.me/254712345678" className="font-bold text-safety-400">
+                  <a href={`https://wa.me/${whatsapp}`} className="font-bold text-safety-400">
                     Chat with a safety specialist
                   </a>
                 </p>
@@ -231,6 +233,7 @@ export function Header() {
 }
 
 function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { whatsapp } = useSettings();
   return (
     <AnimatePresence>
       {open && (
@@ -305,7 +308,7 @@ function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
             </div>
             <div className="border-t border-line p-4">
               <a
-                href="https://wa.me/254712345678"
+                href={`https://wa.me/${whatsapp}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 text-sm font-bold text-white"

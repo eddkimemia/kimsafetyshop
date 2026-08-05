@@ -11,6 +11,7 @@ import {
 import { Logo } from "./logo";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { megaCategories } from "@/lib/data/catalog";
+import { useSettings } from "@/lib/settings";
 
 const company: [string, string][] = [
   ["About KimSafety", "/about"],
@@ -51,6 +52,9 @@ const brands: [string, string][] = [
 ];
 
 export function Footer() {
+  const { address, phone, email, whatsapp, site_name, hours } = useSettings();
+  const tel = `tel:${phone.replace(/[^\d+]/g, "")}`;
+  const wa = `https://wa.me/${whatsapp}`;
   return (
     <footer className="bg-navy-950 border-t border-navy-800 bg-navy-900 text-white">
       <div className="mx-auto max-w-shell px-4 lg:px-8">
@@ -64,21 +68,25 @@ export function Footer() {
             <div className="mt-5 space-y-2.5 text-sm text-white/70">
               <p className="flex items-start gap-2.5">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-safety-400" />
-                KimSafety House, Enterprise Road, Industrial Area, Nairobi
+                {address}
               </p>
               <p className="flex items-center gap-2.5">
                 <Phone className="h-4 w-4 shrink-0 text-safety-400" />
-                <a href="tel:+254712345678" className="hover:text-safety-400">+254 712 345 678</a>
+                <a href={tel} className="hover:text-safety-400">{phone}</a>
               </p>
               <p className="flex items-center gap-2.5">
                 <Mail className="h-4 w-4 shrink-0 text-safety-400" />
-                <a href="mailto:sales@kimsafety.co.ke" className="hover:text-safety-400">sales@kimsafety.co.ke</a>
+                <a href={`mailto:${email}`} className="hover:text-safety-400">{email}</a>
               </p>
               <p className="flex items-center gap-2.5">
                 <WhatsAppIcon className="h-4 w-4 shrink-0 text-[#25D366]" />
-                <a href="https://wa.me/254712345678" target="_blank" rel="noopener noreferrer" className="hover:text-safety-400">
-                  WhatsApp: +254 712 345 678
+                <a href={wa} target="_blank" rel="noopener noreferrer" className="hover:text-safety-400">
+                  WhatsApp: {phone}
                 </a>
+              </p>
+              <p className="flex items-center gap-2.5">
+                <Clock className="h-4 w-4 shrink-0 text-safety-400" />
+                {hours}
               </p>
             </div>
             <div className="mt-5 flex gap-2">
@@ -147,7 +155,7 @@ export function Footer() {
         </div>
 
         <div className="flex flex-col items-center justify-between gap-3 border-t border-white/10 py-6 text-[11px] text-white/40 lg:flex-row">
-          <p>© {new Date().getFullYear()} KimSafety Limited. All rights reserved. RC: PVT-2024-8871</p>
+          <p>© {new Date().getFullYear()} {site_name}. All rights reserved. RC: PVT-2024-8871</p>
           <p>Certified safety equipment · ISO 9001:2015 Compliant Operations</p>
         </div>
       </div>

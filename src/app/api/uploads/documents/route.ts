@@ -1,12 +1,29 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
 
 const MAX_SIZE = 10 * 1024 * 1024;
 const ALLOWED = /\.(pdf|jpe?g|png|webp)$/i;
+
+function safeName(name: string): string {
+  const stripped = name.replace(/[/\\?%#*:|"<>]/g, "-").replace(/[\x00-\x1f]/g, "").trim();
+  return stripped || `document-${Date.now().toString(36)}`;
+}
+
+function uniqueName(dir: string, name: string): string {
+  const safe = safeName(name);
+  const ext = path.extname(safe).toLowerCase();
+  const base = path.basename(safe, ext);
+  let candidate = safe;
+  let i = 1;
+  while (fs.existsSync(path.join(dir, candidate))) {
+    candidate = `${base} (${i})${ext}`;
+    i++;
+  }
+  return candidate;
+}
 
 export async function POST(req: Request) {
   let form: FormData;
@@ -32,8 +49,7 @@ export async function POST(req: Request) {
     if (file.size > MAX_SIZE) {
       return NextResponse.json({ error: `File too large (max 10MB): ${file.name}` }, { status: 400 });
     }
-    const ext = path.extname(file.name).toLowerCase();
-    const name = `${randomUUID()}${ext}`;
+    const name = uniqueName(dir, file.name);
     const dest = path.join(dir, name);
     fs.writeFileSync(dest, Buffer.from(await file.arrayBuffer()));
     urls.push(`/uploads/documents/${name}`);

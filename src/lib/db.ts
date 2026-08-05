@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { randomUUID, scryptSync, randomBytes, timingSafeEqual } from "crypto";
+import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 
 const DB_PATH = path.join(process.cwd(), "data", "kimsafety.db");
 
@@ -9,7 +10,7 @@ export type DbUser = {
   name: string;
   email: string;
   password_hash: string;
-  role: "user" | "admin";
+  role: "user" | "admin" | "superadmin";
   company: string | null;
   phone: string | null;
   verified: number;
@@ -211,6 +212,33 @@ function initSchema(d: Database.Database) {
   addColumnIfMissing(d, "quotes", "phone", "TEXT");
   addColumnIfMissing(d, "quotes", "notes", "TEXT");
   addColumnIfMissing(d, "quotes", "valid_until", "TEXT");
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL
+    );
+  `);
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS letters (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL DEFAULT 'Official Letter',
+      recipient_name TEXT NOT NULL,
+      recipient_title TEXT,
+      recipient_company TEXT,
+      recipient_address TEXT,
+      subject TEXT NOT NULL DEFAULT '',
+      salutation TEXT NOT NULL DEFAULT 'Dear Sir/Madam',
+      body TEXT NOT NULL,
+      closing TEXT NOT NULL DEFAULT 'Yours faithfully',
+      sender_name TEXT NOT NULL,
+      sender_title TEXT,
+      with_stamp INTEGER NOT NULL DEFAULT 1,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+  `);
+  addColumnIfMissing(d, "letters", "created_by_id", "TEXT");
   function addColumnIfMissing(db: Database.Database, table: string, column: string, def: string) {
     const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
     if (!cols.some((c) => c.name === column)) {
@@ -221,10 +249,15 @@ function initSchema(d: Database.Database) {
 }
 
 function seedUsers(d: Database.Database) {
-  const count = (d.prepare("SELECT COUNT(*) AS c FROM users").get() as { c: number }).c;
-  if (count > 0) return;
   const adminEmail = process.env.ADMIN_EMAIL ?? "admin@kimsafety.co.ke";
   const adminPass = process.env.ADMIN_PASSWORD ?? "admin123";
+  const existing = d.prepare("SELECT role FROM users WHERE email = ?").get(adminEmail) as { role: string } | undefined;
+  if (existing) {
+    if (existing.role !== "superadmin") {
+      d.prepare("UPDATE users SET role = 'superadmin' WHERE email = ?").run(adminEmail);
+    }
+    return;
+  }
   d.prepare(
     "INSERT INTO users (id, name, email, password_hash, role, company, phone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
   ).run(
@@ -232,9 +265,9 @@ function seedUsers(d: Database.Database) {
     "KimSafety Admin",
     adminEmail,
     hashPassword(adminPass),
-    "admin",
+    "superadmin",
     "KimSafety Ltd",
-    "+254 712 345 678",
+    "+254 715135141",
     new Date().toISOString()
   );
   console.log(`[kimsafety] Seeded admin user: ${adminEmail} / ${adminPass}`);
@@ -401,6 +434,154 @@ export function quotesForUser(userId: string): DbQuote[] {
 
 export function setQuoteStatus(id: string, status: string) {
   getDb().prepare("UPDATE quotes SET status = ? WHERE id = ?").run(status, id);
+}
+
+// ---- Site settings ----
+
+export function getSetting(key: string): string {
+  const row = getDb().prepare("SELECT value FROM settings WHERE key = ?").get(key) as { value: string } | undefined;
+  return row?.value ?? DEFAULT_SETTINGS[key] ?? "";
+}
+
+export function getAllSettings(): Record<string, string> {
+  const rows = getDb().prepare("SELECT key, value FROM settings").all() as { key: string; value: string }[];
+  const out: Record<string, string> = { ...DEFAULT_SETTINGS };
+  for (const r of rows) out[r.key] = r.value;
+  return out;
+}
+
+export function setSetting(key: string, value: string) {
+  const now = new Date().toISOString();
+  getDb()
+    .prepare(
+      "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at"
+    )
+    .run(key, value, now);
+}
+
+// ---- Letters ----
+
+export type DbLetter = {
+  id: string;
+  type: string;
+  recipient_name: string;
+  recipient_title: string | null;
+  recipient_company: string | null;
+  recipient_address: string | null;
+  subject: string;
+  salutation: string;
+  body: string;
+  closing: string;
+  sender_name: string;
+  sender_title: string | null;
+  with_stamp: number;
+  created_by: string;
+  created_by_id: string | null;
+  created_at: string;
+};
+
+const normalizeLetterSubject = (s?: string) => (s ?? "").trim().toUpperCase();
+
+export function createLetter(input: {
+  type?: string;
+  recipient_name: string;
+  recipient_title?: string | null;
+  recipient_company?: string | null;
+  recipient_address?: string | null;
+  subject?: string;
+  salutation?: string;
+  body: string;
+  closing?: string;
+  sender_name: string;
+  sender_title?: string | null;
+  with_stamp?: boolean;
+  created_by: string;
+  created_by_id?: string | null;
+}): DbLetter {
+  const letter: DbLetter = {
+    id: `LTR-${Math.floor(1000 + Math.random() * 9000)}`,
+    type: input.type?.trim() || "Official Letter",
+    recipient_name: input.recipient_name,
+    recipient_title: input.recipient_title?.trim() || null,
+    recipient_company: input.recipient_company?.trim() || null,
+    recipient_address: input.recipient_address?.trim() || null,
+    subject: normalizeLetterSubject(input.subject),
+    salutation: input.salutation?.trim() || "Dear Sir/Madam",
+    body: input.body.trim(),
+    closing: input.closing?.trim() || "Yours faithfully",
+    sender_name: input.sender_name,
+    sender_title: input.sender_title?.trim() || null,
+    with_stamp: input.with_stamp === true ? 1 : 0,
+    created_by: input.created_by,
+    created_by_id: input.created_by_id ?? null,
+    created_at: new Date().toISOString(),
+  };
+  getDb()
+    .prepare(
+      "INSERT INTO letters (id, type, recipient_name, recipient_title, recipient_company, recipient_address, subject, salutation, body, closing, sender_name, sender_title, with_stamp, created_by, created_by_id, created_at) VALUES (@id, @type, @recipient_name, @recipient_title, @recipient_company, @recipient_address, @subject, @salutation, @body, @closing, @sender_name, @sender_title, @with_stamp, @created_by, @created_by_id, @created_at)"
+    )
+    .run(letter);
+  return letter;
+}
+
+export function updateLetter(
+  id: string,
+  input: {
+    type?: string;
+    recipient_name?: string;
+    recipient_title?: string | null;
+    recipient_company?: string | null;
+    recipient_address?: string | null;
+    subject?: string;
+    salutation?: string;
+    body?: string;
+    closing?: string;
+    sender_name?: string;
+    sender_title?: string | null;
+    with_stamp?: boolean;
+  }
+): DbLetter {
+  const existing = getLetterById(id);
+  if (!existing) throw new Error("Letter not found");
+  const letter: DbLetter = {
+    ...existing,
+    type: input.type?.trim() || existing.type,
+    recipient_name: input.recipient_name?.trim() || existing.recipient_name,
+    recipient_title: input.recipient_title === undefined ? existing.recipient_title : input.recipient_title?.trim() || null,
+    recipient_company: input.recipient_company === undefined ? existing.recipient_company : input.recipient_company?.trim() || null,
+    recipient_address: input.recipient_address === undefined ? existing.recipient_address : input.recipient_address?.trim() || null,
+    subject: input.subject === undefined ? existing.subject : normalizeLetterSubject(input.subject),
+    salutation: input.salutation?.trim() || existing.salutation,
+    body: input.body === undefined ? existing.body : input.body.trim(),
+    closing: input.closing?.trim() || existing.closing,
+    sender_name: input.sender_name?.trim() || existing.sender_name,
+    sender_title: input.sender_title === undefined ? existing.sender_title : input.sender_title?.trim() || null,
+    with_stamp: input.with_stamp === undefined ? existing.with_stamp : input.with_stamp ? 1 : 0,
+  };
+  getDb()
+    .prepare(
+      "UPDATE letters SET type=@type, recipient_name=@recipient_name, recipient_title=@recipient_title, recipient_company=@recipient_company, recipient_address=@recipient_address, subject=@subject, salutation=@salutation, body=@body, closing=@closing, sender_name=@sender_name, sender_title=@sender_title, with_stamp=@with_stamp WHERE id=@id"
+    )
+    .run(letter);
+  return letter;
+}
+
+export function getLetterById(id: string): DbLetter | undefined {
+  return getDb().prepare("SELECT * FROM letters WHERE id = ?").get(id) as DbLetter | undefined;
+}
+
+export function listLetters(): DbLetter[] {
+  return getDb().prepare("SELECT * FROM letters ORDER BY created_at DESC").all() as DbLetter[];
+}
+
+export function listLettersFor(userId: string): DbLetter[] {
+  return getDb()
+    .prepare("SELECT * FROM letters WHERE created_by_id = ? ORDER BY created_at DESC")
+    .all(userId) as DbLetter[];
+}
+
+export function deleteLetter(id: string) {
+  getDb().prepare("DELETE FROM letters WHERE id = ?").run(id);
 }
 
 // ---- Corporate account applications ----

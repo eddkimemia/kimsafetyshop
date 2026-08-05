@@ -286,7 +286,7 @@ export function ProductDetail({
 
             <div className="mt-3 flex items-center gap-3">
               <a
-                href={`https://wa.me/254712345678?text=${encodeURIComponent(`Hello, I'd like to order: ${product.name} (${product.sku})`)}`}
+                href={`https://wa.me/254715135141?text=${encodeURIComponent(`Hello, I'd like to order: ${product.name} (${product.sku})`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#25D366]/10 text-sm font-bold text-[#128C4A] transition-colors hover:bg-[#25D366]/20"
@@ -560,7 +560,7 @@ export function ProductDetail({
                     Still have a question? Our safety specialists reply within the hour.
                   </p>
                   <a
-                    href="https://wa.me/254712345678"
+                    href="https://wa.me/254715135141"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 rounded-xl bg-[#25D366] px-5 py-2.5 text-sm font-bold text-white"

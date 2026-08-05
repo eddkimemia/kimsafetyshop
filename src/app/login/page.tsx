@@ -32,7 +32,7 @@ function LoginForm() {
       return;
     }
     const session = await getSession();
-    const isAdmin = session?.user?.role === "admin";
+    const isAdmin = session?.user?.role === "admin" || session?.user?.role === "superadmin";
     const isAdminPage = callbackUrl.startsWith("/admin");
     router.push(isAdmin ? (isAdminPage ? callbackUrl : "/admin") : callbackUrl);
     router.refresh();

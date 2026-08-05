@@ -26,6 +26,7 @@ export default function BrandPage({ params }: { params: { slug: string } }) {
         title={`${brand.name} Safety Equipment`}
         subtitle={`${brand.tagline} — authorized KimSafety stock with certification documents.`}
         brand={brand.slug}
+        hideBrandFilter
       />
     </Suspense>
   );

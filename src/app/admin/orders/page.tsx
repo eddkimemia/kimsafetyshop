@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BarChart3, ChevronRight, Download } from "lucide-react";
+import { ChevronRight, Download } from "lucide-react";
 import { useFetch, AdminCard, StatusBadge, orderStatusTones } from "@/components/admin/ui";
 import { formatKES } from "@/lib/utils";
 

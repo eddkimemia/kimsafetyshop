@@ -59,18 +59,6 @@ export default function CorporatePage() {
   const [error, setError] = useState<string | null>(null);
   const [docs, setDocs] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [poOpen, setPoOpen] = useState(false);
-  const [poDone, setPoDone] = useState(false);
-  const [poSubmitting, setPoSubmitting] = useState(false);
-  const [poUploading, setPoUploading] = useState(false);
-  const [poError, setPoError] = useState<string | null>(null);
-  const [poFile, setPoFile] = useState<string | null>(null);
-  const [poForm, setPoForm] = useState({
-    company: "",
-    contact_name: "",
-    phone: "",
-    email: "",
-  });
   const [form, setForm] = useState({
     company: "",
     kra_pin: "",
@@ -103,58 +91,6 @@ export default function CorporatePage() {
     if (!form.industry) errs.industry = "Industry is required";
     setErrors(errs);
     if (Object.keys(errs).length === 0) setStep(1);
-  };
-
-  const setPo = (key: keyof typeof poForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setPoForm((f) => ({ ...f, [key]: e.target.value }));
-
-  const onPoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPoUploading(true);
-    setPoError(null);
-    try {
-      const fd = new FormData();
-      fd.append("files", file);
-      const res = await fetch("/api/uploads/documents", { method: "POST", body: fd });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error ?? "Upload failed");
-      setPoFile((json.urls as string[])[0] ?? null);
-    } catch (err) {
-      setPoError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setPoUploading(false);
-      e.target.value = "";
-    }
-  };
-
-  const submitPo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!poFile) return;
-    setPoSubmitting(true);
-    setPoError(null);
-    try {
-      const res = await fetch("/api/purchase-orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...poForm, po_file: poFile }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error ?? "Submission failed");
-      setPoDone(true);
-    } catch (err) {
-      setPoError(err instanceof Error ? err.message : "Submission failed. Please try again.");
-    } finally {
-      setPoSubmitting(false);
-    }
-  };
-
-  const closePo = () => {
-    setPoOpen(false);
-    setPoDone(false);
-    setPoError(null);
-    setPoFile(null);
-    setPoForm({ company: "", contact_name: "", phone: "", email: "" });
   };
 
   const onFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -369,13 +305,12 @@ export default function CorporatePage() {
                           )}
                         </div>
                         <div className="flex items-center justify-between gap-4 pt-2">
-                          <button
-                            type="button"
-                            onClick={() => setPoOpen(true)}
+                          <Link
+                            href="/corporate/purchase"
                             className="text-xs font-bold text-gray-400 transition-colors hover:text-navy-900"
                           >
-                            Have a PO already? <span className="text-safety-600">Upload it here →</span>
-                          </button>
+                            Have a PO already? <span className="text-safety-600">Submit it here →</span>
+                          </Link>
                           <button
                             type="button"
                             onClick={continueToContact}
@@ -425,104 +360,6 @@ export default function CorporatePage() {
           </div>
         </div>
       </section>
-
-      {poOpen && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-navy-900/50 p-4 backdrop-blur-sm"
-          onClick={closePo}
-        >
-          <div
-            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Submit a purchase order"
-          >
-            {poDone ? (
-              <div className="py-8 text-center">
-                <span className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
-                  <Check className="h-8 w-8 text-emerald-600" />
-                </span>
-                <h3 className="font-display text-xl font-extrabold text-navy-900">Purchase order received</h3>
-                <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">
-                  Our team will review your PO and confirm pricing and delivery within 4 business hours.
-                </p>
-                <button
-                  type="button"
-                  onClick={closePo}
-                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-navy-900 px-6 py-3 text-sm font-bold text-white hover:bg-navy-800"
-                >
-                  Done
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="font-display text-xl font-extrabold text-navy-900">Submit a purchase order</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Upload your PO and our team will process it. Prefer to browse first?
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={closePo}
-                    aria-label="Close"
-                    className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-surface hover:text-navy-900"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-                <form onSubmit={submitPo} className="mt-6 space-y-3.5">
-                  <input required placeholder="Company legal name *" className={field} value={poForm.company} onChange={setPo("company")} />
-                  <input placeholder="Contact person (optional)" className={field} value={poForm.contact_name} onChange={setPo("contact_name")} />
-                  <input type="tel" placeholder="Phone (WhatsApp, optional)" className={field} value={poForm.phone} onChange={setPo("phone")} />
-                  <input type="email" placeholder="Work email (optional)" className={field} value={poForm.email} onChange={setPo("email")} />
-                  <div>
-                    <p className="mb-1.5 text-xs font-bold text-navy-900">
-                      Purchase order file <span className="font-normal text-gray-400">(PDF, JPG, PNG — max 10MB)</span>
-                    </p>
-                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line bg-surface px-4 py-4 text-xs font-bold text-gray-500 transition-colors hover:border-safety-400 hover:text-safety-600">
-                      <Upload className="h-4 w-4" />
-                      {poUploading ? "Uploading…" : poFile ? "Replace PO file" : "Upload PO file"}
-                      <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="sr-only" onChange={onPoFile} disabled={poUploading} />
-                    </label>
-                    {poFile && (
-                      <p className="mt-2 flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-xs text-gray-600">
-                        <FileText className="h-3.5 w-3.5 shrink-0 text-safety-600" />
-                        <span className="min-w-0 flex-1 truncate">{poFile.split("/").pop()}</span>
-                        <button type="button" onClick={() => setPoFile(null)} aria-label="Remove PO file" className="text-gray-400 transition-colors hover:text-danger">
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </p>
-                    )}
-                  </div>
-                  {poError && (
-                    <p className="rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-danger">{poError}</p>
-                  )}
-                  <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-                    <button
-                      type="submit"
-                      disabled={poSubmitting || !poFile}
-                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-safety-500 px-6 py-3 text-sm font-bold text-white shadow-[0_8px_24px_rgba(245,124,0,0.35)] transition-colors hover:bg-safety-600 disabled:opacity-60"
-                    >
-                      {poSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
-                      {poSubmitting ? "Submitting…" : "Submit PO"}
-                    </button>
-                    <Link
-                      href="/search"
-                      onClick={closePo}
-                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-line px-6 py-3 text-sm font-bold text-navy-900 transition-colors hover:border-safety-400 hover:text-safety-600"
-                    >
-                      Browse the shop <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </form>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

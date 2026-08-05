@@ -48,7 +48,7 @@ const sections: [string, string][] = [
   ],
   [
     "11. Contact",
-    "Questions about these terms: legal@kimsafety.co.ke or +254 712 345 678.",
+    "Questions about these terms: legal@kimsafety.co.ke or +254 715135141.",
   ],
 ];
 

@@ -1,9 +1,11 @@
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
+import { useSettings } from "@/lib/settings";
 
 export function WhatsAppButton() {
+  const { whatsapp, site_name } = useSettings();
   return (
     <a
-      href="https://wa.me/254712345678?text=Hello%20KimSafety%2C%20I%20need%20help%20with%20a%20safety%20equipment%20order."
+      href={`https://wa.me/${whatsapp}?text=Hello%20${encodeURIComponent(site_name)}%2C%20I%20need%20help%20with%20a%20safety%20equipment%20order.`}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat on WhatsApp"
