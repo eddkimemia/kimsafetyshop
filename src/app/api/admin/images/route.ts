@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { requireAdmin } from "@/lib/api-helpers";
+import { processProductImage } from "@/lib/image-processor";
 
 const IMAGE_RE = /\.(jpe?g|png|webp|gif)$/i;
 const MIME_EXT: Record<string, string> = {
@@ -78,5 +79,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Could not save file" }, { status: 500 });
   }
 
-  return NextResponse.json({ path: `/api/uploads/${encodeURIComponent(filename)}` }, { status: 201 });
+  // Auto-process: white background + KimSafety logo/contact branding
+  // (runs the same pipeline as public/images/products/process_images.py)
+  const processed = await processProductImage(filename);
+
+  return NextResponse.json(
+    { path: `/api/uploads/${encodeURIComponent(filename)}`, processed },
+    { status: 201 }
+  );
 }

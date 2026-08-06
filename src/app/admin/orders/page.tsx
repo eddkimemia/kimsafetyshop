@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import * as XLSX from "xlsx";
 import { ChevronRight, Download } from "lucide-react";
 import { useFetch, AdminCard, StatusBadge, orderStatusTones } from "@/components/admin/ui";
 import { formatKES } from "@/lib/utils";
@@ -57,20 +58,19 @@ const sorts = [
 const selectCls =
   "rounded-lg border border-line bg-white px-2.5 py-2 text-xs font-bold text-navy-900 outline-none focus:border-safety-400";
 
-function csvEscape(v: string | number): string {
-  const s = String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
-  const csv = [headers, ...rows].map((r) => r.map(csvEscape).join(",")).join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+function downloadXlsx(filename: string, sheetName: string, headers: string[], rows: (string | number)[][]) {
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws["!cols"] = headers.map((h, i) => {
+    let max = h.length;
+    for (const r of rows) {
+      const len = String(r[i] ?? "").length;
+      if (len > max) max = len;
+    }
+    return { wch: Math.min(Math.max(max + 2, 10), 60) };
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, filename);
 }
 
 export default function AdminOrdersPage() {
@@ -81,6 +81,7 @@ export default function AdminOrdersPage() {
   const [payment, setPayment] = useState<(typeof payments)[number]["value"]>("all");
   const [status, setStatus] = useState<string>("all");
   const [sort, setSort] = useState<(typeof sorts)[number]["value"]>("newest");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const orders = data?.orders ?? [];
 
@@ -120,6 +121,28 @@ export default function AdminOrdersPage() {
     return arr;
   }, [filtered, sort]);
 
+  useEffect(() => {
+    setSelected((s) => {
+      if (s.size === 0) return s;
+      const vis = new Set(filtered.map((o) => o.id));
+      const ids = Array.from(s);
+      const kept = ids.filter((id) => vis.has(id));
+      return kept.length === ids.length ? s : new Set(kept);
+    });
+  }, [filtered]);
+
+  const allSelected = visible.length > 0 && selected.size === visible.length;
+
+  const toggleOrder = (id: string) =>
+    setSelected((s) => {
+      const n = new Set(Array.from(s));
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(visible.map((o) => o.id)));
+
   const stats = useMemo(() => {
     const revenue = filtered.reduce((n, o) => n + o.total, 0);
     const units = filtered.reduce((n, o) => n + o.items.reduce((u, i) => u + i.qty, 0), 0);
@@ -151,10 +174,12 @@ export default function AdminOrdersPage() {
   };
 
   const exportOrders = () => {
-    downloadCsv(
-      `kimsafety-orders-${new Date().toISOString().slice(0, 10)}.csv`,
+    const chosen = selected.size > 0 ? visible.filter((o) => selected.has(o.id)) : visible;
+    downloadXlsx(
+      `kimsafety-orders-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      "Orders",
       ["Order ID", "Date", "Customer", "Email", "Phone", "Address", "Payment", "Status", "Items", "Units", "Subtotal", "Discount", "Shipping", "Total"],
-      visible.map((o) => [
+      chosen.map((o) => [
         o.id,
         new Date(o.created_at).toLocaleString("en-KE"),
         o.name,
@@ -174,8 +199,9 @@ export default function AdminOrdersPage() {
   };
 
   const exportBestSellers = () => {
-    downloadCsv(
-      `kimsafety-best-sellers-${new Date().toISOString().slice(0, 10)}.csv`,
+    downloadXlsx(
+      `kimsafety-best-sellers-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      "Best sellers",
       ["Product", "SKU", "Units sold", "Revenue"],
       bestSellers.map((b) => [b.name, b.sku, b.qty, b.revenue])
     );
@@ -188,14 +214,19 @@ export default function AdminOrdersPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-extrabold text-navy-900">Orders</h1>
-          <p className="text-sm text-gray-500">Filter, sort and export · click an order to view items & details</p>
+          <p className="text-sm text-gray-500">
+            Filter, sort and export · click an order to view items & details · tick rows to export exactly those orders
+          </p>
         </div>
         <button
           onClick={exportOrders}
           disabled={visible.length === 0}
           className="flex items-center gap-2 rounded-xl bg-navy-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-safety-500 disabled:opacity-50"
         >
-          <Download className="h-4 w-4" /> Export CSV ({visible.length})
+          <Download className="h-4 w-4" />
+          {selected.size > 0
+            ? `Export ${selected.size} selected to Excel`
+            : `Export to Excel (${visible.length})`}
         </button>
       </div>
 
@@ -279,7 +310,16 @@ export default function AdminOrdersPage() {
                 return (
                   <div key={o.id} className="rounded-xl border border-line bg-white p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
+                      <label className="mt-0.5 flex shrink-0 cursor-pointer items-center" title={`Select order ${o.id}`}>
+                        <span className="sr-only">Select order {o.id}</span>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(o.id)}
+                          onChange={() => toggleOrder(o.id)}
+                          className="h-4 w-4 accent-safety-500"
+                        />
+                      </label>
+                      <div className="min-w-0 flex-1">
                         <Link
                           href={`/admin/orders/${o.id}`}
                           className="font-bold text-navy-900 underline-offset-4 hover:underline"
@@ -329,6 +369,16 @@ export default function AdminOrdersPage() {
               <table className="w-full min-w-[560px] text-sm">
                 <thead>
                   <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                    <th className="w-10 pb-3">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleAll}
+                        aria-label="Select all visible orders"
+                        title="Select all visible orders"
+                        className="h-4 w-4 accent-safety-500"
+                      />
+                    </th>
                     <th className="pb-3">Order</th>
                     <th className="pb-3">Customer</th>
                     <th className="hidden pb-3 md:table-cell">Items</th>
@@ -342,7 +392,16 @@ export default function AdminOrdersPage() {
                   {visible.map((o) => {
                     const itemCount = o.items.reduce((n, i) => n + i.qty, 0);
                     return (
-                      <tr key={o.id} className="border-b border-line/60 last:border-0">
+                      <tr key={o.id} className={`border-b border-line/60 last:border-0 ${selected.has(o.id) ? "bg-safety-50/60" : ""}`}>
+                        <td className="py-3.5">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(o.id)}
+                            onChange={() => toggleOrder(o.id)}
+                            aria-label={`Select order ${o.id}`}
+                            className="h-4 w-4 accent-safety-500"
+                          />
+                        </td>
                         <td className="py-3.5">
                           <Link
                             href={`/admin/orders/${o.id}`}

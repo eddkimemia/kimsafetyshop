@@ -50,7 +50,7 @@ export type Product = {
   gallery?: string[];
   specs: { label: string; value: string }[];
   bulk: { qty: string; price: string; savings: string }[];
-  downloads: { name: string; type: string }[];
+  downloads: { name: string; type: string; file?: string }[];
   related?: string[];
 };
 

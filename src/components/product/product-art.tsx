@@ -160,6 +160,10 @@ export function ProductArt({
   const theme = themes[hashStr(sku + brand + categoryName) % themes.length];
   const imageSrc = src ?? (sku ? productImageFor(sku) : undefined);
 
+  useEffect(() => {
+    setFailed(false);
+  }, [imageSrc]);
+
   return (
     <div
       className={cn(
@@ -171,7 +175,8 @@ export function ProductArt({
       {imageSrc && !failed ? (
         <Image
           src={imageSrc}
-          alt={alt ?? (categoryName || brand || "KimSafety product")}          fill
+          alt={alt ?? (categoryName || brand || "KimSafety product")}
+          fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-cover"
           onError={() => setFailed(true)}
@@ -194,16 +199,6 @@ export function ProductArt({
           <Icon className="relative h-1/3 w-1/3 text-white/90 drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)]" strokeWidth={1.4} />
         </>
       )}
-      <div className="pointer-events-none absolute bottom-3 left-4 right-4 flex items-center justify-between">
-        <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-sm">
-          {categoryName || "KimSafety"}
-        </span>
-        {brand && (
-          <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-sm">
-            {brand}
-          </span>
-        )}
-      </div>
       <span className="pointer-events-none absolute right-3 top-3 font-mono text-[9px] tracking-widest text-white/50">
         {sku || ""}
       </span>

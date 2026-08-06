@@ -8,6 +8,18 @@ export function slugify(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+export type Download = { name: string; type: string; file?: string };
+
+export function normalizeDownloads(downloads: Download[] | undefined): Download[] {
+  const clean = (downloads ?? []).filter(
+    (d) => d && !/certification file|usage guide/i.test(d.name || "")
+  );
+  if (!clean.some((d) => /datasheet/i.test(d.name || ""))) {
+    clean.unshift({ name: "Product Datasheet (PDF)", type: "PDF" });
+  }
+  return clean;
+}
+
 function p(input: Omit<Product, "slug" | "bulk" | "downloads" | "specs" | "features"> & { features?: string[] }): Product {
   const tiers = [
     { qty: "1 – 9", price: "KES 0", savings: "" },
@@ -43,7 +55,7 @@ function p(input: Omit<Product, "slug" | "bulk" | "downloads" | "specs" | "featu
     "Same-day dispatch within Nairobi on orders before 3 PM",
     "Suitable for professional and personal use",
   ];
-  return { ...input, slug: slugify(input.name), bulk, specs, features, downloads: [{ name: "Product Datasheet (PDF)", type: "PDF" }, { name: "Certification File (PDF)", type: "PDF" }, { name: "Usage Guide (PDF)", type: "PDF" }] };
+  return { ...input, slug: slugify(input.name), bulk, specs, features, downloads: [{ name: "Product Datasheet (PDF)", type: "PDF" }] };
 }
 
 export const products: Product[] = [
@@ -1268,12 +1280,19 @@ export function relatedFor(product: Product, count = 8): Product[] {
   return [...sameCat, ...sameBrand, ...others].slice(0, count);
 }
 
-export function searchProducts(query: string): Product[] {
-  const q = query.toLowerCase().trim();
-  if (!q) return [];
-  return products
-    .filter((p) =>
-      [p.name, p.sku, p.brand, p.categoryName, ...p.tags].join(" ").toLowerCase().includes(q)
-    )
-    .slice(0, 8);
+export function matchesQuery(p: Product, query: string): boolean {
+  const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return true;
+  const haystack = [p.name, p.sku, p.brand, p.categoryName, ...p.tags].join(" ").toLowerCase();
+  return tokens.every((t) => {
+    if (haystack.includes(t)) return true;
+    if (t.length > 3 && t.endsWith("s") && haystack.includes(t.slice(0, -1))) return true;
+    if (t.length > 4 && t.endsWith("es") && haystack.includes(t.slice(0, -2))) return true;
+    return t.endsWith("ies") && haystack.includes(t.slice(0, -3) + "y");
+  });
+}
+
+export function searchProducts(query: string, list: Product[] = products): Product[] {
+  if (!query.trim()) return [];
+  return list.filter((p) => matchesQuery(p, query)).slice(0, 8);
 }

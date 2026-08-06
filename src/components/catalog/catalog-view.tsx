@@ -14,7 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { products } from "@/lib/data/products";
+import { products, matchesQuery } from "@/lib/data/products";
 import { categories, brands } from "@/lib/data/catalog";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/layout/page-header";
@@ -81,12 +81,7 @@ export function CatalogView({ title, subtitle, search, category, brand, deals, h
   const results = useMemo(() => {
     let list = [...(liveCatalogItems.length ? liveCatalogItems : products)];
     if (deals) list = list.filter((p) => p.oldPrice);
-    if (q) {
-      const query = q.toLowerCase();
-      list = list.filter((p) =>
-        [p.name, p.sku, p.brand, p.categoryName, ...p.tags].join(" ").toLowerCase().includes(query)
-      );
-    }
+    if (q) list = list.filter((p) => matchesQuery(p, q));
     if (cat !== "all") list = list.filter((p) => p.category === cat);
     if (br !== "all") list = list.filter((p) => p.brand.toLowerCase() === br.toLowerCase());
     if (availability === "in") list = list.filter((p) => p.stock > 0);
@@ -343,14 +338,44 @@ export function CatalogView({ title, subtitle, search, category, brand, deals, h
 
         {pageItems.length === 0 && (
           <div className="rounded-3xl border border-dashed border-line bg-white p-16 text-center">
-            <p className="font-display text-lg font-extrabold text-navy-900">No products match your filters</p>
-            <p className="mt-1 text-sm text-gray-500">Try clearing filters or searching differently.</p>
-            <button
-              onClick={() => router.replace(pathname)}
-              className="mt-5 rounded-xl bg-safety-500 px-6 py-3 text-sm font-bold text-white hover:bg-safety-600"
-            >
-              Clear Filters
-            </button>
+            {q ? (
+              <>
+                <p className="font-display text-lg font-extrabold text-navy-900">
+                  No products found for “{q}”
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Check the spelling or try one of these popular searches
+                </p>
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                  {["Nitrile Gloves", "Safety Helmet", "3M", "Fire Extinguisher", "Coveralls"].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => router.replace(`${pathname}?q=${encodeURIComponent(s)}`)}
+                      className="rounded-full border border-line px-4 py-2 text-xs font-semibold text-navy-800 transition-colors hover:border-safety-400 hover:bg-safety-50 hover:text-safety-700"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => router.replace(pathname)}
+                  className="mt-6 rounded-xl bg-safety-500 px-6 py-3 text-sm font-bold text-white hover:bg-safety-600"
+                >
+                  Browse all products
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="font-display text-lg font-extrabold text-navy-900">No products match your filters</p>
+                <p className="mt-1 text-sm text-gray-500">Try clearing filters or searching differently.</p>
+                <button
+                  onClick={() => router.replace(pathname)}
+                  className="mt-5 rounded-xl bg-safety-500 px-6 py-3 text-sm font-bold text-white hover:bg-safety-600"
+                >
+                  Clear Filters
+                </button>
+              </>
+            )}
           </div>
         )}
 

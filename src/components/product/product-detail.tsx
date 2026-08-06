@@ -109,14 +109,7 @@ export function ProductDetail({
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-14">
           {/* Gallery */}
           <div>
-            <div
-              className="group relative overflow-hidden rounded-3xl border border-line shadow-card"
-              onMouseMove={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                e.currentTarget.style.setProperty("--zx", `${((e.clientX - rect.left) / rect.width) * 100}%`);
-                e.currentTarget.style.setProperty("--zy", `${((e.clientY - rect.top) / rect.height) * 100}%`);
-              }}
-            >
+            <div className="group relative overflow-hidden rounded-3xl border border-line shadow-card">
               <motion.div
                 key={view}
                 initial={{ opacity: 0, scale: 1.02 }}
@@ -142,9 +135,6 @@ export function ProductDetail({
                   <span className="rounded-full bg-navy-900 px-3 py-1.5 text-xs font-bold text-white shadow-sm">NEW</span>
                 )}
               </div>
-              <span className="pointer-events-none absolute bottom-4 right-4 hidden items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-semibold text-navy-900 shadow-card sm:flex">
-                <Eye className="h-3.5 w-3.5" /> Hover to zoom
-              </span>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {galleryVariants.map((image, i) => (
@@ -432,11 +422,11 @@ export function ProductDetail({
 
             {tab === "downloads" && (
               <div className="max-w-2xl space-y-3">
-                {product.downloads.map((d) => (
+                {product.downloads.map((d, i) => (
                   <a
-                    key={d.name}
-                    href="#"
-                    onClick={(e) => e.preventDefault()}
+                    key={d.name + i}
+                    href={`/api/documents/${encodeURIComponent(product.sku)}/${i}`}
+                    download={d.name}
                     className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-safety-300 hover:bg-safety-50"
                   >
                     <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-card">
@@ -444,7 +434,9 @@ export function ProductDetail({
                     </span>
                     <span className="flex-1">
                       <span className="block text-sm font-bold text-navy-900">{d.name}</span>
-                      <span className="block text-[11px] text-gray-400">{d.type} · Free download</span>
+                      <span className="block text-[11px] text-gray-400">
+                        {d.type} · {d.file ? "Download file" : "Free download"}
+                      </span>
                     </span>
                     <Button variant="outline" size="sm">Download</Button>
                   </a>

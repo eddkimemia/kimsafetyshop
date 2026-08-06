@@ -12,18 +12,28 @@ import { ProductArt } from "@/components/product/product-art";
 export function SmartSearch({ className }: { className?: string }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Product[]>([]);
+  const [catalog, setCatalog] = useState<Product[] | null>(null);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/catalog")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data?.products)) setCatalog(data.products);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (query.trim().length < 2) {
       setResults([]);
       return;
     }
-    const t = setTimeout(() => setResults(searchProducts(query)), 120);
+    const t = setTimeout(() => setResults(searchProducts(query, catalog ?? [])), 120);
     return () => clearTimeout(t);
-  }, [query]);
+  }, [query, catalog]);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -100,6 +110,10 @@ export function SmartSearch({ className }: { className?: string }) {
                 See all results for “{query}” <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </>
+          ) : catalog === null ? (
+            <div className="p-6 text-center">
+              <p className="text-sm font-semibold text-navy-900">Loading products…</p>
+            </div>
           ) : query.trim().length >= 2 ? (
             <div className="p-6 text-center">
               <PackageSearch className="mx-auto mb-2 h-8 w-8 text-gray-300" />

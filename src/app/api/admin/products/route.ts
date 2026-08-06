@@ -1,26 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { products } from "@/lib/data/products";
-import { listAdminProducts, getAdminProduct, upsertAdminProduct, deleteAdminProduct } from "@/lib/db";
-
-function mergedCatalog() {
-  const overrides = listAdminProducts().reduce<Record<string, { data: unknown; isStatic: boolean }>>((acc, row) => {
-    const data = JSON.parse(String(row.data)) as { sku: string; static?: boolean };
-    acc[data.sku] = { data, isStatic: Boolean(data.static) };
-    return acc;
-  }, {});
-
-  const merged = products.map((p) => {
-    const override = overrides[p.sku];
-    return override ? { ...p, ...(override.data as Record<string, unknown>) } : p;
-  });
-
-  const custom = listAdminProducts()
-    .filter((row) => !(JSON.parse(String(row.data)) as { static?: boolean }).static)
-    .map((row) => JSON.parse(String(row.data)));
-
-  return [...merged, ...custom];
-}
+import { getAdminProduct, upsertAdminProduct, deleteAdminProduct } from "@/lib/db";
+import { mergedCatalog } from "@/lib/admin-products";
 
 export async function GET() {
   const denied = await requireAdmin();
@@ -57,11 +39,27 @@ export async function POST(req: Request) {
     rating: body.rating ?? 4.5,
     reviews: body.reviews ?? 0,
     sold: body.sold ?? 0,
+    model: typeof body.model === "string" ? body.model : undefined,
+    featured: Boolean(body.featured),
+    bestSeller: Boolean(body.bestSeller),
+    new: Boolean(body.new),
+    color: typeof body.color === "string" ? body.color : undefined,
+    size: typeof body.size === "string" ? body.size : undefined,
+    material: typeof body.material === "string" ? body.material : undefined,
+    weight: typeof body.weight === "string" ? body.weight : undefined,
+    certification: typeof body.certification === "string" ? body.certification : undefined,
+    standard: typeof body.standard === "string" ? body.standard : undefined,
+    warranty: typeof body.warranty === "string" ? body.warranty : undefined,
+    shelfLife: typeof body.shelfLife === "string" ? body.shelfLife : undefined,
+    country: typeof body.country === "string" ? body.country : undefined,
     tags: Array.isArray(body.tags) ? body.tags : ["safety"],
     description: body.description ?? "",
     features: Array.isArray(body.features) ? body.features : [],
     image: typeof body.image === "string" ? body.image : undefined,
     gallery: Array.isArray(body.gallery) ? body.gallery.filter((p): p is string => typeof p === "string") : [],
+    specs: Array.isArray(body.specs) ? body.specs : [],
+    bulk: Array.isArray(body.bulk) ? body.bulk : [],
+    downloads: Array.isArray(body.downloads) ? body.downloads : [],
     static: false,
   };
   upsertAdminProduct(sku, record);

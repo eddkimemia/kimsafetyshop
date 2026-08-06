@@ -1,4 +1,5 @@
 import type { Category, Brand } from "../types";
+import { products, matchesQuery } from "./products";
 
 export const categories: Category[] = [
   {
@@ -188,4 +189,7 @@ export const megaCategories = [
   { title: "PPE", items: ["Respirators", "Nitrile Gloves", "Ear Protection", "Coveralls", "Knee Pads", "Body Harnesses"] },
   { title: "Tools", items: ["Insulated Tools", "Pliers", "Screwdrivers", "Hammers", "Measuring Tools", "Tool Belts"] },
   { title: "Signs & Labels", items: ["Warning Signs", "Mandatory Signs", "Prohibition Signs", "Floor Tapes", "Exit Signs", "Tag Printers"] },
-];
+].map((cat) => ({
+  ...cat,
+  items: cat.items.filter((item) => products.some((p) => matchesQuery(p, item))),
+}));

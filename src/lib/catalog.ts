@@ -1,4 +1,4 @@
-import { products } from "@/lib/data/products";
+import { products, normalizeDownloads } from "@/lib/data/products";
 import { listAdminProducts } from "@/lib/db";
 import { slugify } from "@/lib/utils";
 import type { Product } from "@/lib/types";
@@ -14,7 +14,8 @@ function mergedCatalog(): Product[] {
 
   const merged = products.map((p) => {
     const override = overrides.get(p.sku);
-    return override ? { ...p, ...override } : p;
+    const base = override ? { ...p, ...override } : p;
+    return { ...base, downloads: normalizeDownloads(base.downloads) };
   });
 
   const customProducts: Product[] = customs.map((c) => ({
@@ -41,7 +42,7 @@ function mergedCatalog(): Product[] {
     ...(c as Partial<Product>),
   }));
 
-  return [...merged, ...customProducts];
+  return [...merged, ...customProducts.map((p) => ({ ...p, downloads: normalizeDownloads(p.downloads) }))];
 }
 
 export function liveCatalog(): Product[] {

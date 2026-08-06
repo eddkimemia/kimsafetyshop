@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -47,6 +47,14 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [mobileSearch, setMobileSearch] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openMenu = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setMenuOpen(true);
+  };
+  const closeMenu = () => {
+    closeTimer.current = setTimeout(() => setMenuOpen(false), 160);
+  };
 
   return (
     <>
@@ -122,16 +130,17 @@ export function Header() {
         )}
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Categories">
-          <button
-            className="flex h-11 items-center gap-1.5 rounded-t-xl bg-surface px-4 text-sm font-bold text-navy-900"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-expanded={menuOpen}
-            aria-haspopup="true"
-          >
-            <Menu className="h-4 w-4" />
-            All Categories
-            <ChevronDown className={cn("h-4 w-4 transition-transform", menuOpen && "rotate-180")} />
-          </button>
+          <div onMouseEnter={openMenu} onMouseLeave={closeMenu}>
+            <button
+              className="flex h-11 items-center gap-1.5 rounded-t-xl bg-surface px-4 text-sm font-bold text-navy-900"
+              aria-expanded={menuOpen}
+              aria-haspopup="true"
+            >
+              <Menu className="h-4 w-4" />
+              All Categories
+              <ChevronDown className={cn("h-4 w-4 transition-transform", menuOpen && "rotate-180")} />
+            </button>
+          </div>
           <Link href="/brands" className="flex h-11 items-center px-4 text-sm font-medium text-navy-800 transition-colors hover:text-safety-600">
             Brands
           </Link>
@@ -177,31 +186,18 @@ export function Header() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18 }}
             className="absolute inset-x-0 top-full hidden border-t border-line bg-white shadow-soft lg:block"
-            onMouseLeave={() => setMenuOpen(false)}
+            onMouseEnter={openMenu}
+            onMouseLeave={closeMenu}
           >
-            <div className="mx-auto grid max-w-shell grid-cols-5 gap-x-8 gap-y-6 px-8 py-8">
+            <div className="mx-auto grid max-w-shell grid-cols-5 gap-x-6 gap-y-4 px-8 py-8">
               {megaCategories.map((cat) => (
                 <Link
                   key={cat.title}
                   href={`/category/${megaLabels[cat.title]}`}
                   onClick={() => setMenuOpen(false)}
-                  className="group"
+                  className="flex items-center justify-center rounded-xl border border-line bg-surface px-4 py-3.5 text-center text-sm font-bold text-navy-900 transition-colors hover:border-safety-300 hover:bg-safety-50 hover:text-safety-700"
                 >
-                  <h3 className="mb-2 text-sm font-bold text-navy-900 transition-colors group-hover:text-safety-600">
-                    {cat.title}
-                  </h3>
-                  <ul className="space-y-1.5">
-                    {cat.items.slice(0, 5).map((item) => (
-                      <li key={item}>
-                        <Link
-                          href={`/search?q=${encodeURIComponent(item)}`}
-                          className="text-[13px] text-gray-500 transition-colors hover:text-navy-900"
-                        >
-                          {item}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                  {cat.title}
                 </Link>
               ))}
             </div>
