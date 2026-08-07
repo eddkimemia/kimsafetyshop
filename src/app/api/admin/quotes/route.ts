@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
-import { createQuote, getQuoteById, getUserById, listQuotes, setQuoteStatus } from "@/lib/db";
+import { createQuote, createNotification, getQuoteById, getUserById, listQuotes, setQuoteStatus } from "@/lib/db";
 
 const VALID = ["Open", "Pending", "Sent", "Accepted", "Expired", "Declined"];
 
@@ -94,6 +94,17 @@ export async function PATCH(req: Request) {
   if (!body.id || !VALID.includes(body.status ?? "")) {
     return NextResponse.json({ error: "Invalid quote id or status" }, { status: 400 });
   }
+  const quote = getQuoteById(body.id);
+  if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 });
   setQuoteStatus(body.id, body.status as string);
+  if (quote.user_id) {
+    createNotification({
+      user_id: quote.user_id,
+      type: "quote",
+      title: `Quote ${quote.id} is now ${body.status}`,
+      message: `Your quotation status changed to ${body.status}.`,
+      link: "/account?tab=quotes",
+    });
+  }
   return NextResponse.json({ ok: true });
 }

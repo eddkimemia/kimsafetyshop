@@ -6,6 +6,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 
 export const metadata: Metadata = {
   title: "Admin",
+  robots: { index: false, follow: false },
   icons: { icon: "/images/logo/fav.jpeg", apple: "/images/logo/fav.jpeg" },
 };
 

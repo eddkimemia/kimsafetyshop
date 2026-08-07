@@ -1,0 +1,39 @@
+# KimSafety
+
+> KimSafety is Kenya's marketplace for certified industrial and medical safety equipment: PPE, fire safety, road safety, lab equipment, medical consumables and corporate safety procurement.
+
+## About
+
+- Name: KimSafety
+- Location: Nairobi, Kenya
+- Website: https://kimsafety.co.ke
+- Contact: sales@kimsafety.co.ke · +254 715 135 141
+- Serves: Businesses (construction, manufacturing, healthcare, hospitality, logistics), institutions, tenders and individual buyers
+- Key services: Same-day Nairobi delivery, nationwide delivery, bulk discounts, corporate procurement, certification documentation with every product
+
+## Key pages
+
+- Homepage: https://kimsafety.co.ke
+- Search all products: https://kimsafety.co.ke/search
+- Deals & discounts: https://kimsafety.co.ke/deals
+- All brands: https://kimsafety.co.ke/brands
+- PPE category (product example): https://kimsafety.co.ke/category/ppe (find the full product list in https://kimsafety.co.ke/sitemap.xml)
+- Blog: https://kimsafety.co.ke/blog
+- Knowledge center (safety guides): https://kimsafety.co.ke/knowledge
+- Corporate accounts: https://kimsafety.co.ke/corporate
+- About: https://kimsafety.co.ke/about
+- Contact: https://kimsafety.co.ke/contact
+- Support: https://kimsafety.co.ke/support
+
+## How to browse
+
+1. Fetch the sitemap at https://kimsafety.co.ke/sitemap.xml for the full URL list.
+2. Category pages (e.g. https://kimsafety.co.ke/category/fire-safety) list products in that category.
+3. Product pages contain descriptions, specifications, certifications, pricing in Kenyan Shillings (KES), stock status and bulk pricing.
+4. Brand pages (https://kimsafety.co.ke/brands/3m) list certified stock by manufacturer.
+
+## Points of contact
+
+- Email: sales@kimsafety.co.ke
+- Phone/WhatsApp: +254 715 135 141
+- Trade inquiries: https://kimsafety.co.ke/corporate/purchase

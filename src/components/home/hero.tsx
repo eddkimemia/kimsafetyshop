@@ -8,12 +8,30 @@ import { ArrowRight, ChevronLeft, ChevronRight, BadgePercent, FileText } from "l
 import { heroSlides } from "@/lib/data/content";
 import { cn } from "@/lib/utils";
 
-export function HeroSlider() {
+export type HeroSlide = {
+  kicker: string;
+  title: string;
+  subtitle: string;
+  cta: string;
+  cta_href?: string;
+  cta2: string;
+  bg: string;
+  card_kicker?: string;
+  card_title?: string;
+  card_subtitle?: string;
+  stat1_label?: string;
+  stat1_value?: string;
+  stat2_label?: string;
+  stat2_value?: string;
+};
+
+export function HeroSlider({ slides = heroSlides }: { slides?: HeroSlide[] }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
 
-  const next = useCallback(() => setIndex((i) => (i + 1) % heroSlides.length), []);
-  const prev = useCallback(() => setIndex((i) => (i - 1 + heroSlides.length) % heroSlides.length), []);
+  const count = slides.length;
+  const next = useCallback(() => setIndex((i) => (i + 1) % Math.max(count, 1)), [count]);
+  const prev = useCallback(() => setIndex((i) => (i - 1 + count) % Math.max(count, 1)), [count]);
 
   useEffect(() => {
     if (paused) return;
@@ -21,7 +39,8 @@ export function HeroSlider() {
     return () => clearInterval(t);
   }, [next, paused]);
 
-  const slide = heroSlides[index];
+  if (count === 0) return null;
+  const slide = slides[index];
 
   return (
     <section
@@ -79,7 +98,7 @@ export function HeroSlider() {
                 </p>
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <Link
-                    href="/search"
+                    href={slide.cta_href ?? "/search"}
                     className="group inline-flex h-13 items-center gap-2 rounded-xl bg-safety-500 px-7 py-3.5 text-[15px] font-bold text-white shadow-[0_8px_24px_rgba(245,124,0,0.4)] transition-all hover:bg-safety-600 hover:shadow-[0_8px_32px_rgba(245,124,0,0.55)]"
                   >
                     {slide.cta}
@@ -113,27 +132,35 @@ export function HeroSlider() {
                 animate={{ opacity: 1, scale: 1, rotate: 0 }}
                 exit={{ opacity: 0, scale: 0.97 }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
-                className="relative aspect-square overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-navy-700 to-navy-900 shadow-2xl"
+                className="relative overflow-hidden rounded-[2.5rem] border border-white/20 bg-navy-900/45 backdrop-blur-md shadow-2xl"
               >
                 <div className="absolute inset-0 opacity-[0.12] [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:20px_20px]" />
                 <div className="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-safety-500/25 blur-3xl" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-10 text-center">
+                <div className="relative flex flex-col items-center justify-center gap-4 p-10 text-center">
                   <span className="rounded-full bg-safety-500 px-5 py-1.5 text-xs font-bold uppercase tracking-widest text-white">
-                    {slide.kicker}
+                    {slide.card_kicker || slide.kicker}
                   </span>
                   <p className="font-display text-2xl font-extrabold leading-snug text-white">
-                    {slide.title}
+                    {slide.card_title || slide.title}
                   </p>
-                  <p className="max-w-xs text-sm text-white/60">{slide.subtitle}</p>
-                </div>
-                <div className="absolute inset-x-8 bottom-8 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Trusted by</p>
-                    <p className="font-display text-lg font-extrabold text-white">1,200+ Organizations</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Delivered to</p>
-                    <p className="font-display text-lg font-extrabold text-white">47 Counties</p>
+                  <p className="max-w-xs text-sm text-white/70">{slide.card_subtitle || slide.subtitle}</p>
+                  <div className="mt-2 flex w-full items-center justify-between gap-6 rounded-2xl border border-white/15 bg-white/10 px-5 py-4 backdrop-blur-md">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">
+                        {slide.stat1_label ?? "Trusted by"}
+                      </p>
+                      <p className="font-display text-lg font-extrabold text-white">
+                        {slide.stat1_value ?? "1,200+ Organizations"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">
+                        {slide.stat2_label ?? "Delivered to"}
+                      </p>
+                      <p className="font-display text-lg font-extrabold text-white">
+                        {slide.stat2_value ?? "47 Counties"}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -143,9 +170,9 @@ export function HeroSlider() {
 
         <div className="relative z-10 flex items-center justify-between gap-4 pb-8">
           <div className="flex items-center gap-2" role="tablist" aria-label="Hero slides">
-            {heroSlides.map((s, i) => (
+            {slides.map((s, i) => (
               <button
-                key={s.kicker}
+                key={`${s.kicker}-${s.title}-${i}`}
                 role="tab"
                 aria-selected={i === index}
                 aria-label={s.title}

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
-import { getOrderById, listOrders, setOrderStatus } from "@/lib/db";
+import { createNotification, getOrderById, listOrders, setOrderStatus } from "@/lib/db";
 
 const VALID = ["Processing", "In transit", "Delivered", "Cancelled"];
 
@@ -36,6 +36,17 @@ export async function PATCH(req: Request) {
   if (!body.id || !VALID.includes(body.status ?? "")) {
     return NextResponse.json({ error: "Invalid order id or status" }, { status: 400 });
   }
+  const order = getOrderById(body.id);
+  if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   setOrderStatus(body.id, body.status as string);
+  if (order.user_id) {
+    createNotification({
+      user_id: order.user_id,
+      type: "order",
+      title: `Order ${order.id} is now ${body.status}`,
+      message: `Your order status changed to ${body.status}.`,
+      link: "/account?tab=orders",
+    });
+  }
   return NextResponse.json({ ok: true });
 }

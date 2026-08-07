@@ -94,6 +94,61 @@ export type DbSupplierOrder = {
   created_at: string;
 };
 
+export type DbAddress = {
+  id: string;
+  user_id: string;
+  label: string;
+  name: string;
+  phone: string;
+  address_line: string;
+  city: string;
+  county: string;
+  is_default: number;
+  created_at: string;
+};
+
+export type DbTicket = {
+  id: string;
+  user_id: string;
+  subject: string;
+  message: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DbTicketReply = {
+  id: string;
+  ticket_id: string;
+  user_id: string | null;
+  staff_name: string | null;
+  message: string;
+  created_at: string;
+};
+
+export type DbReturn = {
+  id: string;
+  user_id: string;
+  order_id: string;
+  product_name: string;
+  qty: number;
+  reason: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DbNotification = {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  link: string | null;
+  read: number;
+  created_at: string;
+};
+
 let db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
@@ -202,6 +257,58 @@ function initSchema(d: Database.Database) {
       updated_at TEXT NOT NULL
     );
   `);
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS addresses (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      label TEXT NOT NULL DEFAULT 'Home',
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL DEFAULT '',
+      address_line TEXT NOT NULL,
+      city TEXT NOT NULL DEFAULT '',
+      county TEXT NOT NULL DEFAULT '',
+      is_default INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS support_tickets (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      message TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'Open',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS ticket_replies (
+      id TEXT PRIMARY KEY,
+      ticket_id TEXT NOT NULL,
+      user_id TEXT,
+      staff_name TEXT,
+      message TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS returns (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      order_id TEXT NOT NULL,
+      product_name TEXT NOT NULL,
+      qty INTEGER NOT NULL DEFAULT 1,
+      reason TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'Requested',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'general',
+      title TEXT NOT NULL,
+      message TEXT NOT NULL DEFAULT '',
+      link TEXT,
+      read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+  `);
   addColumnIfMissing(d, "orders", "subtotal", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing(d, "orders", "discount", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing(d, "orders", "shipping", "INTEGER NOT NULL DEFAULT 0");
@@ -219,6 +326,51 @@ function initSchema(d: Database.Database) {
       updated_at TEXT NOT NULL
     );
   `);
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS marketing_banners (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      subtitle TEXT NOT NULL DEFAULT '',
+      kicker TEXT NOT NULL DEFAULT 'KimSafety',
+      cta TEXT NOT NULL DEFAULT 'Shop Now',
+      cta_href TEXT NOT NULL DEFAULT '/search',
+      cta2 TEXT NOT NULL DEFAULT 'Request a Quote',
+      image TEXT NOT NULL,
+      card_kicker TEXT NOT NULL DEFAULT '',
+      card_title TEXT NOT NULL DEFAULT '',
+      card_subtitle TEXT NOT NULL DEFAULT '',
+      stat1_label TEXT NOT NULL DEFAULT 'Trusted by',
+      stat1_value TEXT NOT NULL DEFAULT '1,200+ Organizations',
+      stat2_label TEXT NOT NULL DEFAULT 'Delivered to',
+      stat2_value TEXT NOT NULL DEFAULT '47 Counties',
+      sort INTEGER NOT NULL DEFAULT 0,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS marketing_campaigns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL DEFAULT '',
+      discount_label TEXT NOT NULL DEFAULT '',
+      image TEXT,
+      cta_href TEXT NOT NULL DEFAULT '/search',
+      start_date TEXT,
+      end_date TEXT,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+  addColumnIfMissing(d, "marketing_banners", "card_kicker", "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(d, "marketing_banners", "card_title", "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(d, "marketing_banners", "card_subtitle", "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(d, "marketing_banners", "stat1_label", "TEXT NOT NULL DEFAULT 'Trusted by'");
+  addColumnIfMissing(d, "marketing_banners", "stat1_value", "TEXT NOT NULL DEFAULT '1,200+ Organizations'");
+  addColumnIfMissing(d, "marketing_banners", "stat2_label", "TEXT NOT NULL DEFAULT 'Delivered to'");
+  addColumnIfMissing(d, "marketing_banners", "stat2_value", "TEXT NOT NULL DEFAULT '47 Counties'");
+  seedMarketing(d);
   d.exec(`
     CREATE TABLE IF NOT EXISTS letters (
       id TEXT PRIMARY KEY,
@@ -248,8 +400,7 @@ function initSchema(d: Database.Database) {
   seedUsers(d);
 }
 
-function seedUsers(d: Database.Database) {
-  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@kimsafety.co.ke";
+function seedUsers(d: Database.Database) {  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@kimsafety.co.ke";
   const adminPass = process.env.ADMIN_PASSWORD ?? "admin123";
   const existing = d.prepare("SELECT role FROM users WHERE email = ?").get(adminEmail) as { role: string } | undefined;
   if (existing) {
@@ -271,6 +422,154 @@ function seedUsers(d: Database.Database) {
     new Date().toISOString()
   );
   console.log(`[kimsafety] Seeded admin user: ${adminEmail} / ${adminPass}`);
+}
+
+const SEED_BANNERS = [
+  {
+    kicker: "Industrial PPE · Certified & Genuine",
+    title: "Protect Every Worker, Every Shift",
+    subtitle:
+      "3M, Honeywell, Ansell, Uvex and MSA — certified personal protective equipment delivered nationwide within 24–72 hours.",
+    cta: "Shop PPE",
+    cta_href: "/search",
+    cta2: "Request Quote",
+    image: "/images/hero/hero1.jpg",
+    card_kicker: "KimSafety",
+    card_title: "Your Trusted Safety Partner",
+    card_subtitle: "Genuine & certified PPE, delivered nationwide within 24–72 hours.",
+  },
+  {
+    kicker: "Medical Safety · Hospital Grade",
+    title: "Clinical Supplies Kenyan Hospitals Trust",
+    subtitle:
+      "Examination gloves, masks, isolation gowns and laboratory equipment with full certification documentation.",
+    cta: "Shop Medical",
+    cta_href: "/search?category=medical",
+    cta2: "Talk to a Specialist",
+    image: "/images/hero/hero2.jpg",
+    card_kicker: "Hospital Grade",
+    card_title: "Clinical Supplies You Can Trust",
+    card_subtitle: "Certified medical equipment and consumables for institutions and clinics.",
+  },
+  {
+    kicker: "Bulk & Corporate · Up to 30% Off",
+    title: "Bulk Discounts for Teams & Projects",
+    subtitle:
+      "Tiered pricing, negotiated corporate rates, tax invoices and dedicated account managers for organizations.",
+    cta: "See Pricing",
+    cta_href: "/deals",
+    cta2: "Request Corporate Quotation",
+    image: "/images/hero/hero3.jpg",
+    card_kicker: "Corporate",
+    card_title: "Bulk Pricing for Organizations",
+    card_subtitle: "Tiered rates, tax invoices and dedicated account managers.",
+  },
+];
+
+const SEED_CAMPAIGNS = [
+  {
+    name: "Back to School PPE",
+    discount_label: "School Supplies · Up to 20% off",
+    description:
+      "School and institutional PPE packs — dustcoats, gloves, masks and safety footwear for staff and learners.",
+    cta_href: "/search?category=safety-wear",
+    start_date: "2026-08-01",
+    end_date: "2026-09-15",
+  },
+  {
+    name: "Construction Week",
+    discount_label: "Site Essentials · Up to 25% off",
+    description:
+      "Hard hats, hi-vis vests, safety boots and harnesses — everything your site crew needs at construction-week prices.",
+    cta_href: "/search?category=construction",
+    start_date: "2026-09-14",
+    end_date: "2026-09-20",
+  },
+  {
+    name: "Safety Month",
+    discount_label: "Annual Safety Drive · Bulk savings",
+    description:
+      "October is Safety Month. Stock up on the full PPE range with tiered bulk discounts and free delivery over KES 20,000.",
+    cta_href: "/deals",
+    start_date: "2026-10-01",
+    end_date: "2026-10-31",
+  },
+  {
+    name: "Hospital Supplies Week",
+    discount_label: "Medical Grade · Up to 15% off",
+    description:
+      "Examination gloves, surgical masks, isolation gowns and dispensers at special hospital-supply rates for institutions.",
+    cta_href: "/search?category=medical",
+    start_date: "2026-11-09",
+    end_date: "2026-11-15",
+  },
+  {
+    name: "Black Friday",
+    discount_label: "Mega Sale · Up to 40% off",
+    description:
+      "Our biggest sale of the year — deep discounts across PPE, fire safety, medical and first aid. While stocks last.",
+    cta_href: "/deals",
+    start_date: "2026-11-26",
+    end_date: "2026-11-29",
+  },
+  {
+    name: "Christmas Sale",
+    discount_label: "Festive Deals · Up to 30% off",
+    description:
+      "Wrap up the year with festive pricing on safety kits, gifting bundles and end-of-year site restocks.",
+    cta_href: "/deals",
+    start_date: "2026-12-01",
+    end_date: "2026-12-24",
+  },
+];
+
+function seedMarketing(d: Database.Database) {
+  const now = new Date().toISOString();
+  const bannerCount = (d.prepare("SELECT COUNT(*) AS c FROM marketing_banners").get() as { c: number }).c;
+  if (bannerCount === 0) {
+    const insert = d.prepare(
+      "INSERT INTO marketing_banners (title, subtitle, kicker, cta, cta_href, cta2, image, card_kicker, card_title, card_subtitle, sort, active, created_at, updated_at) VALUES (@title, @subtitle, @kicker, @cta, @cta_href, @cta2, @image, @card_kicker, @card_title, @card_subtitle, @sort, 1, @created_at, @updated_at)"
+    );
+    SEED_BANNERS.forEach((b, i) => insert.run({ ...b, sort: i, created_at: now, updated_at: now }));
+    console.log("[kimsafety] Seeded marketing banners");
+  }
+  d.prepare(
+    "UPDATE marketing_banners SET card_kicker = 'KimSafety', card_title = 'Your Trusted Safety Partner', card_subtitle = 'Genuine & certified PPE, delivered nationwide within 24–72 hours.' WHERE card_title = ''"
+  ).run();
+  const campaignCount = (d.prepare("SELECT COUNT(*) AS c FROM marketing_campaigns").get() as { c: number }).c;
+  if (campaignCount === 0) {
+    const insert = d.prepare(
+      "INSERT INTO marketing_campaigns (name, slug, description, discount_label, cta_href, start_date, end_date, active, created_at, updated_at) VALUES (@name, @slug, @description, @discount_label, @cta_href, @start_date, @end_date, 1, @created_at, @updated_at)"
+    );
+    SEED_CAMPAIGNS.forEach((c) =>
+      insert.run({
+        ...c,
+        slug: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        created_at: now,
+        updated_at: now,
+      })
+    );
+    console.log("[kimsafety] Seeded marketing campaigns");
+  }
+  const CAMPAIGN_IMAGE_BY_KEYWORD: [string, string][] = [
+    ["back-to-school", "3-Ply Face Masks.jpg"],
+    ["construction", "Construction Helmets.jpg"],
+    ["safety", "2Kg CO2 Fire Extinguisher.jpg"],
+    ["hospital", "Powder Free Disposable Latex Gloves.jpg"],
+    ["black", "Reflector Jackets.jpg"],
+    ["christmas", "Designer Orange Reflector Jackets.jpg"],
+  ];
+  const FALLBACK_CAMPAIGN_IMAGE = "2 Stripes Reflective Vest AA12.jpg";
+  const campaigns = d.prepare("SELECT id, slug FROM marketing_campaigns WHERE image IS NULL").all() as {
+    id: number;
+    slug: string;
+  }[];
+  const setImage = d.prepare("UPDATE marketing_campaigns SET image = ?, updated_at = ? WHERE id = ?");
+  for (const c of campaigns) {
+    const match = CAMPAIGN_IMAGE_BY_KEYWORD.find(([kw]) => c.slug.includes(kw));
+    const file = match?.[1] ?? FALLBACK_CAMPAIGN_IMAGE;
+    setImage.run(`/api/uploads/${encodeURIComponent(file)}`, now, c.id);
+  }
 }
 
 export function hashPassword(password: string): string {
@@ -843,4 +1142,365 @@ export function updatePost(slug: string, input: PostInput): DbPost | undefined {
 
 export function deletePost(slug: string) {
   getDb().prepare("DELETE FROM posts WHERE slug = ?").run(slug);
+}
+
+// ---- Marketing: banners & campaigns ----
+
+export type MarketingBanner = {
+  id: number;
+  title: string;
+  subtitle: string;
+  kicker: string;
+  cta: string;
+  cta_href: string;
+  cta2: string;
+  image: string;
+  card_kicker: string;
+  card_title: string;
+  card_subtitle: string;
+  stat1_label: string;
+  stat1_value: string;
+  stat2_label: string;
+  stat2_value: string;
+  sort: number;
+  active: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MarketingCampaign = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  discount_label: string;
+  image: string | null;
+  cta_href: string;
+  start_date: string | null;
+  end_date: string | null;
+  active: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listBanners(): MarketingBanner[] {
+  return getDb().prepare("SELECT * FROM marketing_banners ORDER BY sort ASC, id ASC").all() as MarketingBanner[];
+}
+
+export function getBannerById(id: number): MarketingBanner | undefined {
+  return getDb().prepare("SELECT * FROM marketing_banners WHERE id = ?").get(id) as MarketingBanner | undefined;
+}
+
+export function upsertBanner(
+  input: Omit<MarketingBanner, "id" | "created_at" | "updated_at"> & { id?: number }
+): MarketingBanner {
+  const now = new Date().toISOString();
+  const row = {
+    ...input,
+    active: input.active ? 1 : 0,
+    updated_at: now,
+  };
+  if (input.id) {
+    getDb()
+      .prepare(
+        "UPDATE marketing_banners SET title = @title, subtitle = @subtitle, kicker = @kicker, cta = @cta, cta_href = @cta_href, cta2 = @cta2, image = @image, card_kicker = @card_kicker, card_title = @card_title, card_subtitle = @card_subtitle, stat1_label = @stat1_label, stat1_value = @stat1_value, stat2_label = @stat2_label, stat2_value = @stat2_value, sort = @sort, active = @active, updated_at = @updated_at WHERE id = @id"
+      )
+      .run({ ...row, id: input.id });
+    return getBannerById(input.id)!;
+  }
+  const id = getDb()
+    .prepare(
+      "INSERT INTO marketing_banners (title, subtitle, kicker, cta, cta_href, cta2, image, card_kicker, card_title, card_subtitle, stat1_label, stat1_value, stat2_label, stat2_value, sort, active, created_at, updated_at) VALUES (@title, @subtitle, @kicker, @cta, @cta_href, @cta2, @image, @card_kicker, @card_title, @card_subtitle, @stat1_label, @stat1_value, @stat2_label, @stat2_value, @sort, @active, @created_at, @updated_at)"
+    )
+    .run({ ...row, created_at: now }).lastInsertRowid as number;
+  return getBannerById(id)!;
+}
+
+export function deleteBanner(id: number) {
+  getDb().prepare("DELETE FROM marketing_banners WHERE id = ?").run(id);
+}
+
+export function getActiveBanners(): MarketingBanner[] {
+  return getDb()
+    .prepare("SELECT * FROM marketing_banners WHERE active = 1 ORDER BY sort ASC, id ASC")
+    .all() as MarketingBanner[];
+}
+
+export function listCampaigns(): MarketingCampaign[] {
+  return getDb()
+    .prepare("SELECT * FROM marketing_campaigns ORDER BY COALESCE(end_date, '9999-12-31') DESC, id DESC")
+    .all() as MarketingCampaign[];
+}
+
+export function getCampaignBySlug(slug: string): MarketingCampaign | undefined {
+  return getDb().prepare("SELECT * FROM marketing_campaigns WHERE slug = ?").get(slug) as MarketingCampaign | undefined;
+}
+
+export function upsertCampaign(
+  input: Omit<MarketingCampaign, "id" | "created_at" | "updated_at"> & { id?: number }
+): MarketingCampaign {
+  const now = new Date().toISOString();
+  const row = {
+    ...input,
+    active: input.active ? 1 : 0,
+    updated_at: now,
+  };
+  if (input.id) {
+    getDb()
+      .prepare(
+        "UPDATE marketing_campaigns SET name = @name, slug = @slug, description = @description, discount_label = @discount_label, image = @image, cta_href = @cta_href, start_date = @start_date, end_date = @end_date, active = @active, updated_at = @updated_at WHERE id = @id"
+      )
+      .run({ ...row, id: input.id });
+    return getCampaignBySlug(input.slug)!;
+  }
+  const id = getDb()
+    .prepare(
+      "INSERT INTO marketing_campaigns (name, slug, description, discount_label, image, cta_href, start_date, end_date, active, created_at, updated_at) VALUES (@name, @slug, @description, @discount_label, @image, @cta_href, @start_date, @end_date, @active, @created_at, @updated_at)"
+    )
+    .run({ ...row, created_at: now }).lastInsertRowid as number;
+  return getCampaignBySlug(input.slug)!;
+}
+
+export function deleteCampaign(id: number) {
+  getDb().prepare("DELETE FROM marketing_campaigns WHERE id = ?").run(id);
+}
+
+export function getActiveCampaigns(): MarketingCampaign[] {
+  const today = new Date().toISOString().slice(0, 10);
+  return getDb()
+    .prepare(
+      "SELECT * FROM marketing_campaigns WHERE active = 1 AND (start_date IS NULL OR start_date <= ?) AND (end_date IS NULL OR end_date >= ?) ORDER BY COALESCE(end_date, '9999-12-31') ASC, id ASC"
+    )
+    .all(today, today) as MarketingCampaign[];
+}
+
+// ---- Addresses ----
+
+export function listAddressesForUser(userId: string): DbAddress[] {
+  return getDb()
+    .prepare("SELECT * FROM addresses WHERE user_id = ? ORDER BY is_default DESC, created_at DESC")
+    .all(userId) as DbAddress[];
+}
+
+export function createAddress(input: {
+  user_id: string;
+  label: string;
+  name: string;
+  phone: string;
+  address_line: string;
+  city: string;
+  county: string;
+}): DbAddress {
+  const existing = listAddressesForUser(input.user_id);
+  const address: DbAddress = {
+    id: randomUUID(),
+    user_id: input.user_id,
+    label: input.label || "Home",
+    name: input.name,
+    phone: input.phone,
+    address_line: input.address_line,
+    city: input.city,
+    county: input.county,
+    is_default: existing.length === 0 ? 1 : 0,
+    created_at: new Date().toISOString(),
+  };
+  getDb()
+    .prepare(
+      "INSERT INTO addresses (id, user_id, label, name, phone, address_line, city, county, is_default, created_at) VALUES (@id, @user_id, @label, @name, @phone, @address_line, @city, @county, @is_default, @created_at)"
+    )
+    .run(address);
+  return address;
+}
+
+export function getAddress(id: string): DbAddress | undefined {
+  return getDb().prepare("SELECT * FROM addresses WHERE id = ?").get(id) as DbAddress | undefined;
+}
+
+export function deleteAddress(id: string) {
+  const addr = getAddress(id);
+  getDb().prepare("DELETE FROM addresses WHERE id = ?").run(id);
+  if (addr?.is_default === 1) {
+    const next = getDb()
+      .prepare("SELECT * FROM addresses WHERE user_id = ? ORDER BY created_at DESC LIMIT 1")
+      .get(addr.user_id) as DbAddress | undefined;
+    if (next) setDefaultAddress(next.id);
+  }
+}
+
+export function setDefaultAddress(id: string) {
+  const addr = getAddress(id);
+  if (!addr) return;
+  const db = getDb();
+  db.prepare("UPDATE addresses SET is_default = 0 WHERE user_id = ?").run(addr.user_id);
+  db.prepare("UPDATE addresses SET is_default = 1 WHERE id = ?").run(id);
+}
+
+// ---- Support tickets ----
+
+export function listTicketsForUser(userId: string): DbTicket[] {
+  return getDb()
+    .prepare("SELECT * FROM support_tickets WHERE user_id = ? ORDER BY created_at DESC")
+    .all(userId) as DbTicket[];
+}
+
+export function listAllTickets(): DbTicket[] {
+  return getDb()
+    .prepare(
+      "SELECT t.*, u.name AS user_name, u.email AS user_email FROM support_tickets t LEFT JOIN users u ON u.id = t.user_id ORDER BY (t.status = 'Closed') ASC, t.updated_at DESC"
+    )
+    .all() as (DbTicket & { user_name: string | null; user_email: string | null })[];
+}
+
+export function getTicket(id: string): DbTicket | undefined {
+  return getDb().prepare("SELECT * FROM support_tickets WHERE id = ?").get(id) as DbTicket | undefined;
+}
+
+export function createTicket(input: { user_id: string; subject: string; message: string }): DbTicket {
+  const now = new Date().toISOString();
+  const ticket: DbTicket = {
+    id: `TKT-${Math.floor(10000 + Math.random() * 89999)}`,
+    user_id: input.user_id,
+    subject: input.subject,
+    message: input.message,
+    status: "Open",
+    created_at: now,
+    updated_at: now,
+  };
+  getDb()
+    .prepare(
+      "INSERT INTO support_tickets (id, user_id, subject, message, status, created_at, updated_at) VALUES (@id, @user_id, @subject, @message, @status, @created_at, @updated_at)"
+    )
+    .run(ticket);
+  return ticket;
+}
+
+export function listTicketReplies(ticketId: string): DbTicketReply[] {
+  return getDb()
+    .prepare("SELECT * FROM ticket_replies WHERE ticket_id = ? ORDER BY created_at ASC")
+    .all(ticketId) as DbTicketReply[];
+}
+
+export function addTicketReply(input: {
+  ticket_id: string;
+  user_id?: string | null;
+  staff_name?: string | null;
+  message: string;
+}): DbTicketReply {
+  const reply: DbTicketReply = {
+    id: randomUUID(),
+    ticket_id: input.ticket_id,
+    user_id: input.user_id ?? null,
+    staff_name: input.staff_name ?? null,
+    message: input.message,
+    created_at: new Date().toISOString(),
+  };
+  const now = new Date().toISOString();
+  getDb()
+    .prepare(
+      "INSERT INTO ticket_replies (id, ticket_id, user_id, staff_name, message, created_at) VALUES (@id, @ticket_id, @user_id, @staff_name, @message, @created_at)"
+    )
+    .run(reply);
+  getDb()
+    .prepare("UPDATE support_tickets SET updated_at = ?, status = 'Open' WHERE id = ?")
+    .run(now, input.ticket_id);
+  return reply;
+}
+
+export function setTicketStatus(id: string, status: string) {
+  getDb()
+    .prepare("UPDATE support_tickets SET status = ?, updated_at = ? WHERE id = ?")
+    .run(status, new Date().toISOString(), id);
+}
+
+// ---- Returns ----
+
+export function listReturnsForUser(userId: string): DbReturn[] {
+  return getDb()
+    .prepare("SELECT * FROM returns WHERE user_id = ? ORDER BY created_at DESC")
+    .all(userId) as DbReturn[];
+}
+
+export function listAllReturns(): DbReturn[] {
+  return getDb().prepare("SELECT * FROM returns ORDER BY created_at DESC").all() as DbReturn[];
+}
+
+export function createReturn(input: {
+  user_id: string;
+  order_id: string;
+  product_name: string;
+  qty: number;
+  reason: string;
+}): DbReturn {
+  const now = new Date().toISOString();
+  const ret: DbReturn = {
+    id: `RET-${Math.floor(10000 + Math.random() * 89999)}`,
+    user_id: input.user_id,
+    order_id: input.order_id,
+    product_name: input.product_name,
+    qty: input.qty,
+    reason: input.reason,
+    status: "Requested",
+    created_at: now,
+    updated_at: now,
+  };
+  getDb()
+    .prepare(
+      "INSERT INTO returns (id, user_id, order_id, product_name, qty, reason, status, created_at, updated_at) VALUES (@id, @user_id, @order_id, @product_name, @qty, @reason, @status, @created_at, @updated_at)"
+    )
+    .run(ret);
+  return ret;
+}
+
+export function setReturnStatus(id: string, status: string) {
+  getDb()
+    .prepare("UPDATE returns SET status = ?, updated_at = ? WHERE id = ?")
+    .run(status, new Date().toISOString(), id);
+}
+
+// ---- Notifications ----
+
+export function createNotification(input: {
+  user_id: string;
+  type?: string;
+  title: string;
+  message?: string;
+  link?: string | null;
+}): DbNotification {
+  const notification: DbNotification = {
+    id: randomUUID(),
+    user_id: input.user_id,
+    type: input.type ?? "general",
+    title: input.title,
+    message: input.message ?? "",
+    link: input.link ?? null,
+    read: 0,
+    created_at: new Date().toISOString(),
+  };
+  getDb()
+    .prepare(
+      "INSERT INTO notifications (id, user_id, type, title, message, link, read, created_at) VALUES (@id, @user_id, @type, @title, @message, @link, @read, @created_at)"
+    )
+    .run(notification);
+  return notification;
+}
+
+export function listNotificationsForUser(userId: string): DbNotification[] {
+  return getDb()
+    .prepare("SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50")
+    .all(userId) as DbNotification[];
+}
+
+export function countUnreadNotifications(userId: string): number {
+  const row = getDb()
+    .prepare("SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND read = 0")
+    .get(userId) as { n: number };
+  return row.n;
+}
+
+export function markNotificationRead(id: string) {
+  getDb().prepare("UPDATE notifications SET read = 1 WHERE id = ?").run(id);
+}
+
+export function markAllNotificationsRead(userId: string) {
+  getDb().prepare("UPDATE notifications SET read = 1 WHERE user_id = ?").run(userId);
 }

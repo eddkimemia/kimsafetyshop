@@ -20,11 +20,19 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   return {
     title: guide ? `${guide.title} — KimSafety Knowledge` : "Guide not found",
     description: guide?.excerpt,
+    alternates: { canonical: guide ? `/knowledge/${guide.slug}` : undefined },
     openGraph: {
       title: guide ? `${guide.title} — KimSafety Knowledge` : undefined,
       description: guide?.excerpt,
       type: "article",
+      url: guide ? `/knowledge/${guide.slug}` : undefined,
       images: guide ? [{ url: guide.image }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: guide ? `${guide.title} — KimSafety Knowledge` : undefined,
+      description: guide?.excerpt,
+      images: guide ? [guide.image] : undefined,
     },
   };
 }
@@ -39,8 +47,28 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
   const recommendations = liveCatalog().filter((p) => p.featured).slice(0, 4);
   const moreGuides = allGuides.filter((g) => g.slug !== guide.slug).slice(0, 4);
 
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: guide.title,
+    description: guide.excerpt,
+    image: guide.image ?? `${"https://kimsafety.co.ke"}/og-image.png`,
+    dateModified: new Date().toISOString(),
+    author: { "@type": "Organization", name: "KimSafety HSE Team" },
+    publisher: { "@type": "Organization", name: "KimSafety", url: "https://kimsafety.co.ke" },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": `https://kimsafety.co.ke/knowledge/${guide.slug}`,
+    },
+    inLanguage: "en-KE",
+  };
+
   return (
     <div className="bg-surface pb-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
       <div className="border-b border-line bg-white">
         <div className="mx-auto max-w-6xl px-4 py-10 lg:px-8">
           <nav className="mb-6 text-xs text-gray-400" aria-label="Breadcrumb">

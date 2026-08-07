@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Package, ShoppingCart, Users, ClipboardList, Building2, BookOpen, Newspaper, LogOut, ShieldCheck, Menu, X, ArrowLeft, Truck, Store, Settings, FileText } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, ClipboardList, Building2, BookOpen, Newspaper, LogOut, ShieldCheck, Menu, X, ArrowLeft, Truck, Store, Settings, FileText, Megaphone, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/logo";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
@@ -17,9 +17,11 @@ const nav = [
   ["/admin/purchases", "Purchases", Truck],
   ["/admin/users", "Users", Users],
   ["/admin/quotes", "Quotes", ClipboardList],
-  ["/admin/corporate", "Corporate Accounts", Building2],
-  ["/admin/content", "Knowledge Content", BookOpen],
+  ["/admin/corporate", "Corporate", Building2],
+  ["/admin/content", "Knowledge", BookOpen],
   ["/admin/blog", "Blog", Newspaper],
+  ["/admin/marketing", "Marketing", Megaphone],
+  ["/admin/tickets", "Tickets", LifeBuoy],
   ["/admin/docs", "Docs", FileText],
 ] as const;
 

@@ -4,11 +4,13 @@ Automatically processes every product image:
   1. Remove background -> pure white (#FFFFFF) background
   2. Crop to the product and center it
   3. Resize to 1200x1200 pixels
-  4. Optimize brightness, contrast and sharpness
-  5. Brand it: small KimSafety logo badge (bottom-left) +
+  4. Brand it: small KimSafety logo badge (bottom-left) +
      website / contact / email text (bottom-right)
-  6. Compress to high-quality WebP + JPEG
-  7. Save both the original and the processed image
+  5. Compress to high-quality WebP + JPEG
+  6. Save both the original and the processed image
+
+Original colors are preserved — no brightness/contrast/sharpness
+filters are applied.
 
 Usage:
     python process_images.py [--input images] [--output output] [--size 1200]
@@ -25,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 from rembg import new_session, remove
 
 try:
@@ -121,35 +123,6 @@ def fallback_cutout(img: Image.Image) -> Image.Image:
     alpha_img = Image.fromarray(alpha, "L").filter(_F.MaxFilter(3)).filter(_F.GaussianBlur(1.5))
     result = img.copy()
     result.putalpha(alpha_img)
-    return result
-
-
-def optimize_cutout(img: Image.Image) -> Image.Image:
-    """Auto-optimize brightness, contrast and sharpness of the foreground only,
-    so the white background stays pure #FFFFFF."""
-    rgb = img.convert("RGB")
-    alpha = img.getchannel("A")
-    arr = np.asarray(rgb, dtype=np.float32)
-
-    # --- Brightness: pull the mean foreground luminance toward a target ---
-    a_arr = np.asarray(alpha, dtype=np.float32)[..., None] / 255.0
-    fg_weight = (a_arr > 0.05).astype(np.float32)
-    denom = fg_weight.sum()
-    if denom > 0:
-        mean = (arr * fg_weight).sum() / (denom * 255.0)
-        factor = np.clip(0.45 / max(mean, 1e-4), 0.9, 1.25)
-        arr *= factor
-    rgb = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB")
-
-    # --- Contrast: gentle auto-contrast + slight enhancement ---
-    rgb = ImageOps.autocontrast(rgb, cutoff=1)
-    rgb = ImageEnhance.Contrast(rgb).enhance(1.12)
-
-    # --- Sharpness ---
-    rgb = rgb.filter(ImageFilter.UnsharpMask(radius=2, percent=120, threshold=3))
-
-    result = rgb.convert("RGBA")
-    result.putalpha(alpha)
     return result
 
 
@@ -322,7 +295,6 @@ def process_one(args: dict) -> dict:
     try:
         original = load_image(src)
         cutout = remove_background(original)
-        cutout = optimize_cutout(cutout)
         processed = crop_and_center(cutout, size)
 
         if not args.get("no_branding"):

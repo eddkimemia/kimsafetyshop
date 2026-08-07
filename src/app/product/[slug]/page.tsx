@@ -16,6 +16,9 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   const product = liveGetBySlug(params.slug);
   if (!product) return { title: "Product not found" };
   const meta = product.description.replace(/<[^>]+>/g, " ").trim().slice(0, 160);
+  const images = product.gallery?.[0]
+    ? [{ url: product.gallery[0], alt: product.name }]
+    : [{ url: "/og-image.png", width: 1200, height: 630, alt: product.name }];
   return {
     title: `${product.name} — ${product.brand}`,
     description: meta,
@@ -24,6 +27,14 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
       title: `${product.name} — KimSafety Kenya`,
       description: meta,
       type: "website",
+      url: `/product/${product.slug}`,
+      images,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${product.name} — KimSafety Kenya`,
+      description: meta,
+      images,
     },
   };
 }
@@ -38,6 +49,8 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
     "@type": "Product",
     name: product.name,
     sku: product.sku,
+    image: product.gallery?.[0] ? [product.gallery?.[0]] : undefined,
+    url: `/product/${product.slug}`,
     brand: { "@type": "Brand", name: product.brand },
     description: product.description.replace(/<[^>]+>/g, " ").trim(),
     category: product.categoryName,
@@ -51,8 +64,20 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
       priceCurrency: "KES",
       price: product.price,
       availability: product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      url: `/product/${product.slug}`,
       seller: { "@type": "Organization", name: "KimSafety" },
     },
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 2, name: "Shop", item: "/search" },
+      { "@type": "ListItem", position: 3, name: product.categoryName, item: `/category/${product.category}` },
+      { "@type": "ListItem", position: 4, name: product.name, item: `/product/${product.slug}` },
+    ],
   };
 
   return (
@@ -60,6 +85,10 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <BreadcrumbTrail product={product} />
       <ProductDetail product={product} related={related} />

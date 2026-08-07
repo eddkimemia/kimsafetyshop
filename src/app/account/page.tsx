@@ -26,6 +26,11 @@ import { useStore } from "@/lib/store";
 import { cn, formatKES } from "@/lib/utils";
 import { getProduct } from "@/lib/data/products";
 import { ProductArt } from "@/components/product/product-art";
+import { AddressesTab } from "@/components/account/addresses-tab";
+import { ReturnsTab } from "@/components/account/returns-tab";
+import { TicketsTab } from "@/components/account/tickets-tab";
+import { DownloadsTab } from "@/components/account/downloads-tab";
+import { NotificationsTab } from "@/components/account/notifications-tab";
 
 const nav = [
   ["overview", "Overview", LayoutDashboard],
@@ -73,6 +78,7 @@ export default function AccountPage() {
   const [quotes, setQuotes] = useState<AccountQuote[]>([]);
   const [session, setSession] = useState<{ user?: { name?: string; email?: string } } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const wishlistItems = wishlist.map((id) => liveProduct(id)).filter(Boolean);
 
   useEffect(() => {
@@ -80,11 +86,13 @@ export default function AccountPage() {
       fetch("/api/auth/session").then((r) => r.json()),
       fetch("/api/orders").then((r) => (r.ok ? r.json() : { orders: [] })),
       fetch("/api/quotes").then((r) => (r.ok ? r.json() : { quotes: [] })),
+      fetch("/api/notifications").then((r) => (r.ok ? r.json() : { unread: 0 })),
     ])
-      .then(([s, o, q]) => {
+      .then(([s, o, q, n]) => {
         setSession(s);
         setOrders(o.orders ?? []);
         setQuotes(q.quotes ?? []);
+        setUnreadNotifications(n.unread ?? 0);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -168,7 +176,7 @@ export default function AccountPage() {
                 {([
                   [Package, "Active orders", String(orders.filter((o) => ["Processing", "In transit"].includes(o.status)).length), "Track deliveries"],
                   [ClipboardList, "Pending quotes", String(quotes.filter((q) => q.status === "Pending").length), "Awaiting response"],
-                  [Bell, "Notifications", "2", "New this week"],
+                  [Bell, "Notifications", String(unreadNotifications), "Unread updates"],
                 ] as const).map(([Icon, label, value, sub]) => (
                   <button
                     key={label as string}
@@ -320,9 +328,11 @@ export default function AccountPage() {
             </section>
           )}
 
-          {(tab === "addresses" || tab === "returns" || tab === "tickets" || tab === "downloads" || tab === "notifications") && (
-            <PlaceholderTab tab={tab} />
-          )}
+          {tab === "addresses" && <AddressesTab />}
+          {tab === "returns" && <ReturnsTab />}
+          {tab === "tickets" && <TicketsTab />}
+          {tab === "downloads" && <DownloadsTab />}
+          {tab === "notifications" && <NotificationsTab />}
         </div>
       </div>
     </div>
@@ -395,22 +405,5 @@ function OrdersTable({ orders, loading, limit }: { orders: AccountOrder[]; loadi
         </tbody>
       </table>
     </div>
-  );
-}
-
-function PlaceholderTab({ tab }: { tab: Tab }) {
-  const titles: Record<string, [string, string]> = {
-    addresses: ["Saved addresses", "Your delivery and billing addresses will appear here after your first checkout."],
-    returns: ["Returns & refunds", "Initiate a return within 7 days of delivery. Items must be unopened and in original packaging."],
-    tickets: ["Support tickets", "Open a ticket with our support team and track responses here."],
-    downloads: ["Downloads", "Datasheets, certificates and invoices you've requested are available here."],
-    notifications: ["Notifications", "Delivery updates, price-drop alerts and safety bulletins will appear here."],
-  };
-  const [title, text] = titles[tab] ?? ["", ""];
-  return (
-    <section className="rounded-2xl border border-line bg-white p-10 text-center shadow-card">
-      <h2 className="font-display text-lg font-extrabold text-navy-900">{title}</h2>
-      <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">{text}</p>
-    </section>
   );
 }

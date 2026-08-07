@@ -9,6 +9,7 @@ import {
   ChevronRight,
   FileText,
   ImagePlus,
+  Loader2,
   Plus,
   Save,
   Search,
@@ -591,55 +592,71 @@ function ImagePicker({
           </div>
         </div>
 
-        <div>
-          <p className="mb-2 flex items-center gap-2 text-xs font-bold text-gray-500">
-            Gallery ({gallery.length})
-            {gallery.length > 0 && <span className="font-normal text-gray-400">— extras shown as thumbnails on the product page</span>}
-          </p>
-          {gallery.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-line px-4 py-6 text-center text-xs text-gray-400">
-              No gallery photos yet — click + on photos in the library below to add them.
+          <div>
+            <p className="mb-2 flex items-center gap-2 text-xs font-bold text-gray-500">
+              Gallery ({gallery.length})
+              {gallery.length > 0 && <span className="font-normal text-gray-400">— extras shown as thumbnails on the product page</span>}
             </p>
-          ) : (
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
-              {gallery.map((path, i) => (
-                <div key={path + i} className="group relative overflow-hidden rounded-xl border border-line">
-                  <img src={path} alt={`Gallery ${i + 1}`} className="aspect-square w-full object-cover" />
-                  <div className="absolute inset-0 flex flex-col items-end justify-between bg-black/45 p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    <button
-                      onClick={() => onGalleryChange(gallery.filter((_, idx) => idx !== i))}
-                      aria-label={`Remove gallery image ${i + 1}`}
-                      className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-gray-600 hover:bg-red-500 hover:text-white"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                    <div className="flex gap-1">
+            {gallery.length === 0 ? (
+              <div className="space-y-3">
+                <UploadZone
+                  variant="gallery"
+                  gallery={gallery}
+                  onGalleryChange={onGalleryChange}
+                  onUploaded={() => refresh()}
+                />
+                <p className="rounded-xl border border-dashed border-line px-4 py-4 text-center text-xs text-gray-400">
+                  Upload a photo above — it is added to the gallery and auto-processed — or click + on photos in the
+                  library below.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+                {gallery.map((path, i) => (
+                  <div key={path + i} className="group relative overflow-hidden rounded-xl border border-line">
+                    <img src={path} alt={`Gallery ${i + 1}`} className="aspect-square w-full object-cover" />
+                    <div className="absolute inset-0 flex flex-col items-end justify-between bg-black/45 p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
                       <button
-                        onClick={() => moveInGallery(i, -1)}
-                        disabled={i === 0}
-                        aria-label="Move earlier"
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-gray-600 hover:text-navy-900 disabled:opacity-30"
+                        onClick={() => onGalleryChange(gallery.filter((_, idx) => idx !== i))}
+                        aria-label={`Remove gallery image ${i + 1}`}
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-gray-600 hover:bg-red-500 hover:text-white"
                       >
-                        <ChevronLeft className="h-3.5 w-3.5" />
+                        <X className="h-3.5 w-3.5" />
                       </button>
-                      <button
-                        onClick={() => moveInGallery(i, 1)}
-                        disabled={i === gallery.length - 1}
-                        aria-label="Move later"
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-gray-600 hover:text-navy-900 disabled:opacity-30"
-                      >
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => moveInGallery(i, -1)}
+                          disabled={i === 0}
+                          aria-label="Move earlier"
+                          className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-gray-600 hover:text-navy-900 disabled:opacity-30"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => moveInGallery(i, 1)}
+                          disabled={i === gallery.length - 1}
+                          aria-label="Move later"
+                          className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-gray-600 hover:text-navy-900 disabled:opacity-30"
+                        >
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
+                    <span className="absolute bottom-1 left-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {i + 1}
+                    </span>
                   </div>
-                  <span className="absolute bottom-1 left-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                    {i + 1}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+                <UploadZone
+                  tile
+                  variant="gallery"
+                  gallery={gallery}
+                  onGalleryChange={onGalleryChange}
+                  onUploaded={() => refresh()}
+                />
+              </div>
+            )}
+          </div>
 
         <div>
           <div className="relative">
@@ -805,7 +822,19 @@ function DocumentRow({
   );
 }
 
-function UploadZone({ onUploaded }: { onUploaded: (path: string) => void }) {
+function UploadZone({
+  onUploaded,
+  variant = "cover",
+  tile = false,
+  gallery,
+  onGalleryChange,
+}: {
+  onUploaded?: (path: string) => void;
+  variant?: "cover" | "gallery";
+  tile?: boolean;
+  gallery?: string[];
+  onGalleryChange?: (gallery: string[]) => void;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -822,7 +851,11 @@ function UploadZone({ onUploaded }: { onUploaded: (path: string) => void }) {
         setError(json.error ?? "Upload failed");
         return;
       }
-      onUploaded(json.path as string);
+      if (variant === "gallery") {
+        onGalleryChange?.([...(gallery ?? []), json.path as string]);
+      } else {
+        onUploaded?.(json.path as string);
+      }
     } catch {
       setError("Upload failed");
     } finally {
@@ -831,7 +864,7 @@ function UploadZone({ onUploaded }: { onUploaded: (path: string) => void }) {
   };
 
   return (
-    <div>
+    <div className={tile ? "h-full" : undefined}>
       <input
         ref={inputRef}
         type="file"
@@ -843,18 +876,32 @@ function UploadZone({ onUploaded }: { onUploaded: (path: string) => void }) {
           e.target.value = "";
         }}
       />
-      <button
-        type="button"
-        disabled={uploading}
-        onClick={() => inputRef.current?.click()}
-        className="flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-safety-300 bg-safety-50/50 px-4 py-5 text-center transition-colors hover:border-safety-400 hover:bg-safety-50 disabled:opacity-60"
-      >
-        <ImagePlus className="h-6 w-6 text-safety-600" />
-        <span className="text-xs font-bold text-navy-900">
-          {uploading ? "Uploading…" : "Upload a new image"}
-        </span>
-        <span className="text-[11px] text-gray-400">JPG, PNG, WEBP or GIF · max 8 MB</span>
-      </button>
+      {tile ? (
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={() => inputRef.current?.click()}
+          className="flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-safety-300 bg-safety-50/40 text-center transition-colors hover:border-safety-400 hover:bg-safety-50 disabled:opacity-60"
+          title="Upload an image to the gallery"
+        >
+          <Loader2 className={`h-5 w-5 text-safety-600 ${uploading ? "animate-spin" : "hidden"}`} />
+          <ImagePlus className={`h-5 w-5 text-safety-600 ${uploading ? "hidden" : ""}`} />
+          <span className="text-[10px] font-bold text-navy-900">{uploading ? "Uploading…" : "Upload image"}</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={() => inputRef.current?.click()}
+          className="flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-safety-300 bg-safety-50/50 px-4 py-5 text-center transition-colors hover:border-safety-400 hover:bg-safety-50 disabled:opacity-60"
+        >
+          <ImagePlus className="h-6 w-6 text-safety-600" />
+          <span className="text-xs font-bold text-navy-900">
+            {uploading ? "Uploading…" : variant === "gallery" ? "Upload an image to the gallery" : "Upload a new image"}
+          </span>
+          <span className="text-[11px] text-gray-400">JPG, PNG, WEBP or GIF · max 8 MB</span>
+        </button>
+      )}
       {error && <p className="mt-2 text-[11px] font-semibold text-danger">{error}</p>}
     </div>
   );

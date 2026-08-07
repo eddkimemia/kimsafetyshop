@@ -16,14 +16,25 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const post = getPostBySlug(params.slug);
   if (!post) return { title: "Post not found" };
+  const images = post.cover ? [{ url: post.cover, alt: post.title }] : [{ url: "/og-image.png", width: 1200, height: 630, alt: post.title }];
   return {
     title: `${post.title} — KimSafety Blog`,
     description: post.excerpt.slice(0, 160),
+    alternates: { canonical: `/blog/${post.slug}` },
     openGraph: {
       title: `${post.title} — KimSafety Blog`,
       description: post.excerpt.slice(0, 160),
       type: "article",
-      images: post.cover ? [{ url: post.cover }] : undefined,
+      url: `/blog/${post.slug}`,
+      publishedTime: post.created_at,
+      authors: post.author ? [post.author] : undefined,
+      images,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${post.title} — KimSafety Blog`,
+      description: post.excerpt.slice(0, 160),
+      images,
     },
   };
 }
@@ -62,8 +73,29 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
     .sort((a, b) => b.sold - a.sold)
     .slice(0, 4);
 
+  const blogJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.excerpt,
+    image: post.cover ?? `${"https://kimsafety.co.ke"}/og-image.png`,
+    datePublished: post.created_at,
+    dateModified: post.updated_at ?? post.created_at,
+    author: { "@type": "Organization", name: post.author || "KimSafety" },
+    publisher: { "@type": "Organization", name: "KimSafety", url: "https://kimsafety.co.ke" },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": `https://kimsafety.co.ke/blog/${post.slug}`,
+    },
+    inLanguage: "en-KE",
+  };
+
   return (
     <div className="bg-surface pb-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogJsonLd) }}
+      />
       <div className="border-b border-line bg-white">
         <div className="mx-auto max-w-6xl px-4 py-10 lg:px-8">
           <nav className="mb-6 text-xs text-gray-400" aria-label="Breadcrumb">

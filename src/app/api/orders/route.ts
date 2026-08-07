@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
-import { createOrder, ordersForUser } from "@/lib/db";
+import { createOrder, createNotification, ordersForUser } from "@/lib/db";
 import { getSessionUser } from "@/lib/api-helpers";
 import { liveGetProduct } from "@/lib/catalog";
+import { formatKES } from "@/lib/utils";
 
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const orders = ordersForUser(user.id).map((o) => ({
     ...o,
-    items: JSON.parse(o.items),
+    items: JSON.parse(o.items).map((i: { productId: string; qty: number }) => ({
+      ...i,
+      name: liveGetProduct(i.productId)?.name ?? i.productId,
+    })),
   }));
   return NextResponse.json({ orders });
 }
@@ -67,6 +71,16 @@ export async function POST(req: Request) {
     shipping,
     payment: body.payment ?? "mpesa",
   });
+
+  if (user) {
+    createNotification({
+      user_id: user.id,
+      type: "order",
+      title: `Order ${order.id} confirmed`,
+      message: `Your order of ${formatKES(total)} is being prepared.`,
+      link: "/account?tab=orders",
+    });
+  }
 
   return NextResponse.json({ order: { ...order, items: JSON.parse(order.items) } }, { status: 201 });
 }

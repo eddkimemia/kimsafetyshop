@@ -1,36 +1,29 @@
 import type { MetadataRoute } from "next";
-import { products } from "@/lib/data/products";
+import { liveCatalog } from "@/lib/catalog";
 import { categories, brands } from "@/lib/data/catalog";
 import { guides } from "@/lib/data/content";
+import { listPosts } from "@/lib/db";
 
 const base = "https://kimsafety.co.ke";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes = [
-    "",
-    "/search",
-    "/deals",
-    "/brands",
-    "/corporate",
-    "/knowledge",
-    "/about",
-    "/contact",
-    "/support",
-    "/privacy",
-    "/terms",
-    "/cart",
-    "/checkout",
-    "/compare",
-    "/wishlist",
-    "/account",
-  ].map((path) => ({
-    url: `${base}${path}`,
-    lastModified: new Date(),
-    changeFrequency: "weekly" as const,
-    priority: path === "" ? 1 : 0.8,
-  }));
+    { url: `${base}`, changeFrequency: "weekly" as const, priority: 1 },
+    { url: `${base}/search`, changeFrequency: "weekly" as const, priority: 0.8 },
+    { url: `${base}/deals`, changeFrequency: "weekly" as const, priority: 0.8 },
+    { url: `${base}/brands`, changeFrequency: "weekly" as const, priority: 0.6 },
+    { url: `${base}/blog`, changeFrequency: "weekly" as const, priority: 0.6 },
+    { url: `${base}/knowledge`, changeFrequency: "weekly" as const, priority: 0.6 },
+    { url: `${base}/corporate`, changeFrequency: "monthly" as const, priority: 0.5 },
+    { url: `${base}/corporate/purchase`, changeFrequency: "monthly" as const, priority: 0.5 },
+    { url: `${base}/about`, changeFrequency: "monthly" as const, priority: 0.5 },
+    { url: `${base}/contact`, changeFrequency: "monthly" as const, priority: 0.5 },
+    { url: `${base}/support`, changeFrequency: "monthly" as const, priority: 0.3 },
+    { url: `${base}/privacy`, changeFrequency: "yearly" as const, priority: 0.2 },
+    { url: `${base}/terms`, changeFrequency: "yearly" as const, priority: 0.2 },
+  ].map((r) => ({ ...r, lastModified: new Date() }));
 
-  const productRoutes = products.map((p) => ({
+  const productRoutes = liveCatalog().map((p) => ({
     url: `${base}/product/${p.slug}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,
@@ -58,11 +51,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.5,
   }));
 
+  const postRoutes = listPosts().map((p) => ({
+    url: `${base}/blog/${p.slug}`,
+    lastModified: new Date(p.updated_at ?? p.created_at),
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }));
+
   return [
     ...staticRoutes,
     ...categoryRoutes,
     ...productRoutes,
     ...brandRoutes,
     ...guideRoutes,
+    ...postRoutes,
   ];
 }
