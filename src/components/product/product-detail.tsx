@@ -120,7 +120,7 @@ export function ProductDetail({
                   categoryName={product.categoryName}
                   brand={product.brand}
                   sku={product.sku}
-                  src={galleryVariants[view]}
+                  src={overrides === null ? undefined : galleryVariants[view]}
                   className="aspect-square"
                 />
               </motion.div>
@@ -151,7 +151,7 @@ export function ProductDetail({
                     categoryName={product.categoryName}
                     brand={product.brand}
                     sku={product.sku}
-                    src={image}
+                    src={overrides === null ? undefined : image}
                     className="aspect-square"
                   />
                 </button>

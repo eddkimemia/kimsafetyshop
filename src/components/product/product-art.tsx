@@ -155,10 +155,10 @@ export function ProductArt({
   alt?: string;
 }) {
   const [failed, setFailed] = useState(false);
-  useAdminImageOverrides();
+  const overrides = useAdminImageOverrides();
   const Icon = icon ?? artIconFor(tags, categoryName);
   const theme = themes[hashStr(sku + brand + categoryName) % themes.length];
-  const imageSrc = src ?? (sku ? productImageFor(sku) : undefined);
+  const imageSrc = src ?? (sku && overrides !== null ? productImageFor(sku) : undefined);
 
   useEffect(() => {
     setFailed(false);
