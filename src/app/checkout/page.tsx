@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Lock, Truck, ArrowRight, Package, Loader2, FileDown, CircleAlert } from "lucide-react";
+import { Check, Lock, Truck, ArrowRight, Package, Loader2, Download, CircleAlert, FileUp } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { formatKES, cn } from "@/lib/utils";
 import { ProductArt } from "@/components/product/product-art";
@@ -16,14 +16,66 @@ export default function CheckoutPage() {
   const { cart, cartTotal, cartOldTotal, clearCart, liveProduct } = useStore();
   const [step, setStep] = useState(0);
   const [placed, setPlaced] = useState(false);
-  const [checkoutType, setCheckoutType] = useState<"guest" | "account" | "corporate">("guest");
   const [payment, setPayment] = useState("mpesa");
   const [momo, setMomo] = useState("");
-  const [form, setForm] = useState({ first: "", last: "", email: "", phone: "", county: "Nairobi", town: "", address: "", notes: "", po: "" });
+  const [poFile, setPoFile] = useState("");
+  const [poFileName, setPoFileName] = useState("");
+  const [uploadingPo, setUploadingPo] = useState(false);
+  const [poError, setPoError] = useState("");
+  const [form, setForm] = useState({ first: "", last: "", email: "", phone: "", county: "Nairobi", town: "", address: "", notes: "", po: "", company: "" });
   const [orderId, setOrderId] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const prefillDone = useRef(false);
+  useEffect(() => {
+    if (prefillDone.current) return;
+    prefillDone.current = true;
+    Promise.all([
+      fetch("/api/auth/session").then((r) => r.json()).catch(() => ({})),
+      fetch("/api/addresses").then((r) => (r.ok ? r.json() : { addresses: [] })).catch(() => ({ addresses: [] })),
+      fetch("/api/orders").then((r) => (r.ok ? r.json() : { orders: [] })).catch(() => ({ orders: [] })),
+    ]).then(([sess, addrData, ordData]) => {
+      const user = (sess as { user?: { name?: string; email?: string; phone?: string | null } }).user;
+      const addresses = (addrData as { addresses?: { is_default: number; name: string; phone: string; address_line: string; city: string; county: string }[] }).addresses ?? [];
+      const orders = (ordData as { orders?: { address?: string }[] }).orders ?? [];
+      const saved = addresses.find((a) => a.is_default === 1) ?? addresses[0];
+
+      let oCounty = "", oTown = "", oAddress = "";
+      const lastOrderAddress = orders[0]?.address;
+      if (lastOrderAddress) {
+        const parts = lastOrderAddress.split(", ").map((p) => p.trim()).filter(Boolean);
+        if (parts.length >= 3) {
+          oCounty = parts.pop()!;
+          oTown = parts.pop()!;
+          oAddress = parts.join(", ");
+        } else if (parts.length === 2) {
+          oCounty = parts[1];
+          oAddress = parts[0];
+        } else {
+          oAddress = parts[0] ?? "";
+        }
+      }
+
+      const fullName = user?.name || saved?.name || "";
+      const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+      const phone = user?.phone || saved?.phone || "";
+
+      setForm((prev) => ({
+        ...prev,
+        first: prev.first || nameParts[0] || "",
+        last: prev.last || nameParts.slice(1).join(" ") || "",
+        email: prev.email || user?.email || "",
+        phone: prev.phone || phone,
+        county: prev.county || saved?.county || oCounty || "Nairobi",
+        town: prev.town || saved?.city || oTown || "",
+        address: prev.address || saved?.address_line || oAddress || "",
+      }));
+      const cleanPhone = phone.replace(/[\s-]/g, "");
+      if (/^(\+?254|0)\d{9}$/.test(cleanPhone)) setMomo(cleanPhone);
+    });
+  }, []);
 
   const savings = cartOldTotal - cartTotal;
   const freeDelivery = cartTotal >= 10000;
@@ -51,6 +103,9 @@ export default function CheckoutPage() {
           phone: form.phone,
           address: `${form.address}, ${form.town}, ${form.county}`,
           payment,
+          company: form.company.trim(),
+          po_ref: form.po.trim(),
+          po_file: poFile,
           total,
           items: cart.map((i) => {
             const p = liveProduct(i.productId);
@@ -80,7 +135,6 @@ export default function CheckoutPage() {
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errs.email = "Enter a valid email address";
       if (!form.phone.trim()) errs.phone = "Phone number is required";
       else if (!/^(\+?\d{9,13})$/.test(form.phone.replace(/[\s-]/g, ""))) errs.phone = "Enter a valid phone number";
-      if (checkoutType === "corporate" && !form.po.trim()) errs.po = "Company name / PO number is required";
     }
     if (step === 1) {
       if (!form.town.trim()) errs.town = "Town / area is required";
@@ -89,6 +143,11 @@ export default function CheckoutPage() {
     if (step === 2 && payment === "mpesa") {
       if (!momo.trim()) errs.momo = "M-Pesa number is required";
       else if (!/^(\+?254|0)\d{9}$/.test(momo.replace(/[\s-]/g, ""))) errs.momo = "Enter a valid M-Pesa number, e.g. 07XX XXX XXX";
+    }
+    if (step === 2 && payment === "po") {
+      if (!form.company.trim()) errs.company = "Company name is required";
+      if (!form.po.trim()) errs.po = "PO number is required";
+      if (!poFile) errs.poFile = "Upload the purchase order document (PDF)";
     }
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
@@ -100,6 +159,27 @@ export default function CheckoutPage() {
   };
 
   const clearErr = (k: string) => setErrors((prev) => (prev[k] ? { ...prev, [k]: "" } : prev));
+
+  const handlePoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPo(true);
+    setPoError("");
+    try {
+      const fd = new FormData();
+      fd.append("files", file);
+      const res = await fetch("/api/uploads/documents", { method: "POST", body: fd });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? "Upload failed");
+      setPoFile(d.urls?.[0] ?? "");
+      setPoFileName(file.name);
+      clearErr("poFile");
+    } catch (err) {
+      setPoError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingPo(false);
+    }
+  };
 
   const summaryItems = useMemo(
     () => cart.map((i) => ({ product: liveProduct(i.productId), qty: i.qty })).filter((i) => i.product),
@@ -133,9 +213,9 @@ export default function CheckoutPage() {
         <div className="mt-2 flex flex-wrap justify-center gap-3">
           <a
             href={`/api/orders/${orderId ?? ""}/invoice`}
-            className="inline-flex items-center gap-2 rounded-xl bg-navy-900 px-7 py-3.5 text-sm font-bold text-white hover:bg-navy-800"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line px-4 py-2 text-xs font-bold text-navy-900 hover:bg-surface"
           >
-            <FileDown className="h-4 w-4" /> Download Invoice (PDF)
+            <Download className="h-3.5 w-3.5" /> Download Invoice
           </a>
           <Link href="/account" className="rounded-xl border border-line bg-white px-7 py-3.5 text-sm font-bold text-navy-900 hover:bg-surface">
             Track Order
@@ -189,29 +269,8 @@ export default function CheckoutPage() {
         <div className="space-y-6 lg:col-span-2">
           {step === 0 && (
             <section className="rounded-2xl border border-line bg-white p-6 shadow-card">
-              <h2 className="font-display text-lg font-extrabold text-navy-900">How would you like to check out?</h2>
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {[
-                  ["guest", "Guest Checkout", "Fastest — no account needed"],
-                  ["account", "Account Checkout", "Track orders & save details"],
-                  ["corporate", "Corporate Account", "PO, credit terms & invoicing"],
-                ].map(([value, label, sub]) => (
-                  <button
-                    key={value}
-                    onClick={() => setCheckoutType(value as typeof checkoutType)}
-                    className={cn(
-                      "rounded-2xl border-2 p-4 text-left transition-all",
-                      checkoutType === value
-                        ? "border-safety-500 bg-safety-50"
-                        : "border-line hover:border-safety-300"
-                    )}
-                  >
-                    <p className="text-sm font-bold text-navy-900">{label}</p>
-                    <p className="mt-0.5 text-[11px] text-gray-400">{sub}</p>
-                  </button>
-                ))}
-              </div>
-              <div className="mt-6 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <h2 className="font-display text-lg font-extrabold text-navy-900">Contact details</h2>
+              <div className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <input required placeholder="First name *" className={fieldCls("first")} value={form.first} onChange={(e) => { setForm({ ...form, first: e.target.value }); clearErr("first"); }} />
                   {errMsg("first")}
@@ -228,12 +287,6 @@ export default function CheckoutPage() {
                   <input required type="tel" placeholder="Phone (M-Pesa number) *" className={fieldCls("phone")} value={form.phone} onChange={(e) => { setForm({ ...form, phone: e.target.value }); clearErr("phone"); }} />
                   {errMsg("phone")}
                 </div>
-                {checkoutType === "corporate" && (
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <input required placeholder="Company name / PO number *" className={fieldCls("po")} value={form.po} onChange={(e) => { setForm({ ...form, po: e.target.value }); clearErr("po"); }} />
-                    {errMsg("po")}
-                  </div>
-                )}
               </div>
             </section>
           )}
@@ -314,10 +367,62 @@ export default function CheckoutPage() {
                   </p>
                 )}
                 {payment === "po" && (
-                  <p className="text-sm text-gray-500">
-                    Approved corporate accounts can pay via purchase order with 30-day terms. We&apos;ll verify your
-                    account and send the proforma invoice for sign-off.
-                  </p>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <input
+                          placeholder="Company name (required)"
+                          className={fieldCls("company")}
+                          value={form.company}
+                          onChange={(e) => { setForm({ ...form, company: e.target.value }); clearErr("company"); }}
+                        />
+                        {errMsg("company")}
+                      </div>
+                      <div className="space-y-1.5">
+                        <input
+                          placeholder="PO number (required)"
+                          className={fieldCls("po")}
+                          value={form.po}
+                          onChange={(e) => { setForm({ ...form, po: e.target.value }); clearErr("po"); }}
+                        />
+                        {errMsg("po")}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <p className="text-sm font-bold text-navy-900">Upload purchase order document *</p>
+                      <label
+                        className={cn(
+                          "flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-5 text-sm font-semibold transition-colors",
+                          errors.poFile
+                            ? "border-danger bg-red-50/50 text-danger"
+                            : poFile
+                              ? "border-emerald-400 bg-emerald-50/60 text-emerald-700"
+                              : "border-line text-gray-500 hover:border-safety-400 hover:text-safety-600"
+                        )}
+                      >
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="sr-only" onChange={handlePoUpload} />
+                        {uploadingPo ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : poFile ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          <FileUp className="h-4 w-4" />
+                        )}
+                        {uploadingPo ? "Uploading…" : poFile ? `Attached: ${poFileName || "purchase order"}` : "Click to upload PDF of the purchase order (max 10MB)"}
+                      </label>
+                      {errMsg("poFile")}
+                      {poError && <p className="text-xs font-semibold text-danger">{poError}</p>}
+                      {poFile && (
+                        <a href={poFile} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-safety-600 hover:underline">
+                          View uploaded document →
+                        </a>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Purchase orders are invoiced with 30-day terms. We&apos;ll verify the document and send the
+                      proforma invoice for sign-off.
+                    </p>
+                  </div>
                 )}
               </div>
             </section>
@@ -329,7 +434,10 @@ export default function CheckoutPage() {
               <dl className="mt-4 space-y-2.5 rounded-2xl bg-surface p-5 text-sm">
                 <div className="flex justify-between"><dt className="text-gray-500">Contact</dt><dd className="font-bold text-navy-900">{form.first} {form.last} · {form.phone}</dd></div>
                 <div className="flex justify-between"><dt className="text-gray-500">Deliver to</dt><dd className="text-right font-bold text-navy-900">{form.town}, {form.county}<br /><span className="text-xs font-normal text-gray-400">{form.address}</span></dd></div>
-                <div className="flex justify-between"><dt className="text-gray-500">Payment</dt><dd className="font-bold text-navy-900 capitalize">{payment === "mpesa" ? `M-Pesa ${momo || ""}` : payment.replace("-", " ")}</dd></div>
+                <div className="flex justify-between"><dt className="text-gray-500">Payment</dt><dd className="font-bold text-navy-900 capitalize">{payment === "mpesa" ? `M-Pesa ${momo || ""}` : payment === "po" ? `Purchase Order${form.po ? ` · ${form.po}` : ""}` : payment.replace("-", " ")}</dd></div>
+                {payment === "po" && form.company && (
+                  <div className="flex justify-between"><dt className="text-gray-500">Company</dt><dd className="font-bold text-navy-900">{form.company}</dd></div>
+                )}
               </dl>
               <ul className="mt-5 max-h-56 space-y-3 overflow-auto pr-1">
                 {summaryItems.map(({ product, qty }) => (

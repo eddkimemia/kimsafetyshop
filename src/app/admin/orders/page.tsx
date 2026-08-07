@@ -14,13 +14,16 @@ type Order = {
   email: string;
   phone: string;
   address: string;
-  items: { productId: string; name: string; qty: number; price: number }[];
+  items: { productId: string; name: string; sku: string; qty: number; price: number }[];
   total: number;
   subtotal: number;
   discount: number;
   shipping: number;
   status: string;
   payment: string;
+  po_ref: string | null;
+  company: string | null;
+  po_file: string | null;
   created_at: string;
 };
 
@@ -76,11 +79,14 @@ function downloadXlsx(filename: string, sheetName: string, headers: string[], ro
 export default function AdminOrdersPage() {
   const { data, loading, refresh } = useFetch<{ orders: Order[] }>("/api/admin/orders");
   const [notice, setNotice] = useState<string | null>(null);
-  const [period, setPeriod] = useState<(typeof periods)[number]["value"]>("all");
+  const [period, setPeriod] = useState<(typeof periods)[number]["value"]>("today");
   const [customer, setCustomer] = useState<(typeof customerTypes)[number]["value"]>("all");
   const [payment, setPayment] = useState<(typeof payments)[number]["value"]>("all");
   const [status, setStatus] = useState<string>("all");
   const [sort, setSort] = useState<(typeof sorts)[number]["value"]>("newest");
+  const [bestSort, setBestSort] = useState<"qty" | "revenue" | "name">("qty");
+  const [bestPeriod, setBestPeriod] = useState<"today" | "7d" | "30d" | "all">("today");
+  const [bestUsers, setBestUsers] = useState<"all" | "registered" | "guest">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const orders = data?.orders ?? [];
@@ -150,17 +156,34 @@ export default function AdminOrdersPage() {
   }, [filtered]);
 
   const bestSellers = useMemo(() => {
-    const byName = new Map<string, { sku: string; qty: number; revenue: number }>();
-    for (const o of filtered) {
+    const now = Date.now();
+    const inBest = orders.filter((o) => {
+      if (bestUsers === "registered" && !o.user_id) return false;
+      if (bestUsers === "guest" && o.user_id) return false;
+      const t = new Date(o.created_at).getTime();
+      if (bestPeriod === "today" && new Date(o.created_at).toDateString() !== new Date().toDateString()) return false;
+      if (bestPeriod === "7d" && now - t > 7 * 86400000) return false;
+      if (bestPeriod === "30d" && now - t > 30 * 86400000) return false;
+      return true;
+    });
+    const bySku = new Map<string, { name: string; sku: string; qty: number; revenue: number }>();
+    for (const o of inBest) {
       for (const i of o.items) {
-        const cur = byName.get(i.name) ?? { sku: i.productId, qty: 0, revenue: 0 };
+        const sku = i.sku ?? i.productId;
+        const cur = bySku.get(sku) ?? { name: i.name ?? sku, sku, qty: 0, revenue: 0 };
         cur.qty += i.qty;
-        cur.revenue += i.price * i.qty;
-        byName.set(i.name, cur);
+        cur.revenue += (i.price ?? 0) * i.qty;
+        bySku.set(sku, cur);
       }
     }
-    return Array.from(byName, ([name, v]) => ({ name, ...v })).sort((a, b) => b.qty - a.qty);
-  }, [filtered]);
+    const arr = Array.from(bySku.values());
+    arr.sort((a, b) =>
+      bestSort === "revenue" ? b.revenue - a.revenue
+      : bestSort === "name" ? a.name.localeCompare(b.name)
+      : b.qty - a.qty
+    );
+    return arr;
+  }, [orders, bestPeriod, bestUsers, bestSort]);
 
   const setOrderStatus = async (id: string, s: string) => {
     const res = await fetch("/api/admin/orders", {
@@ -338,6 +361,11 @@ export default function AdminOrdersPage() {
                       <span>
                         {itemCount} item{itemCount === 1 ? "" : "s"} · {o.items.length} line{o.items.length === 1 ? "" : "s"} ·{" "}
                         {o.payment.replace("-", " ")}
+                        {o.po_ref ? <span className="font-bold text-navy-900"> · PO: {o.po_ref}</span> : null}
+                        {o.company ? <span> · {o.company}</span> : null}
+                        {o.po_file ? (
+                          <a href={o.po_file} target="_blank" rel="noopener noreferrer" className="font-bold text-safety-600 underline hover:text-safety-700"> · View PO file</a>
+                        ) : null}
                       </span>
                       <span className="font-extrabold text-navy-900">{formatKES(o.total)}</span>
                     </div>
@@ -427,7 +455,7 @@ export default function AdminOrdersPage() {
                           {o.items.length > 0 && <span className="text-gray-400"> · {o.items.length} line{o.items.length === 1 ? "" : "s"}</span>}
                         </td>
                         <td className="py-3.5 text-right font-extrabold text-navy-900">{formatKES(o.total)}</td>
-                        <td className="hidden py-3.5 capitalize text-gray-500 lg:table-cell">{o.payment.replace("-", " ")}</td>
+                        <td className="hidden py-3.5 capitalize text-gray-500 lg:table-cell">{o.payment.replace("-", " ")}{o.po_ref ? ` · ${o.po_ref}` : ""}{o.company ? ` · ${o.company}` : ""}</td>
                         <td className="py-3.5">
                           <div className="flex flex-col items-start gap-1.5">
                             <StatusBadge status={o.status} map={orderStatusTones} />
@@ -465,15 +493,48 @@ export default function AdminOrdersPage() {
 
       <AdminCard
         title="Best selling items"
-        subtitle={`Top products in the current view · ${bestSellers.length} product${bestSellers.length === 1 ? "" : "s"}`}
+        subtitle={`Top products · ${periods.find((p) => p.value === bestPeriod)?.label} · ${customerTypes.find((c) => c.value === bestUsers)?.label} · ${bestSellers.length} product${bestSellers.length === 1 ? "" : "s"}`}
         action={
-          <button
-            onClick={exportBestSellers}
-            disabled={bestSellers.length === 0}
-            className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[11px] font-bold text-navy-900 hover:bg-surface disabled:opacity-50"
-          >
-            <Download className="h-3.5 w-3.5" /> Export
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              aria-label="Best sellers duration"
+              className={selectCls}
+              value={bestPeriod}
+              onChange={(e) => setBestPeriod(e.target.value as typeof bestPeriod)}
+            >
+              <option value="today">Today</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="all">All time</option>
+            </select>
+            <select
+              aria-label="Best sellers users"
+              className={selectCls}
+              value={bestUsers}
+              onChange={(e) => setBestUsers(e.target.value as typeof bestUsers)}
+            >
+              <option value="all">All customers</option>
+              <option value="registered">Registered</option>
+              <option value="guest">Guests</option>
+            </select>
+            <select
+              aria-label="Sort best sellers"
+              className={selectCls}
+              value={bestSort}
+              onChange={(e) => setBestSort(e.target.value as typeof bestSort)}
+            >
+              <option value="qty">Most units sold</option>
+              <option value="revenue">Most revenue</option>
+              <option value="name">Name A → Z</option>
+            </select>
+            <button
+              onClick={exportBestSellers}
+              disabled={bestSellers.length === 0}
+              className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[11px] font-bold text-navy-900 hover:bg-surface disabled:opacity-50"
+            >
+              <Download className="h-3.5 w-3.5" /> Export
+            </button>
+          </div>
         }
       >
         {bestSellers.length === 0 ? (

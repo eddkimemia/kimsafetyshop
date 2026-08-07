@@ -1,11 +1,25 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { createNotification, getOrderById, listOrders, setOrderStatus } from "@/lib/db";
+import { liveGetProduct } from "@/lib/catalog";
+import { bulkUnitPrice } from "@/lib/utils";
 
 const VALID = ["Processing", "In transit", "Delivered", "Cancelled"];
 
 function withItems(o: ReturnType<typeof listOrders>[number]) {
-  return { ...o, items: JSON.parse(o.items) };
+  const items = JSON.parse(o.items) as { productId: string; qty: number; name?: string; price?: number }[];
+  return {
+    ...o,
+    items: items.map((i) => {
+      const p = liveGetProduct(i.productId);
+      return {
+        ...i,
+        name: p?.name ?? i.name ?? i.productId,
+        sku: p?.sku ?? i.productId,
+        price: p ? bulkUnitPrice(p, i.qty) : (i.price ?? 0),
+      };
+    }),
+  };
 }
 
 export async function GET(req: Request) {
@@ -45,7 +59,7 @@ export async function PATCH(req: Request) {
       type: "order",
       title: `Order ${order.id} is now ${body.status}`,
       message: `Your order status changed to ${body.status}.`,
-      link: "/account?tab=orders",
+      link: "/account/orders",
     });
   }
   return NextResponse.json({ ok: true });

@@ -293,21 +293,21 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   // ---- Stamp on the last page, above the footer ----
   const stampPath = join(process.cwd(), "public", "images", "logo", "stamp.png");
   if (fs.existsSync(stampPath)) {
-    const stampW = 150;
-    const stampY = pageH - 66 - 118;
+    const stampW = 185;
     const range = doc.bufferedPageRange();
     doc.switchToPage(range.count - 1);
     const stampBuf = fs.readFileSync(stampPath);
     const stampH = stampW * (stampBuf.readUInt32BE(20) / stampBuf.readUInt32BE(16));
+    const stampY = pageH - 66 - 24 - stampH;
     doc.image(stampPath, padR - stampW, stampY, { width: stampW });
     const dateStr = new Date(order.created_at)
       .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
       .toUpperCase();
     doc
       .font("Courier-Bold")
-      .fontSize(11)
+      .fontSize(14)
       .fillColor("#DC2626")
-      .text(dateStr, padR - stampW, stampY + (stampH - 13) / 2, { width: stampW, align: "center" });
+      .text(dateStr, padR - stampW, stampY + (stampH - 16) / 2, { width: stampW, align: "center" });
   }
 
   // ---- Footer drawn on every page via pageAdded handler ----

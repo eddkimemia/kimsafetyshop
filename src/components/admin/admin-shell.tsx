@@ -15,18 +15,31 @@ const nav = [
   ["/admin/products", "Products", Package],
   ["/admin/orders", "Orders", ShoppingCart],
   ["/admin/purchases", "Purchases", Truck],
-  ["/admin/users", "Users", Users],
   ["/admin/quotes", "Quotes", ClipboardList],
   ["/admin/corporate", "Corporate", Building2],
   ["/admin/content", "Knowledge", BookOpen],
   ["/admin/blog", "Blog", Newspaper],
   ["/admin/marketing", "Marketing", Megaphone],
   ["/admin/tickets", "Tickets", LifeBuoy],
-  ["/admin/docs", "Docs", FileText],
 ] as const;
+
+const badgeHrefs: Record<string, string> = {
+  "/admin/orders": "orders",
+  "/admin/tickets": "tickets",
+  "/admin/quotes": "quotes",
+};
 
 function isActive(pathname: string, href: string) {
   return href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+}
+
+function NavBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-1 inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
 }
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -34,6 +47,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { whatsapp } = useSettings();
   const [role, setRole] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
+  const [badges, setBadges] = useState<{ orders: number; tickets: number; quotes: number }>({ orders: 0, tickets: 0, quotes: 0 });
 
   useEffect(() => {
     let alive = true;
@@ -45,6 +59,23 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       .catch(() => {});
     return () => {
       alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch("/api/admin/nav-badges")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (alive && d?.badges) setBadges(d.badges);
+        })
+        .catch(() => {});
+    load();
+    const t = setInterval(load, 60000);
+    return () => {
+      alive = false;
+      clearInterval(t);
     };
   }, []);
 
@@ -79,6 +110,28 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            <Link
+              href="/admin/users"
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition-colors",
+                pathname.startsWith("/admin/users")
+                  ? "border-safety-300 bg-safety-50 text-safety-600"
+                  : "border-line text-navy-900 hover:bg-surface"
+              )}
+            >
+              <Users className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Users</span>
+            </Link>
+            <Link
+              href="/admin/docs"
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition-colors",
+                pathname.startsWith("/admin/docs")
+                  ? "border-safety-300 bg-safety-50 text-safety-600"
+                  : "border-line text-navy-900 hover:bg-surface"
+              )}
+            >
+              <FileText className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Docs</span>
+            </Link>
             {role === "superadmin" && (
               <Link
                 href="/admin/settings"
@@ -89,7 +142,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                     : "border-line text-navy-900 hover:bg-surface"
                 )}
               >
-                <Settings className="h-3.5 w-3.5" /> Settings
+                <Settings className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Settings</span>
               </Link>
             )}
             <Link
@@ -110,6 +163,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <div className="no-scrollbar mx-auto flex max-w-shell items-center gap-1 overflow-x-auto px-8">
             {navItems.map(([href, label, Icon]) => {
               const active = isActive(pathname, href);
+              const badgeKey = badgeHrefs[href];
               return (
                 <Link
                   key={href}
@@ -123,6 +177,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   )}
                 >
                   <Icon className="h-4 w-4" /> {label}
+                  {badgeKey ? <NavBadge count={badges[badgeKey as keyof typeof badges]} /> : null}
                 </Link>
               );
             })}
@@ -161,6 +216,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </p>
               {navItems.map(([href, label, Icon]) => {
                 const active = isActive(pathname, href);
+                const badgeKey = badgeHrefs[href];
                 return (
                   <Link
                     key={href}
@@ -173,6 +229,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                     )}
                   >
                     <Icon className="h-4.5 w-4.5" /> {label}
+                    {badgeKey ? <NavBadge count={badges[badgeKey as keyof typeof badges]} /> : null}
                   </Link>
                 );
               })}

@@ -1,19 +1,33 @@
 import { NextResponse } from "next/server";
-import { createOrder, createNotification, ordersForUser } from "@/lib/db";
+import { createOrder, createNotification, getOrderById, ordersForUser } from "@/lib/db";
 import { getSessionUser } from "@/lib/api-helpers";
 import { liveGetProduct } from "@/lib/catalog";
-import { formatKES } from "@/lib/utils";
+import { bulkUnitPrice, formatKES } from "@/lib/utils";
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  const orders = ordersForUser(user.id).map((o) => ({
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  const enrich = (o: ReturnType<typeof ordersForUser>[number]) => ({
     ...o,
-    items: JSON.parse(o.items).map((i: { productId: string; qty: number }) => ({
-      ...i,
-      name: liveGetProduct(i.productId)?.name ?? i.productId,
-    })),
-  }));
+    items: JSON.parse(o.items).map((i: { productId: string; qty: number }) => {
+      const p = liveGetProduct(i.productId);
+      return {
+        ...i,
+        name: p?.name ?? i.productId,
+        sku: p?.sku,
+        price: p ? bulkUnitPrice(p, i.qty) : undefined,
+        datasheetIndex: p?.downloads?.findIndex((d) => /datasheet/i.test(d.name || "")),
+      };
+    }),
+  });
+  if (id) {
+    const order = getOrderById(id);
+    if (!order || order.user_id !== user.id) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    return NextResponse.json({ order: enrich(order) });
+  }
+  const orders = ordersForUser(user.id).map(enrich);
   return NextResponse.json({ orders });
 }
 
@@ -27,7 +41,7 @@ function computeTotals(items: OrderItem[]) {
     if (qty === 0) continue;
     const p = liveGetProduct(item.productId);
     if (!p) continue;
-    const unit = p.price;
+    const unit = bulkUnitPrice(p, qty);
     const old = p.oldPrice != null && p.oldPrice > p.price ? p.oldPrice : p.price;
     subtotal += unit * qty;
     discount += (old - unit) * qty;
@@ -38,7 +52,7 @@ function computeTotals(items: OrderItem[]) {
 }
 
 export async function POST(req: Request) {
-  let body: { name?: string; email?: string; phone?: string; address?: string; items?: unknown[]; total?: number; payment?: string };
+  let body: { name?: string; email?: string; phone?: string; address?: string; items?: unknown[]; total?: number; payment?: string; po_ref?: string; company?: string; po_file?: string };
   try {
     body = await req.json();
   } catch {
@@ -70,6 +84,9 @@ export async function POST(req: Request) {
     discount,
     shipping,
     payment: body.payment ?? "mpesa",
+    po_ref: body.po_ref,
+    company: body.company,
+    po_file: body.po_file,
   });
 
   if (user) {
@@ -78,7 +95,7 @@ export async function POST(req: Request) {
       type: "order",
       title: `Order ${order.id} confirmed`,
       message: `Your order of ${formatKES(total)} is being prepared.`,
-      link: "/account?tab=orders",
+      link: "/account/orders",
     });
   }
 

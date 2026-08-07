@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { CartItem, Product } from "./types";
 import { getProduct } from "./data/products";
+import { bulkUnitPrice } from "./utils";
 
 type Store = {
   cart: CartItem[];
@@ -148,7 +149,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const cartTotal = useMemo(
     () =>
-      cart.reduce((sum, i) => sum + (liveProduct(i.productId)?.price ?? 0) * i.qty, 0),
+      cart.reduce((sum, i) => sum + bulkUnitPrice(liveProduct(i.productId) ?? { price: 0 }, i.qty) * i.qty, 0),
     [cart, liveProduct]
   );
   const cartOldTotal = useMemo(() => {

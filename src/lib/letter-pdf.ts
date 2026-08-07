@@ -346,10 +346,10 @@ export function renderLetterPdf(letter: LetterInput, settings: LetterSettings): 
   if (letter.with_stamp === 1) {
     const stampPath = join(process.cwd(), "public", "images", "logo", "stamp.png");
     if (fs.existsSync(stampPath)) {
-      const stampW = 140;
-      const stampY = pageH - 66 - 108;
+      const stampW = 185;
       const stampBuf = fs.readFileSync(stampPath);
       const stampH = stampW * (stampBuf.readUInt32BE(20) / stampBuf.readUInt32BE(16));
+      const stampY = pageH - 66 - 24 - stampH;
       const range = doc.bufferedPageRange();
       doc.switchToPage(range.count - 1);
       doc.image(stampPath, padR - stampW, stampY, { width: stampW });
@@ -358,9 +358,9 @@ export function renderLetterPdf(letter: LetterInput, settings: LetterSettings): 
         .toUpperCase();
       doc
         .font("Courier-Bold")
-        .fontSize(11)
+        .fontSize(14)
         .fillColor("#DC2626")
-        .text(dateStr, padR - stampW, stampY + (stampH - 13) / 2, { width: stampW, align: "center" });
+        .text(dateStr, padR - stampW, stampY + (stampH - 16) / 2, { width: stampW, align: "center" });
     }
   }
 

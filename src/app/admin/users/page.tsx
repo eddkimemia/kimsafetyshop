@@ -28,14 +28,16 @@ const selectCls =
 
 export default function AdminUsersPage() {
   const { data, loading, refresh } = useFetch<{ users: AdminUser[] }>("/api/admin/users");
-  const [me, setMe] = useState<{ id: string } | null>(null);
+  const [me, setMe] = useState<{ id: string; role?: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [sort, setSort] = useState<(typeof sorts)[number]["value"]>("newest");
-  const users = data?.users ?? [];
+  const users = useMemo(() => data?.users ?? [], [data]);
 
   useEffect(() => {
-    fetch("/api/auth/session").then((r) => r.json()).then((s) => s?.user && setMe(s.user));
+    fetch("/api/admin/me").then((r) => r.json()).then((s) => s?.user && setMe(s.user));
   }, []);
+
+  const isSuper = me?.role === "superadmin";
 
   const sorted = useMemo(() => {
     const arr = [...users];
@@ -113,12 +115,14 @@ export default function AdminUsersPage() {
               ))}
             </select>
           </label>
-          <Link
-            href="/admin/users/new"
-            className="flex items-center gap-2 rounded-xl bg-navy-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-safety-500"
-          >
-            <UserPlus className="h-4 w-4" /> Create staff
-          </Link>
+          {isSuper && (
+            <Link
+              href="/admin/users/new"
+              className="flex items-center gap-2 rounded-xl bg-navy-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-safety-500"
+            >
+              <UserPlus className="h-4 w-4" /> Create staff
+            </Link>
+          )}
         </div>
       </div>
 
@@ -154,13 +158,15 @@ export default function AdminUsersPage() {
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => setRole(u, "user")}
-                        disabled={u.id === me?.id}
-                        className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface disabled:opacity-40"
-                      >
-                        Make user
-                      </button>
+                      {isSuper && (
+                        <button
+                          onClick={() => setRole(u, "user")}
+                          disabled={u.id === me?.id}
+                          className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface disabled:opacity-40"
+                        >
+                          Make user
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -194,13 +200,15 @@ export default function AdminUsersPage() {
                           <td className="hidden py-3.5 text-gray-500 md:table-cell">{u.company ?? "—"}</td>
                           <td className="hidden py-3.5 text-gray-500 md:table-cell">{new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</td>
                           <td className="py-3.5 text-right">
-                            <button
-                              onClick={() => setRole(u, "user")}
-                              disabled={u.id === me?.id}
-                              className="rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface disabled:opacity-40"
-                            >
-                              Make user
-                            </button>
+                            {isSuper && (
+                              <button
+                                onClick={() => setRole(u, "user")}
+                                disabled={u.id === me?.id}
+                                className="rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface disabled:opacity-40"
+                              >
+                                Make user
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -254,9 +262,11 @@ export default function AdminUsersPage() {
                             <BadgeCheck className="h-3.5 w-3.5" /> Verify
                           </button>
                         )}
-                        <button onClick={() => setRole(u, "admin")} className="flex items-center gap-1 rounded-lg bg-navy-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-safety-500">
-                          <ShieldPlus className="h-3.5 w-3.5" /> Make staff
-                        </button>
+                        {isSuper && (
+                          <button onClick={() => setRole(u, "admin")} className="flex items-center gap-1 rounded-lg bg-navy-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-safety-500">
+                            <ShieldPlus className="h-3.5 w-3.5" /> Make staff
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -309,9 +319,11 @@ export default function AdminUsersPage() {
                                   <BadgeCheck className="h-3.5 w-3.5" /> Verify
                                 </button>
                               )}
-                              <button onClick={() => setRole(u, "admin")} className="flex items-center gap-1 rounded-lg bg-navy-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-safety-500">
-                                <ShieldPlus className="h-3.5 w-3.5" /> Make staff
-                              </button>
+                              {isSuper && (
+                                <button onClick={() => setRole(u, "admin")} className="flex items-center gap-1 rounded-lg bg-navy-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-safety-500">
+                                  <ShieldPlus className="h-3.5 w-3.5" /> Make staff
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

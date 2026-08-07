@@ -12,9 +12,13 @@ export async function POST(req: Request) {
   const name = body.name?.trim();
   const email = body.email?.trim().toLowerCase();
   const password = body.password ?? "";
+  const phone = body.phone?.trim();
 
   if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Enter a valid name and email address" }, { status: 400 });
+  }
+  if (!phone) {
+    return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
   }
   if (password.length < 6) {
     return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
@@ -28,7 +32,7 @@ export async function POST(req: Request) {
     email,
     password,
     company: body.company?.trim() || undefined,
-    phone: body.phone?.trim() || undefined,
+    phone,
     verified: 0,
   });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Inbox, LifeBuoy, Lock, RotateCcw, Send } from "lucide-react";
+import { Inbox, LifeBuoy, Lock, RotateCcw, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Ticket = {

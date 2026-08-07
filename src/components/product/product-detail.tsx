@@ -21,7 +21,6 @@ import {
   Minus,
   Plus,
   BadgeCheck,
-  Eye,
   ThumbsUp,
   Package,
   Award,
@@ -30,7 +29,7 @@ import {
 } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
-import { discountPercent, formatKES, cn } from "@/lib/utils";
+import { activeBulkTier, discountPercent, formatKES, cn } from "@/lib/utils";
 import { sanitizePostHtml } from "@/lib/blog";
 import { ProductArt, productImageFor, useAdminImageOverrides, useAdminGalleries } from "@/components/product/product-art";
 import { productGalleries } from "@/lib/data/product-images";
@@ -218,16 +217,25 @@ export function ProductDetail({
                 <BadgePercent className="h-4 w-4 text-safety-500" /> Bulk pricing
               </p>
               <div className="grid grid-cols-4 gap-2 text-center text-[11px]">
-                {product.bulk.map((tier) => (
-                  <div key={tier.qty} className="rounded-xl bg-surface px-2 py-2.5">
-                    <p className="font-bold text-navy-900">{tier.qty}</p>
-                    <p className="text-gray-500">units</p>
-                    <p className="mt-1 font-extrabold text-safety-600">{tier.price}</p>
-                    {tier.savings !== "Standard" && (
-                      <p className="mt-0.5 text-[10px] font-bold text-emerald-600">{tier.savings}</p>
-                    )}
-                  </div>
-                ))}
+                {product.bulk.map((tier) => {
+                  const active = activeBulkTier(product, qty)?.qty === tier.qty;
+                  return (
+                    <div
+                      key={tier.qty}
+                      className={cn(
+                        "rounded-xl bg-surface px-2 py-2.5 transition-colors",
+                        active && "bg-safety-50 ring-2 ring-safety-500"
+                      )}
+                    >
+                      <p className="font-bold text-navy-900">{tier.qty}</p>
+                      <p className="text-gray-500">units</p>
+                      <p className="mt-1 font-extrabold text-safety-600">{tier.price}</p>
+                      {tier.savings !== "Standard" && (
+                        <p className="mt-0.5 text-[10px] font-bold text-emerald-600">{tier.savings}</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

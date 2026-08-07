@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { formatKES } from "@/lib/utils";
+import { bulkUnitPrice, formatKES } from "@/lib/utils";
 import { useSettings } from "@/lib/settings";
 import { ProductArt } from "@/components/product/product-art";
 import { PageHeader } from "@/components/layout/page-header";
@@ -216,7 +216,7 @@ export function QuoteForm() {
                     <span className="font-mono text-xs font-normal text-gray-400">
                       {formatKES(
                         cart.reduce(
-                          (sum, i) => sum + (liveProduct(i.productId)?.price ?? 0) * i.qty,
+                          (sum, i) => sum + bulkUnitPrice(liveProduct(i.productId) ?? { price: 0 }, i.qty) * i.qty,
                           0
                         )
                       )}

@@ -31,6 +31,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
   if (body.action === "read" && body.id) {
+    const owned = listNotificationsForUser(user.id).some((n) => n.id === body.id);
+    if (!owned) return NextResponse.json({ error: "Notification not found" }, { status: 404 });
     markNotificationRead(body.id);
     return NextResponse.json({ ok: true });
   }

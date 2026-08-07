@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { getUserByEmail, verifyPassword } from "@/lib/db";
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
@@ -23,6 +24,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           role: user.role,
+          phone: user.phone,
         };
       },
     }),
@@ -32,6 +34,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = (user as { role?: string }).role ?? "user";
         token.uid = user.id;
+        token.phone = (user as { phone?: string | null }).phone ?? null;
       }
       return token;
     },
@@ -39,6 +42,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.uid as string;
         session.user.role = (token.role as "user" | "admin" | "superadmin") ?? "user";
+        (session.user as { phone?: string | null }).phone = (token.phone as string | null) ?? null;
       }
       return session;
     },

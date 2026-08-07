@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RotateCcw, Truck, Undo2 } from "lucide-react";
+import { RotateCcw, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type OrderItem = { productId: string; name?: string; qty: number };

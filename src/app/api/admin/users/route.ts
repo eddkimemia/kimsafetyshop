@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, getSessionUser } from "@/lib/api-helpers";
+import { requireAdmin, requireSuperAdmin, getSessionUser } from "@/lib/api-helpers";
 import { createUser, listUsers, setUserRole, setUserVerified, getUserById, getUserByEmail } from "@/lib/db";
 
 export async function GET() {
@@ -19,7 +19,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const denied = await requireAdmin();
+  const denied = await requireSuperAdmin();
   if (denied) return denied;
 
   let body: { name?: string; email?: string; password?: string; phone?: string; company?: string };
@@ -77,6 +77,8 @@ export async function PATCH(req: Request) {
     if (body.role !== "user" && body.role !== "admin") {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
+    const deniedSuper = await requireSuperAdmin();
+    if (deniedSuper) return deniedSuper;
     const me = await getSessionUser();
     if (target.id === me?.id && body.role !== "admin") {
       return NextResponse.json({ error: "You cannot change your own role" }, { status: 400 });

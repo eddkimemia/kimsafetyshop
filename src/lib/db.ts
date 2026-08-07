@@ -32,6 +32,9 @@ export type DbOrder = {
   status: string;
   payment: string;
   paid: number;
+  po_ref: string | null;
+  company: string | null;
+  po_file: string | null;
   created_at: string;
 };
 
@@ -313,6 +316,9 @@ function initSchema(d: Database.Database) {
   addColumnIfMissing(d, "orders", "discount", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing(d, "orders", "shipping", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing(d, "orders", "paid", "INTEGER NOT NULL DEFAULT 1");
+  addColumnIfMissing(d, "orders", "po_ref", "TEXT");
+  addColumnIfMissing(d, "orders", "company", "TEXT");
+  addColumnIfMissing(d, "orders", "po_file", "TEXT");
   addColumnIfMissing(d, "users", "verified", "INTEGER NOT NULL DEFAULT 1");
   addColumnIfMissing(d, "quotes", "attachment", "TEXT");
   addColumnIfMissing(d, "quotes", "email", "TEXT");
@@ -400,8 +406,12 @@ function initSchema(d: Database.Database) {
   seedUsers(d);
 }
 
-function seedUsers(d: Database.Database) {  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@kimsafety.co.ke";
-  const adminPass = process.env.ADMIN_PASSWORD ?? "admin123";
+function seedUsers(d: Database.Database) {
+  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@kimsafety.co.ke";
+  const adminPass = process.env.ADMIN_PASSWORD;
+  if (!adminPass) {
+    throw new Error("ADMIN_PASSWORD environment variable is required to seed the admin user");
+  }
   const existing = d.prepare("SELECT role FROM users WHERE email = ?").get(adminEmail) as { role: string } | undefined;
   if (existing) {
     if (existing.role !== "superadmin") {
@@ -421,7 +431,6 @@ function seedUsers(d: Database.Database) {  const adminEmail = process.env.ADMIN
     "+254 715135141",
     new Date().toISOString()
   );
-  console.log(`[kimsafety] Seeded admin user: ${adminEmail} / ${adminPass}`);
 }
 
 const SEED_BANNERS = [
@@ -640,7 +649,7 @@ export function setUserVerified(id: string, verified: number) {
 
 // ---- Orders ----
 
-export function createOrder(input: { user_id?: string | null; name: string; email: string; phone: string; address: string; items: string; total: number; subtotal?: number; discount?: number; shipping?: number; payment: string }): DbOrder {
+export function createOrder(input: { user_id?: string | null; name: string; email: string; phone: string; address: string; items: string; total: number; subtotal?: number; discount?: number; shipping?: number; payment: string; po_ref?: string; company?: string; po_file?: string }): DbOrder {
   const order: DbOrder = {
     id: `KS-${Math.floor(10000 + Math.random() * 89999)}`,
     user_id: input.user_id ?? null,
@@ -656,10 +665,13 @@ export function createOrder(input: { user_id?: string | null; name: string; emai
     status: "Processing",
     payment: input.payment,
     paid: input.payment === "po" ? 0 : 1,
+    po_ref: input.po_ref ?? null,
+    company: input.company ?? null,
+    po_file: input.po_file ?? null,
     created_at: new Date().toISOString(),
   };
   getDb()
-    .prepare("INSERT INTO orders (id, user_id, name, email, phone, address, items, total, subtotal, discount, shipping, status, payment, paid, created_at) VALUES (@id, @user_id, @name, @email, @phone, @address, @items, @total, @subtotal, @discount, @shipping, @status, @payment, @paid, @created_at)")
+    .prepare("INSERT INTO orders (id, user_id, name, email, phone, address, items, total, subtotal, discount, shipping, status, payment, paid, po_ref, company, po_file, created_at) VALUES (@id, @user_id, @name, @email, @phone, @address, @items, @total, @subtotal, @discount, @shipping, @status, @payment, @paid, @po_ref, @company, @po_file, @created_at)")
     .run(order);
   return order;
 }
@@ -1253,11 +1265,11 @@ export function upsertCampaign(
       .run({ ...row, id: input.id });
     return getCampaignBySlug(input.slug)!;
   }
-  const id = getDb()
+  getDb()
     .prepare(
       "INSERT INTO marketing_campaigns (name, slug, description, discount_label, image, cta_href, start_date, end_date, active, created_at, updated_at) VALUES (@name, @slug, @description, @discount_label, @image, @cta_href, @start_date, @end_date, @active, @created_at, @updated_at)"
     )
-    .run({ ...row, created_at: now }).lastInsertRowid as number;
+    .run({ ...row, created_at: now });
   return getCampaignBySlug(input.slug)!;
 }
 

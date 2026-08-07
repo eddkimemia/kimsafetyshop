@@ -103,7 +103,7 @@ export async function PATCH(req: Request) {
       type: "quote",
       title: `Quote ${quote.id} is now ${body.status}`,
       message: `Your quotation status changed to ${body.status}.`,
-      link: "/account?tab=quotes",
+      link: "/account/quotes",
     });
   }
   return NextResponse.json({ ok: true });

@@ -6,7 +6,6 @@ import { slugify } from "@/lib/utils";
 export const runtime = "nodejs";
 
 const NAVY = "#0F2847";
-const SAFETY = "#F57C00";
 const GRAY = "#6B7280";
 const LIGHT = "#F3F4F6";
 
