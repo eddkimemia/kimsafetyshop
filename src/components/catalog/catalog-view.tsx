@@ -72,6 +72,7 @@ export function CatalogView({ title, subtitle, search, category, brand, deals, h
   const maxPrice = searchParams.get("price-max") ?? "";
   const onSale = (searchParams.get("discount") ?? "") === "1";
   const sort = searchParams.get("sort") ?? "featured";
+  const sortExplicit = searchParams.has("sort");
 
   useEffect(() => {
     setPage(1);
@@ -91,27 +92,29 @@ export function CatalogView({ title, subtitle, search, category, brand, deals, h
     if (minPrice) list = list.filter((p) => p.price >= Number(minPrice));
     if (maxPrice) list = list.filter((p) => p.price <= Number(maxPrice));
     if (onSale) list = list.filter((p) => p.oldPrice && p.oldPrice > p.price);
-    switch (sort) {
-      case "newest":
-        list.sort((a, b) => (b.new ? 1 : 0) - (a.new ? 1 : 0) || b.sku.localeCompare(a.sku));
-        break;
-      case "best":
-        list.sort((a, b) => b.sold - a.sold);
-        break;
-      case "rating":
-        list.sort((a, b) => b.rating - a.rating);
-        break;
-      case "price-asc":
-        list.sort((a, b) => a.price - b.price);
-        break;
-      case "price-desc":
-        list.sort((a, b) => b.price - a.price);
-        break;
-      default:
-        list.sort((a, b) => (b.bestSeller ? 1 : 0) - (a.bestSeller ? 1 : 0) || b.sold - a.sold);
+    if (sortExplicit) {
+      switch (sort) {
+        case "newest":
+          list.sort((a, b) => (b.new ? 1 : 0) - (a.new ? 1 : 0) || b.sku.localeCompare(a.sku));
+          break;
+        case "best":
+          list.sort((a, b) => b.sold - a.sold);
+          break;
+        case "rating":
+          list.sort((a, b) => b.rating - a.rating);
+          break;
+        case "price-asc":
+          list.sort((a, b) => a.price - b.price);
+          break;
+        case "price-desc":
+          list.sort((a, b) => b.price - a.price);
+          break;
+        default:
+          list.sort((a, b) => (b.bestSeller ? 1 : 0) - (a.bestSeller ? 1 : 0) || b.sold - a.sold);
+      }
     }
     return list;
-  }, [q, cat, br, availability, rating, minPrice, maxPrice, onSale, sort, deals, liveCatalogItems]);
+  }, [q, cat, br, availability, rating, minPrice, maxPrice, onSale, sort, sortExplicit, deals, liveCatalogItems]);
 
   const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const pageItems = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
