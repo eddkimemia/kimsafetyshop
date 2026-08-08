@@ -13,8 +13,8 @@ export const metadata: Metadata = {
     "Buying guides, safety standards, PPE selection and Kenyan workplace regulations — free resources for safety officers and facility managers.",
 };
 
-export default function KnowledgePage() {
-  const guides = mergedGuides();
+export default async function KnowledgePage() {
+  const guides = await mergedGuides();
   return (
     <div className="bg-surface pb-20">
       <PageHeader

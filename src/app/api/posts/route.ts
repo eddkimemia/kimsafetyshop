@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { listPosts } from "@/lib/db";
 
 export async function GET() {
-  const posts = listPosts().map((p) => ({
+  const posts = (await listPosts()).map((p) => ({
     id: p.id,
     slug: p.slug,
     title: p.title,

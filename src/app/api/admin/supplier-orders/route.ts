@@ -9,7 +9,7 @@ export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
   return NextResponse.json({
-    orders: listSupplierOrders().map((o) => ({ ...o, items: JSON.parse(o.items) })),
+    orders: (await listSupplierOrders()).map((o) => ({ ...o, items: JSON.parse(o.items) })),
   });
 }
 
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Add at least one item with a name and quantity" }, { status: 400 });
   }
 
-  const order = createSupplierOrder({
+  const order = await createSupplierOrder({
     supplier,
     contact_name: body.contact_name ? String(body.contact_name).trim() : null,
     phone: body.phone ? String(body.phone).trim() : null,
@@ -68,6 +68,6 @@ export async function PATCH(req: Request) {
   if (denied) return denied;
   const { id, status } = (await req.json().catch(() => ({}))) as { id?: string; status?: string };
   if (!id || !status) return NextResponse.json({ error: "Missing id or status" }, { status: 400 });
-  setSupplierOrderStatus(id, status);
+  await setSupplierOrderStatus(id, status);
   return NextResponse.json({ ok: true });
 }

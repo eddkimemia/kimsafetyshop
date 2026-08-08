@@ -1,9 +1,6 @@
-import Database from "better-sqlite3";
-import path from "path";
+import { Pool } from "pg";
 import { randomUUID, scryptSync, randomBytes, timingSafeEqual } from "crypto";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
-
-const DB_PATH = path.join(process.cwd(), "data", "kimsafety.db");
 
 export type DbUser = {
   id: string;
@@ -152,18 +149,73 @@ export type DbNotification = {
   created_at: string;
 };
 
-let db: Database.Database | null = null;
+let pool: Pool | null = null;
 
-export function getDb(): Database.Database {
-  if (db) return db;
-  db = new Database(DB_PATH);
-  db.pragma("journal_mode = WAL");
-  initSchema(db);
-  return db;
+export function getDb(): Pool {
+  if (!pool) {
+    const url = process.env.DATABASE_URL;
+    if (!url) throw new Error("DATABASE_URL environment variable is required");
+    const host = new URL(url).hostname;
+    const ssl = /sslmode=require|sslmode=verify-full/.test(url) || !["localhost", "127.0.0.1", "::1"].includes(host);
+    pool = new Pool({
+      connectionString: url,
+      ssl: ssl ? { rejectUnauthorized: false } : false,
+      max: 10,
+    });
+    pool.on("error", (err: Error) => console.error("[kimsafety] pg pool error", err));
+  }
+  return pool;
 }
 
-function initSchema(d: Database.Database) {
-  d.exec(`
+function toPgParams(sql: string, params: unknown[] | Record<string, unknown>): { text: string; values: unknown[] } {
+  const values: unknown[] = [];
+  let i = 0;
+  const text = sql.replace(/(@[a-zA-Z_][a-zA-Z0-9_]*)|(\?)/g, (tok: string, name?: string) => {
+    i += 1;
+    if (name) values.push((params as Record<string, unknown>)[name.slice(1)]);
+    else values.push((params as unknown[])[i - 1]);
+    return `$${i}`;
+  });
+  return { text, values };
+}
+
+function normalizeParams(params: unknown[]): unknown[] | Record<string, unknown> {
+  if (params.length === 1 && typeof params[0] === "object" && params[0] !== null && !Array.isArray(params[0])) {
+    return params[0] as Record<string, unknown>;
+  }
+  return params;
+}
+
+export async function q1<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T | undefined> {
+  await ensureSchema();
+  const { text, values } = toPgParams(sql, normalizeParams(params));
+  const res = await getDb().query(text, values);
+  return res.rows[0] as T | undefined;
+}
+
+export async function qr<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T[]> {
+  await ensureSchema();
+  const { text, values } = toPgParams(sql, normalizeParams(params));
+  const res = await getDb().query(text, values);
+  return res.rows as T[];
+}
+
+export async function qe(sql: string, ...params: unknown[]): Promise<Promise<number>> {  await ensureSchema();
+  const { text, values } = toPgParams(sql, normalizeParams(params));
+  const res = await getDb().query(text, values);
+  return res.rowCount ?? 0;
+}
+
+let schemaReady: Promise<void> | null = null;
+
+function ensureSchema(): Promise<void> {
+  if (!schemaReady) schemaReady = initSchema();
+  return schemaReady;
+}
+
+async function initSchema() {
+  const d = getDb();
+  await d.query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -172,6 +224,7 @@ function initSchema(d: Database.Database) {
       role TEXT NOT NULL DEFAULT 'user',
       company TEXT,
       phone TEXT,
+      verified INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS orders (
@@ -183,8 +236,15 @@ function initSchema(d: Database.Database) {
       address TEXT NOT NULL,
       items TEXT NOT NULL,
       total INTEGER NOT NULL,
+      subtotal INTEGER NOT NULL DEFAULT 0,
+      discount INTEGER NOT NULL DEFAULT 0,
+      shipping INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Processing',
       payment TEXT NOT NULL DEFAULT 'mpesa',
+      paid INTEGER NOT NULL DEFAULT 1,
+      po_ref TEXT,
+      company TEXT,
+      po_file TEXT,
       created_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS quotes (
@@ -195,6 +255,11 @@ function initSchema(d: Database.Database) {
       items TEXT NOT NULL,
       total INTEGER NOT NULL,
       status TEXT NOT NULL DEFAULT 'Pending',
+      attachment TEXT,
+      email TEXT,
+      phone TEXT,
+      notes TEXT,
+      valid_until TEXT,
       created_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS corporate_applications (
@@ -259,8 +324,6 @@ function initSchema(d: Database.Database) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
-  `);
-  d.exec(`
     CREATE TABLE IF NOT EXISTS addresses (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -311,30 +374,13 @@ function initSchema(d: Database.Database) {
       read INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
-  `);
-  addColumnIfMissing(d, "orders", "subtotal", "INTEGER NOT NULL DEFAULT 0");
-  addColumnIfMissing(d, "orders", "discount", "INTEGER NOT NULL DEFAULT 0");
-  addColumnIfMissing(d, "orders", "shipping", "INTEGER NOT NULL DEFAULT 0");
-  addColumnIfMissing(d, "orders", "paid", "INTEGER NOT NULL DEFAULT 1");
-  addColumnIfMissing(d, "orders", "po_ref", "TEXT");
-  addColumnIfMissing(d, "orders", "company", "TEXT");
-  addColumnIfMissing(d, "orders", "po_file", "TEXT");
-  addColumnIfMissing(d, "users", "verified", "INTEGER NOT NULL DEFAULT 1");
-  addColumnIfMissing(d, "quotes", "attachment", "TEXT");
-  addColumnIfMissing(d, "quotes", "email", "TEXT");
-  addColumnIfMissing(d, "quotes", "phone", "TEXT");
-  addColumnIfMissing(d, "quotes", "notes", "TEXT");
-  addColumnIfMissing(d, "quotes", "valid_until", "TEXT");
-  d.exec(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL
     );
-  `);
-  d.exec(`
     CREATE TABLE IF NOT EXISTS marketing_banners (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       title TEXT NOT NULL,
       subtitle TEXT NOT NULL DEFAULT '',
       kicker TEXT NOT NULL DEFAULT 'KimSafety',
@@ -355,7 +401,7 @@ function initSchema(d: Database.Database) {
       updated_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS marketing_campaigns (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       slug TEXT NOT NULL UNIQUE,
       description TEXT NOT NULL DEFAULT '',
@@ -368,16 +414,6 @@ function initSchema(d: Database.Database) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
-  `);
-  addColumnIfMissing(d, "marketing_banners", "card_kicker", "TEXT NOT NULL DEFAULT ''");
-  addColumnIfMissing(d, "marketing_banners", "card_title", "TEXT NOT NULL DEFAULT ''");
-  addColumnIfMissing(d, "marketing_banners", "card_subtitle", "TEXT NOT NULL DEFAULT ''");
-  addColumnIfMissing(d, "marketing_banners", "stat1_label", "TEXT NOT NULL DEFAULT 'Trusted by'");
-  addColumnIfMissing(d, "marketing_banners", "stat1_value", "TEXT NOT NULL DEFAULT '1,200+ Organizations'");
-  addColumnIfMissing(d, "marketing_banners", "stat2_label", "TEXT NOT NULL DEFAULT 'Delivered to'");
-  addColumnIfMissing(d, "marketing_banners", "stat2_value", "TEXT NOT NULL DEFAULT '47 Counties'");
-  seedMarketing(d);
-  d.exec(`
     CREATE TABLE IF NOT EXISTS letters (
       id TEXT PRIMARY KEY,
       type TEXT NOT NULL DEFAULT 'Official Letter',
@@ -393,43 +429,31 @@ function initSchema(d: Database.Database) {
       sender_title TEXT,
       with_stamp INTEGER NOT NULL DEFAULT 1,
       created_by TEXT NOT NULL,
+      created_by_id TEXT,
       created_at TEXT NOT NULL
     );
   `);
-  addColumnIfMissing(d, "letters", "created_by_id", "TEXT");
-  function addColumnIfMissing(db: Database.Database, table: string, column: string, def: string) {
-    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-    if (!cols.some((c) => c.name === column)) {
-      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
-    }
-  }
-  seedUsers(d);
+  await seedMarketing();
+  await seedUsers();
 }
 
-function seedUsers(d: Database.Database) {
+async function seedUsers() {
   const adminEmail = process.env.ADMIN_EMAIL ?? "admin@kimsafety.co.ke";
   const adminPass = process.env.ADMIN_PASSWORD;
-  if (!adminPass) {
-    throw new Error("ADMIN_PASSWORD environment variable is required to seed the admin user");
-  }
-  const existing = d.prepare("SELECT role FROM users WHERE email = ?").get(adminEmail) as { role: string } | undefined;
+  const res = await getDb().query("SELECT role FROM users WHERE email = $1", [adminEmail]);
+  const existing = res.rows[0] as { role: string } | undefined;
   if (existing) {
     if (existing.role !== "superadmin") {
-      d.prepare("UPDATE users SET role = 'superadmin' WHERE email = ?").run(adminEmail);
+      await getDb().query("UPDATE users SET role = 'superadmin' WHERE email = $1", [adminEmail]);
     }
     return;
   }
-  d.prepare(
-    "INSERT INTO users (id, name, email, password_hash, role, company, phone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-  ).run(
-    randomUUID(),
-    "KimSafety Admin",
-    adminEmail,
-    hashPassword(adminPass),
-    "superadmin",
-    "KimSafety Ltd",
-    "+254 715135141",
-    new Date().toISOString()
+  if (!adminPass) {
+    throw new Error("ADMIN_PASSWORD environment variable is required to seed the admin user");
+  }
+  await getDb().query(
+    "INSERT INTO users (id, name, email, password_hash, role, company, phone, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+    [randomUUID(), "KimSafety Admin", adminEmail, hashPassword(adminPass), "superadmin", "KimSafety Ltd", "+254 715135141", new Date().toISOString()]
   );
 }
 
@@ -532,32 +556,31 @@ const SEED_CAMPAIGNS = [
   },
 ];
 
-function seedMarketing(d: Database.Database) {
+async function seedMarketing() {
+  const d = getDb();
   const now = new Date().toISOString();
-  const bannerCount = (d.prepare("SELECT COUNT(*) AS c FROM marketing_banners").get() as { c: number }).c;
-  if (bannerCount === 0) {
-    const insert = d.prepare(
-      "INSERT INTO marketing_banners (title, subtitle, kicker, cta, cta_href, cta2, image, card_kicker, card_title, card_subtitle, sort, active, created_at, updated_at) VALUES (@title, @subtitle, @kicker, @cta, @cta_href, @cta2, @image, @card_kicker, @card_title, @card_subtitle, @sort, 1, @created_at, @updated_at)"
-    );
-    SEED_BANNERS.forEach((b, i) => insert.run({ ...b, sort: i, created_at: now, updated_at: now }));
+  const bannerCount = (await d.query("SELECT COUNT(*)::int AS c FROM marketing_banners")).rows[0] as { c: number };
+  if (bannerCount.c === 0) {
+    for (let i = 0; i < SEED_BANNERS.length; i++) {
+      const b = SEED_BANNERS[i];
+      await d.query(
+        "INSERT INTO marketing_banners (title, subtitle, kicker, cta, cta_href, cta2, image, card_kicker, card_title, card_subtitle, sort, active, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,1,$12,$13)",
+        [b.title, b.subtitle, b.kicker, b.cta, b.cta_href, b.cta2, b.image, b.card_kicker, b.card_title, b.card_subtitle, i, now, now]
+      );
+    }
     console.log("[kimsafety] Seeded marketing banners");
   }
-  d.prepare(
+  await d.query(
     "UPDATE marketing_banners SET card_kicker = 'KimSafety', card_title = 'Your Trusted Safety Partner', card_subtitle = 'Genuine & certified PPE, delivered nationwide within 24–72 hours.' WHERE card_title = ''"
-  ).run();
-  const campaignCount = (d.prepare("SELECT COUNT(*) AS c FROM marketing_campaigns").get() as { c: number }).c;
-  if (campaignCount === 0) {
-    const insert = d.prepare(
-      "INSERT INTO marketing_campaigns (name, slug, description, discount_label, cta_href, start_date, end_date, active, created_at, updated_at) VALUES (@name, @slug, @description, @discount_label, @cta_href, @start_date, @end_date, 1, @created_at, @updated_at)"
-    );
-    SEED_CAMPAIGNS.forEach((c) =>
-      insert.run({
-        ...c,
-        slug: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-        created_at: now,
-        updated_at: now,
-      })
-    );
+  );
+  const campaignCount = (await d.query("SELECT COUNT(*)::int AS c FROM marketing_campaigns")).rows[0] as { c: number };
+  if (campaignCount.c === 0) {
+    for (const c of SEED_CAMPAIGNS) {
+      await d.query(
+        "INSERT INTO marketing_campaigns (name, slug, description, discount_label, cta_href, start_date, end_date, active, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,1,$8,$9)",
+        [c.name, c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), c.description, c.discount_label, c.cta_href, c.start_date, c.end_date, now, now]
+      );
+    }
     console.log("[kimsafety] Seeded marketing campaigns");
   }
   const CAMPAIGN_IMAGE_BY_KEYWORD: [string, string][] = [
@@ -569,15 +592,18 @@ function seedMarketing(d: Database.Database) {
     ["christmas", "Designer Orange Reflector Jackets.jpg"],
   ];
   const FALLBACK_CAMPAIGN_IMAGE = "2 Stripes Reflective Vest AA12.jpg";
-  const campaigns = d.prepare("SELECT id, slug FROM marketing_campaigns WHERE image IS NULL").all() as {
+  const campaigns = (await d.query("SELECT id, slug FROM marketing_campaigns WHERE image IS NULL")).rows as {
     id: number;
     slug: string;
   }[];
-  const setImage = d.prepare("UPDATE marketing_campaigns SET image = ?, updated_at = ? WHERE id = ?");
   for (const c of campaigns) {
     const match = CAMPAIGN_IMAGE_BY_KEYWORD.find(([kw]) => c.slug.includes(kw));
     const file = match?.[1] ?? FALLBACK_CAMPAIGN_IMAGE;
-    setImage.run(`/api/uploads/${encodeURIComponent(file)}`, now, c.id);
+    await d.query("UPDATE marketing_campaigns SET image = $1, updated_at = $2 WHERE id = $3", [
+      `/api/uploads/${encodeURIComponent(file)}`,
+      now,
+      c.id,
+    ]);
   }
 }
 
@@ -609,16 +635,13 @@ export function rowToUser(row: DbUser) {
 
 // ---- Users ----
 
-export function getUserByEmail(email: string): DbUser | undefined {
-  return getDb().prepare("SELECT * FROM users WHERE email = ?").get(email) as DbUser | undefined;
+export async function getUserByEmail(email: string): Promise<DbUser | undefined> {  return (await q1("SELECT * FROM users WHERE email = ?", email)) as DbUser | undefined;
 }
 
-export function getUserById(id: string): DbUser | undefined {
-  return getDb().prepare("SELECT * FROM users WHERE id = ?").get(id) as DbUser | undefined;
+export async function getUserById(id: string): Promise<DbUser | undefined> {  return (await q1("SELECT * FROM users WHERE id = ?", id)) as DbUser | undefined;
 }
 
-export function createUser(input: { name: string; email: string; password: string; company?: string; phone?: string; role?: "user" | "admin"; verified?: number }): DbUser {
-  const user: DbUser = {
+export async function createUser(input: { name: string; email: string; password: string; company?: string; phone?: string; role?: "user" | "admin"; verified?: number }): Promise<DbUser> {  const user: DbUser = {
     id: randomUUID(),
     name: input.name,
     email: input.email.toLowerCase(),
@@ -629,28 +652,24 @@ export function createUser(input: { name: string; email: string; password: strin
     verified: input.verified ?? 1,
     created_at: new Date().toISOString(),
   };
-  getDb()
-    .prepare("INSERT INTO users (id, name, email, password_hash, role, company, phone, verified, created_at) VALUES (@id, @name, @email, @password_hash, @role, @company, @phone, @verified, @created_at)")
-    .run(user);
+  await qe("INSERT INTO users (id, name, email, password_hash, role, company, phone, verified, created_at) VALUES (@id, @name, @email, @password_hash, @role, @company, @phone, @verified, @created_at)", user);
   return user;
 }
 
-export function listUsers(): DbUser[] {
-  return getDb().prepare("SELECT * FROM users ORDER BY created_at DESC").all() as DbUser[];
+export async function listUsers(): Promise<DbUser[]> {  return (await qr("SELECT * FROM users ORDER BY created_at DESC")) as DbUser[];
 }
 
-export function setUserRole(id: string, role: "user" | "admin") {
-  getDb().prepare("UPDATE users SET role = ? WHERE id = ?").run(role, id);
+export async function setUserRole(id: string, role: "user" | "admin") {
+  await qe("UPDATE users SET role = ? WHERE id = ?", role, id);
 }
 
-export function setUserVerified(id: string, verified: number) {
-  getDb().prepare("UPDATE users SET verified = ? WHERE id = ?").run(verified, id);
+export async function setUserVerified(id: string, verified: number) {
+  await qe("UPDATE users SET verified = ? WHERE id = ?", verified, id);
 }
 
 // ---- Orders ----
 
-export function createOrder(input: { user_id?: string | null; name: string; email: string; phone: string; address: string; items: string; total: number; subtotal?: number; discount?: number; shipping?: number; payment: string; po_ref?: string; company?: string; po_file?: string }): DbOrder {
-  const order: DbOrder = {
+export async function createOrder(input: { user_id?: string | null; name: string; email: string; phone: string; address: string; items: string; total: number; subtotal?: number; discount?: number; shipping?: number; payment: string; po_ref?: string; company?: string; po_file?: string }): Promise<DbOrder> {  const order: DbOrder = {
     id: `KS-${Math.floor(10000 + Math.random() * 89999)}`,
     user_id: input.user_id ?? null,
     name: input.name,
@@ -670,35 +689,30 @@ export function createOrder(input: { user_id?: string | null; name: string; emai
     po_file: input.po_file ?? null,
     created_at: new Date().toISOString(),
   };
-  getDb()
-    .prepare("INSERT INTO orders (id, user_id, name, email, phone, address, items, total, subtotal, discount, shipping, status, payment, paid, po_ref, company, po_file, created_at) VALUES (@id, @user_id, @name, @email, @phone, @address, @items, @total, @subtotal, @discount, @shipping, @status, @payment, @paid, @po_ref, @company, @po_file, @created_at)")
-    .run(order);
+  await qe("INSERT INTO orders (id, user_id, name, email, phone, address, items, total, subtotal, discount, shipping, status, payment, paid, po_ref, company, po_file, created_at) VALUES (@id, @user_id, @name, @email, @phone, @address, @items, @total, @subtotal, @discount, @shipping, @status, @payment, @paid, @po_ref, @company, @po_file, @created_at)", order);
   return order;
 }
 
-export function getOrderById(id: string): DbOrder | undefined {
-  return getDb().prepare("SELECT * FROM orders WHERE id = ?").get(id) as DbOrder | undefined;
+export async function getOrderById(id: string): Promise<DbOrder | undefined> {  return (await q1("SELECT * FROM orders WHERE id = ?", id)) as DbOrder | undefined;
 }
 
-export function setOrderPaid(id: string, paid: number) {
-  getDb().prepare("UPDATE orders SET paid = ? WHERE id = ?").run(paid, id);
+export async function setOrderPaid(id: string, paid: number) {
+  await qe("UPDATE orders SET paid = ? WHERE id = ?", paid, id);
 }
 
-export function listOrders(): DbOrder[] {
-  return getDb().prepare("SELECT * FROM orders ORDER BY created_at DESC").all() as DbOrder[];
+export async function listOrders(): Promise<DbOrder[]> {  return (await qr("SELECT * FROM orders ORDER BY created_at DESC")) as DbOrder[];
 }
 
-export function ordersForUser(userId: string): DbOrder[] {
-  return getDb().prepare("SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC").all(userId) as DbOrder[];
+export async function ordersForUser(userId: string): Promise<DbOrder[]> {  return (await qr("SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC", userId)) as DbOrder[];
 }
 
-export function setOrderStatus(id: string, status: string) {
-  getDb().prepare("UPDATE orders SET status = ? WHERE id = ?").run(status, id);
+export async function setOrderStatus(id: string, status: string) {
+  await qe("UPDATE orders SET status = ? WHERE id = ?", status, id);
 }
 
 // ---- Quotes ----
 
-export function createQuote(input: {
+export async function createQuote(input: {
   user_id?: string | null;
   name: string;
   company?: string | null;
@@ -709,8 +723,7 @@ export function createQuote(input: {
   phone?: string | null;
   notes?: string | null;
   valid_until?: string | null;
-}): DbQuote {
-  const quote: DbQuote = {
+}): Promise<DbQuote> {  const quote: DbQuote = {
     id: `QUO-${Math.floor(1000 + Math.random() * 9000)}`,
     user_id: input.user_id ?? null,
     name: input.name,
@@ -725,49 +738,38 @@ export function createQuote(input: {
     valid_until: input.valid_until ?? null,
     created_at: new Date().toISOString(),
   };
-  getDb()
-    .prepare("INSERT INTO quotes (id, user_id, name, company, items, total, status, attachment, email, phone, notes, valid_until, created_at) VALUES (@id, @user_id, @name, @company, @items, @total, @status, @attachment, @email, @phone, @notes, @valid_until, @created_at)")
-    .run(quote);
+  await qe("INSERT INTO quotes (id, user_id, name, company, items, total, status, attachment, email, phone, notes, valid_until, created_at) VALUES (@id, @user_id, @name, @company, @items, @total, @status, @attachment, @email, @phone, @notes, @valid_until, @created_at)", quote);
   return quote;
 }
 
-export function getQuoteById(id: string): DbQuote | undefined {
-  return getDb().prepare("SELECT * FROM quotes WHERE id = ?").get(id) as DbQuote | undefined;
+export async function getQuoteById(id: string): Promise<DbQuote | undefined> {  return (await q1("SELECT * FROM quotes WHERE id = ?", id)) as DbQuote | undefined;
 }
 
-export function listQuotes(): DbQuote[] {
-  return getDb().prepare("SELECT * FROM quotes ORDER BY created_at DESC").all() as DbQuote[];
+export async function listQuotes(): Promise<DbQuote[]> {  return (await qr("SELECT * FROM quotes ORDER BY created_at DESC")) as DbQuote[];
 }
 
-export function quotesForUser(userId: string): DbQuote[] {
-  return getDb().prepare("SELECT * FROM quotes WHERE user_id = ? ORDER BY created_at DESC").all(userId) as DbQuote[];
+export async function quotesForUser(userId: string): Promise<DbQuote[]> {  return (await qr("SELECT * FROM quotes WHERE user_id = ? ORDER BY created_at DESC", userId)) as DbQuote[];
 }
 
-export function setQuoteStatus(id: string, status: string) {
-  getDb().prepare("UPDATE quotes SET status = ? WHERE id = ?").run(status, id);
+export async function setQuoteStatus(id: string, status: string) {
+  await qe("UPDATE quotes SET status = ? WHERE id = ?", status, id);
 }
 
 // ---- Site settings ----
 
-export function getSetting(key: string): string {
-  const row = getDb().prepare("SELECT value FROM settings WHERE key = ?").get(key) as { value: string } | undefined;
+export async function getSetting(key: string): Promise<string> {  const row = (await q1("SELECT value FROM settings WHERE key = ?", key)) as { value: string } | undefined;
   return row?.value ?? DEFAULT_SETTINGS[key] ?? "";
 }
 
-export function getAllSettings(): Record<string, string> {
-  const rows = getDb().prepare("SELECT key, value FROM settings").all() as { key: string; value: string }[];
+export async function getAllSettings(): Promise<Record<string, string>> {  const rows = (await qr("SELECT key, value FROM settings")) as { key: string; value: string }[];
   const out: Record<string, string> = { ...DEFAULT_SETTINGS };
   for (const r of rows) out[r.key] = r.value;
   return out;
 }
 
-export function setSetting(key: string, value: string) {
+export async function setSetting(key: string, value: string) {
   const now = new Date().toISOString();
-  getDb()
-    .prepare(
-      "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at"
-    )
-    .run(key, value, now);
+  await qe("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", key, value, now);
 }
 
 // ---- Letters ----
@@ -793,7 +795,7 @@ export type DbLetter = {
 
 const normalizeLetterSubject = (s?: string) => (s ?? "").trim().toUpperCase();
 
-export function createLetter(input: {
+export async function createLetter(input: {
   type?: string;
   recipient_name: string;
   recipient_title?: string | null;
@@ -808,8 +810,7 @@ export function createLetter(input: {
   with_stamp?: boolean;
   created_by: string;
   created_by_id?: string | null;
-}): DbLetter {
-  const letter: DbLetter = {
+}): Promise<DbLetter> {  const letter: DbLetter = {
     id: `LTR-${Math.floor(1000 + Math.random() * 9000)}`,
     type: input.type?.trim() || "Official Letter",
     recipient_name: input.recipient_name,
@@ -827,15 +828,11 @@ export function createLetter(input: {
     created_by_id: input.created_by_id ?? null,
     created_at: new Date().toISOString(),
   };
-  getDb()
-    .prepare(
-      "INSERT INTO letters (id, type, recipient_name, recipient_title, recipient_company, recipient_address, subject, salutation, body, closing, sender_name, sender_title, with_stamp, created_by, created_by_id, created_at) VALUES (@id, @type, @recipient_name, @recipient_title, @recipient_company, @recipient_address, @subject, @salutation, @body, @closing, @sender_name, @sender_title, @with_stamp, @created_by, @created_by_id, @created_at)"
-    )
-    .run(letter);
+  await qe("INSERT INTO letters (id, type, recipient_name, recipient_title, recipient_company, recipient_address, subject, salutation, body, closing, sender_name, sender_title, with_stamp, created_by, created_by_id, created_at) VALUES (@id, @type, @recipient_name, @recipient_title, @recipient_company, @recipient_address, @subject, @salutation, @body, @closing, @sender_name, @sender_title, @with_stamp, @created_by, @created_by_id, @created_at)", letter);
   return letter;
 }
 
-export function updateLetter(
+export async function updateLetter(
   id: string,
   input: {
     type?: string;
@@ -851,8 +848,7 @@ export function updateLetter(
     sender_title?: string | null;
     with_stamp?: boolean;
   }
-): DbLetter {
-  const existing = getLetterById(id);
+): Promise<DbLetter> {  const existing = await getLetterById(id);
   if (!existing) throw new Error("Letter not found");
   const letter: DbLetter = {
     ...existing,
@@ -869,35 +865,26 @@ export function updateLetter(
     sender_title: input.sender_title === undefined ? existing.sender_title : input.sender_title?.trim() || null,
     with_stamp: input.with_stamp === undefined ? existing.with_stamp : input.with_stamp ? 1 : 0,
   };
-  getDb()
-    .prepare(
-      "UPDATE letters SET type=@type, recipient_name=@recipient_name, recipient_title=@recipient_title, recipient_company=@recipient_company, recipient_address=@recipient_address, subject=@subject, salutation=@salutation, body=@body, closing=@closing, sender_name=@sender_name, sender_title=@sender_title, with_stamp=@with_stamp WHERE id=@id"
-    )
-    .run(letter);
+  await qe("UPDATE letters SET type=@type, recipient_name=@recipient_name, recipient_title=@recipient_title, recipient_company=@recipient_company, recipient_address=@recipient_address, subject=@subject, salutation=@salutation, body=@body, closing=@closing, sender_name=@sender_name, sender_title=@sender_title, with_stamp=@with_stamp WHERE id=@id", letter);
   return letter;
 }
 
-export function getLetterById(id: string): DbLetter | undefined {
-  return getDb().prepare("SELECT * FROM letters WHERE id = ?").get(id) as DbLetter | undefined;
+export async function getLetterById(id: string): Promise<DbLetter | undefined> {  return (await q1("SELECT * FROM letters WHERE id = ?", id)) as DbLetter | undefined;
 }
 
-export function listLetters(): DbLetter[] {
-  return getDb().prepare("SELECT * FROM letters ORDER BY created_at DESC").all() as DbLetter[];
+export async function listLetters(): Promise<DbLetter[]> {  return (await qr("SELECT * FROM letters ORDER BY created_at DESC")) as DbLetter[];
 }
 
-export function listLettersFor(userId: string): DbLetter[] {
-  return getDb()
-    .prepare("SELECT * FROM letters WHERE created_by_id = ? ORDER BY created_at DESC")
-    .all(userId) as DbLetter[];
+export async function listLettersFor(userId: string): Promise<DbLetter[]> {  return (await qr("SELECT * FROM letters WHERE created_by_id = ? ORDER BY created_at DESC", userId)) as DbLetter[];
 }
 
-export function deleteLetter(id: string) {
-  getDb().prepare("DELETE FROM letters WHERE id = ?").run(id);
+export async function deleteLetter(id: string) {
+  await qe("DELETE FROM letters WHERE id = ?", id);
 }
 
 // ---- Corporate account applications ----
 
-export function createCorporateApplication(input: {
+export async function createCorporateApplication(input: {
   company: string;
   kra_pin: string;
   industry: string;
@@ -906,8 +893,7 @@ export function createCorporateApplication(input: {
   email: string;
   notes?: string | null;
   documents?: string[];
-}): DbCorporateApplication {
-  const app: DbCorporateApplication = {
+}): Promise<DbCorporateApplication> {  const app: DbCorporateApplication = {
     id: `CORP-${Math.floor(1000 + Math.random() * 9000)}`,
     company: input.company,
     kra_pin: input.kra_pin,
@@ -920,32 +906,26 @@ export function createCorporateApplication(input: {
     status: "Pending",
     created_at: new Date().toISOString(),
   };
-  getDb()
-    .prepare(
-      "INSERT INTO corporate_applications (id, company, kra_pin, industry, contact_name, phone, email, notes, documents, status, created_at) VALUES (@id, @company, @kra_pin, @industry, @contact_name, @phone, @email, @notes, @documents, @status, @created_at)"
-    )
-    .run(app);
+  await qe("INSERT INTO corporate_applications (id, company, kra_pin, industry, contact_name, phone, email, notes, documents, status, created_at) VALUES (@id, @company, @kra_pin, @industry, @contact_name, @phone, @email, @notes, @documents, @status, @created_at)", app);
   return app;
 }
 
-export function listCorporateApplications(): DbCorporateApplication[] {
-  return getDb().prepare("SELECT * FROM corporate_applications ORDER BY created_at DESC").all() as DbCorporateApplication[];
+export async function listCorporateApplications(): Promise<DbCorporateApplication[]> {  return (await qr("SELECT * FROM corporate_applications ORDER BY created_at DESC")) as DbCorporateApplication[];
 }
 
-export function setCorporateApplicationStatus(id: string, status: string) {
-  getDb().prepare("UPDATE corporate_applications SET status = ? WHERE id = ?").run(status, id);
+export async function setCorporateApplicationStatus(id: string, status: string) {
+  await qe("UPDATE corporate_applications SET status = ? WHERE id = ?", status, id);
 }
 
 // ---- Purchase orders ----
 
-export function createPurchaseOrder(input: {
+export async function createPurchaseOrder(input: {
   company: string;
   contact_name?: string | null;
   phone?: string | null;
   email?: string | null;
   po_file: string;
-}): DbPurchaseOrder {
-  const po: DbPurchaseOrder = {
+}): Promise<DbPurchaseOrder> {  const po: DbPurchaseOrder = {
     id: `PO-${Math.floor(1000 + Math.random() * 9000)}`,
     company: input.company,
     contact_name: input.contact_name ?? null,
@@ -955,25 +935,20 @@ export function createPurchaseOrder(input: {
     status: "Pending",
     created_at: new Date().toISOString(),
   };
-  getDb()
-    .prepare(
-      "INSERT INTO purchase_orders (id, company, contact_name, phone, email, po_file, status, created_at) VALUES (@id, @company, @contact_name, @phone, @email, @po_file, @status, @created_at)"
-    )
-    .run(po);
+  await qe("INSERT INTO purchase_orders (id, company, contact_name, phone, email, po_file, status, created_at) VALUES (@id, @company, @contact_name, @phone, @email, @po_file, @status, @created_at)", po);
   return po;
 }
 
-export function listPurchaseOrders(): DbPurchaseOrder[] {
-  return getDb().prepare("SELECT * FROM purchase_orders ORDER BY created_at DESC").all() as DbPurchaseOrder[];
+export async function listPurchaseOrders(): Promise<DbPurchaseOrder[]> {  return (await qr("SELECT * FROM purchase_orders ORDER BY created_at DESC")) as DbPurchaseOrder[];
 }
 
-export function setPurchaseOrderStatus(id: string, status: string) {
-  getDb().prepare("UPDATE purchase_orders SET status = ? WHERE id = ?").run(status, id);
+export async function setPurchaseOrderStatus(id: string, status: string) {
+  await qe("UPDATE purchase_orders SET status = ? WHERE id = ?", status, id);
 }
 
 // ---- Supplier purchase orders (KimSafety buys stock from suppliers) ----
 
-export function createSupplierOrder(input: {
+export async function createSupplierOrder(input: {
   supplier: string;
   contact_name?: string | null;
   phone?: string | null;
@@ -982,8 +957,7 @@ export function createSupplierOrder(input: {
   shipping?: number;
   expected_date?: string | null;
   notes?: string | null;
-}): DbSupplierOrder {
-  const subtotal = Math.round(
+}): Promise<DbSupplierOrder> {  const subtotal = Math.round(
     input.items.reduce((sum, i) => sum + (i.qty || 0) * (i.unitPrice || 0), 0)
   );
   const shipping = Math.round(input.shipping ?? 0);
@@ -1002,64 +976,52 @@ export function createSupplierOrder(input: {
     status: "Draft",
     created_at: new Date().toISOString(),
   };
-  getDb()
-    .prepare(
-      "INSERT INTO supplier_orders (id, supplier, contact_name, phone, email, items, subtotal, shipping, total, expected_date, notes, status, created_at) VALUES (@id, @supplier, @contact_name, @phone, @email, @items, @subtotal, @shipping, @total, @expected_date, @notes, @status, @created_at)"
-    )
-    .run(po);
+  await qe("INSERT INTO supplier_orders (id, supplier, contact_name, phone, email, items, subtotal, shipping, total, expected_date, notes, status, created_at) VALUES (@id, @supplier, @contact_name, @phone, @email, @items, @subtotal, @shipping, @total, @expected_date, @notes, @status, @created_at)", po);
   return po;
 }
 
-export function listSupplierOrders(): DbSupplierOrder[] {
-  return getDb().prepare("SELECT * FROM supplier_orders ORDER BY created_at DESC").all() as DbSupplierOrder[];
+export async function listSupplierOrders(): Promise<DbSupplierOrder[]> {  return (await qr("SELECT * FROM supplier_orders ORDER BY created_at DESC")) as DbSupplierOrder[];
 }
 
-export function getSupplierOrder(id: string): DbSupplierOrder | undefined {
-  return getDb().prepare("SELECT * FROM supplier_orders WHERE id = ?").get(id) as DbSupplierOrder | undefined;
+export async function getSupplierOrder(id: string): Promise<DbSupplierOrder | undefined> {  return (await q1("SELECT * FROM supplier_orders WHERE id = ?", id)) as DbSupplierOrder | undefined;
 }
 
-export function setSupplierOrderStatus(id: string, status: string) {
-  getDb().prepare("UPDATE supplier_orders SET status = ? WHERE id = ?").run(status, id);
+export async function setSupplierOrderStatus(id: string, status: string) {
+  await qe("UPDATE supplier_orders SET status = ? WHERE id = ?", status, id);
 }
 
 // ---- Admin-managed products & guides (JSON overrides) ----
 
-export function listAdminProducts(): { sku: string; data: unknown; updated_at: string }[] {
-  return getDb().prepare("SELECT * FROM admin_products ORDER BY updated_at DESC").all() as { sku: string; data: unknown; updated_at: string }[];
+export async function listAdminProducts(): Promise<{ sku: string; data: unknown; updated_at: string }[]> {  return (await qr("SELECT * FROM admin_products ORDER BY updated_at DESC")) as { sku: string; data: unknown; updated_at: string }[];
 }
 
-export function getAdminProduct(sku: string) {
-  const row = getDb().prepare("SELECT data FROM admin_products WHERE sku = ?").get(sku) as { data: string } | undefined;
+export async function getAdminProduct(sku: string) {
+  const row = (await q1("SELECT data FROM admin_products WHERE sku = ?", sku)) as { data: string } | undefined;
   return row ? JSON.parse(row.data) : undefined;
 }
 
-export function upsertAdminProduct(sku: string, data: unknown) {
-  getDb()
-    .prepare("INSERT INTO admin_products (sku, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(sku) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at")
-    .run(sku, JSON.stringify(data), new Date().toISOString());
+export async function upsertAdminProduct(sku: string, data: unknown) {
+  await qe("INSERT INTO admin_products (sku, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(sku) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at", sku, JSON.stringify(data), new Date().toISOString());
 }
 
-export function deleteAdminProduct(sku: string) {
-  getDb().prepare("DELETE FROM admin_products WHERE sku = ?").run(sku);
+export async function deleteAdminProduct(sku: string) {
+  await qe("DELETE FROM admin_products WHERE sku = ?", sku);
 }
 
-export function listAdminGuides(): { slug: string; data: unknown; updated_at: string }[] {
-  return getDb().prepare("SELECT * FROM admin_guides ORDER BY updated_at DESC").all() as { slug: string; data: unknown; updated_at: string }[];
+export async function listAdminGuides(): Promise<{ slug: string; data: unknown; updated_at: string }[]> {  return (await qr("SELECT * FROM admin_guides ORDER BY updated_at DESC")) as { slug: string; data: unknown; updated_at: string }[];
 }
 
-export function getAdminGuide(slug: string) {
-  const row = getDb().prepare("SELECT data FROM admin_guides WHERE slug = ?").get(slug) as { data: string } | undefined;
+export async function getAdminGuide(slug: string) {
+  const row = (await q1("SELECT data FROM admin_guides WHERE slug = ?", slug)) as { data: string } | undefined;
   return row ? JSON.parse(row.data) : undefined;
 }
 
-export function upsertAdminGuide(slug: string, data: unknown) {
-  getDb()
-    .prepare("INSERT INTO admin_guides (slug, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(slug) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at")
-    .run(slug, JSON.stringify(data), new Date().toISOString());
+export async function upsertAdminGuide(slug: string, data: unknown) {
+  await qe("INSERT INTO admin_guides (slug, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(slug) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at", slug, JSON.stringify(data), new Date().toISOString());
 }
 
-export function deleteAdminGuide(slug: string) {
-  getDb().prepare("DELETE FROM admin_guides WHERE slug = ?").run(slug);
+export async function deleteAdminGuide(slug: string) {
+  await qe("DELETE FROM admin_guides WHERE slug = ?", slug);
 }
 
 // ---- Blog posts ----
@@ -1091,22 +1053,19 @@ export type PostInput = {
   published?: boolean;
 };
 
-export function listPosts(includeUnpublished = false): DbPost[] {
-  const sql = includeUnpublished
+export async function listPosts(includeUnpublished = false): Promise<DbPost[]> {  const sql = includeUnpublished
     ? "SELECT * FROM posts ORDER BY created_at DESC"
     : "SELECT * FROM posts WHERE published = 1 ORDER BY created_at DESC";
-  return getDb().prepare(sql).all() as DbPost[];
+  return (await qr(sql)) as DbPost[];
 }
 
-export function getPostBySlug(slug: string, includeUnpublished = false): DbPost | undefined {
-  const sql = includeUnpublished
+export async function getPostBySlug(slug: string, includeUnpublished = false): Promise<DbPost | undefined> {  const sql = includeUnpublished
     ? "SELECT * FROM posts WHERE slug = ?"
     : "SELECT * FROM posts WHERE slug = ? AND published = 1";
-  return getDb().prepare(sql).get(slug) as DbPost | undefined;
+  return (await q1(sql, slug)) as DbPost | undefined;
 }
 
-export function createPost(input: PostInput): DbPost {
-  const post: DbPost = {
+export async function createPost(input: PostInput): Promise<DbPost> {  const post: DbPost = {
     id: randomUUID(),
     slug: input.slug,
     title: input.title,
@@ -1120,16 +1079,11 @@ export function createPost(input: PostInput): DbPost {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
-  getDb()
-    .prepare(
-      "INSERT INTO posts (id, slug, title, category, excerpt, content, cover, author, read_time, published, created_at, updated_at) VALUES (@id, @slug, @title, @category, @excerpt, @content, @cover, @author, @read_time, @published, @created_at, @updated_at)"
-    )
-    .run(post);
+  await qe("INSERT INTO posts (id, slug, title, category, excerpt, content, cover, author, read_time, published, created_at, updated_at) VALUES (@id, @slug, @title, @category, @excerpt, @content, @cover, @author, @read_time, @published, @created_at, @updated_at)", post);
   return post;
 }
 
-export function updatePost(slug: string, input: PostInput): DbPost | undefined {
-  const existing = getPostBySlug(slug, true);
+export async function updatePost(slug: string, input: PostInput): Promise<DbPost | undefined> {  const existing = await getPostBySlug(slug, true);
   if (!existing) return undefined;
   const updated: DbPost = {
     ...existing,
@@ -1144,16 +1098,12 @@ export function updatePost(slug: string, input: PostInput): DbPost | undefined {
     published: input.published === false ? 0 : 1,
     updated_at: new Date().toISOString(),
   };
-  getDb()
-    .prepare(
-      "UPDATE posts SET slug = @slug, title = @title, category = @category, excerpt = @excerpt, content = @content, cover = @cover, author = @author, read_time = @read_time, published = @published, updated_at = @updated_at WHERE id = @id"
-    )
-    .run(updated);
+  await qe("UPDATE posts SET slug = @slug, title = @title, category = @category, excerpt = @excerpt, content = @content, cover = @cover, author = @author, read_time = @read_time, published = @published, updated_at = @updated_at WHERE id = @id", updated);
   return updated;
 }
 
-export function deletePost(slug: string) {
-  getDb().prepare("DELETE FROM posts WHERE slug = ?").run(slug);
+export async function deletePost(slug: string) {
+  await qe("DELETE FROM posts WHERE slug = ?", slug);
 }
 
 // ---- Marketing: banners & campaigns ----
@@ -1195,106 +1145,71 @@ export type MarketingCampaign = {
   updated_at: string;
 };
 
-export function listBanners(): MarketingBanner[] {
-  return getDb().prepare("SELECT * FROM marketing_banners ORDER BY sort ASC, id ASC").all() as MarketingBanner[];
+export async function listBanners(): Promise<MarketingBanner[]> {  return (await qr("SELECT * FROM marketing_banners ORDER BY sort ASC, id ASC")) as MarketingBanner[];
 }
 
-export function getBannerById(id: number): MarketingBanner | undefined {
-  return getDb().prepare("SELECT * FROM marketing_banners WHERE id = ?").get(id) as MarketingBanner | undefined;
+export async function getBannerById(id: number): Promise<MarketingBanner | undefined> {  return (await q1("SELECT * FROM marketing_banners WHERE id = ?", id)) as MarketingBanner | undefined;
 }
 
-export function upsertBanner(
+export async function upsertBanner(
   input: Omit<MarketingBanner, "id" | "created_at" | "updated_at"> & { id?: number }
-): MarketingBanner {
-  const now = new Date().toISOString();
+): Promise<MarketingBanner> {  const now = new Date().toISOString();
   const row = {
     ...input,
     active: input.active ? 1 : 0,
     updated_at: now,
   };
   if (input.id) {
-    getDb()
-      .prepare(
-        "UPDATE marketing_banners SET title = @title, subtitle = @subtitle, kicker = @kicker, cta = @cta, cta_href = @cta_href, cta2 = @cta2, image = @image, card_kicker = @card_kicker, card_title = @card_title, card_subtitle = @card_subtitle, stat1_label = @stat1_label, stat1_value = @stat1_value, stat2_label = @stat2_label, stat2_value = @stat2_value, sort = @sort, active = @active, updated_at = @updated_at WHERE id = @id"
-      )
-      .run({ ...row, id: input.id });
-    return getBannerById(input.id)!;
+    await qe("UPDATE marketing_banners SET title = @title, subtitle = @subtitle, kicker = @kicker, cta = @cta, cta_href = @cta_href, cta2 = @cta2, image = @image, card_kicker = @card_kicker, card_title = @card_title, card_subtitle = @card_subtitle, stat1_label = @stat1_label, stat1_value = @stat1_value, stat2_label = @stat2_label, stat2_value = @stat2_value, sort = @sort, active = @active, updated_at = @updated_at WHERE id = @id", { ...row, id: input.id });
+    return (await getBannerById(input.id))!;
   }
-  const id = getDb()
-    .prepare(
-      "INSERT INTO marketing_banners (title, subtitle, kicker, cta, cta_href, cta2, image, card_kicker, card_title, card_subtitle, stat1_label, stat1_value, stat2_label, stat2_value, sort, active, created_at, updated_at) VALUES (@title, @subtitle, @kicker, @cta, @cta_href, @cta2, @image, @card_kicker, @card_title, @card_subtitle, @stat1_label, @stat1_value, @stat2_label, @stat2_value, @sort, @active, @created_at, @updated_at)"
-    )
-    .run({ ...row, created_at: now }).lastInsertRowid as number;
-  return getBannerById(id)!;
+  const inserted = await q1<{ id: number }>("INSERT INTO marketing_banners (title, subtitle, kicker, cta, cta_href, cta2, image, card_kicker, card_title, card_subtitle, stat1_label, stat1_value, stat2_label, stat2_value, sort, active, created_at, updated_at) VALUES (@title, @subtitle, @kicker, @cta, @cta_href, @cta2, @image, @card_kicker, @card_title, @card_subtitle, @stat1_label, @stat1_value, @stat2_label, @stat2_value, @sort, @active, @created_at, @updated_at) RETURNING id", { ...row, created_at: now });
+  return (await getBannerById(inserted!.id))!;
 }
 
-export function deleteBanner(id: number) {
-  getDb().prepare("DELETE FROM marketing_banners WHERE id = ?").run(id);
+export async function deleteBanner(id: number) {
+  await qe("DELETE FROM marketing_banners WHERE id = ?", id);
 }
 
-export function getActiveBanners(): MarketingBanner[] {
-  return getDb()
-    .prepare("SELECT * FROM marketing_banners WHERE active = 1 ORDER BY sort ASC, id ASC")
-    .all() as MarketingBanner[];
+export async function getActiveBanners(): Promise<MarketingBanner[]> {  return (await qr("SELECT * FROM marketing_banners WHERE active = 1 ORDER BY sort ASC, id ASC")) as MarketingBanner[];
 }
 
-export function listCampaigns(): MarketingCampaign[] {
-  return getDb()
-    .prepare("SELECT * FROM marketing_campaigns ORDER BY COALESCE(end_date, '9999-12-31') DESC, id DESC")
-    .all() as MarketingCampaign[];
+export async function listCampaigns(): Promise<MarketingCampaign[]> {  return (await qr("SELECT * FROM marketing_campaigns ORDER BY COALESCE(end_date, '9999-12-31') DESC, id DESC")) as MarketingCampaign[];
 }
 
-export function getCampaignBySlug(slug: string): MarketingCampaign | undefined {
-  return getDb().prepare("SELECT * FROM marketing_campaigns WHERE slug = ?").get(slug) as MarketingCampaign | undefined;
+export async function getCampaignBySlug(slug: string): Promise<MarketingCampaign | undefined> {  return (await q1("SELECT * FROM marketing_campaigns WHERE slug = ?", slug)) as MarketingCampaign | undefined;
 }
 
-export function upsertCampaign(
+export async function upsertCampaign(
   input: Omit<MarketingCampaign, "id" | "created_at" | "updated_at"> & { id?: number }
-): MarketingCampaign {
-  const now = new Date().toISOString();
+): Promise<MarketingCampaign> {  const now = new Date().toISOString();
   const row = {
     ...input,
     active: input.active ? 1 : 0,
     updated_at: now,
   };
   if (input.id) {
-    getDb()
-      .prepare(
-        "UPDATE marketing_campaigns SET name = @name, slug = @slug, description = @description, discount_label = @discount_label, image = @image, cta_href = @cta_href, start_date = @start_date, end_date = @end_date, active = @active, updated_at = @updated_at WHERE id = @id"
-      )
-      .run({ ...row, id: input.id });
-    return getCampaignBySlug(input.slug)!;
+    await qe("UPDATE marketing_campaigns SET name = @name, slug = @slug, description = @description, discount_label = @discount_label, image = @image, cta_href = @cta_href, start_date = @start_date, end_date = @end_date, active = @active, updated_at = @updated_at WHERE id = @id", { ...row, id: input.id });
+    return (await getCampaignBySlug(input.slug))!;
   }
-  getDb()
-    .prepare(
-      "INSERT INTO marketing_campaigns (name, slug, description, discount_label, image, cta_href, start_date, end_date, active, created_at, updated_at) VALUES (@name, @slug, @description, @discount_label, @image, @cta_href, @start_date, @end_date, @active, @created_at, @updated_at)"
-    )
-    .run({ ...row, created_at: now });
-  return getCampaignBySlug(input.slug)!;
+  await qe("INSERT INTO marketing_campaigns (name, slug, description, discount_label, image, cta_href, start_date, end_date, active, created_at, updated_at) VALUES (@name, @slug, @description, @discount_label, @image, @cta_href, @start_date, @end_date, @active, @created_at, @updated_at)", { ...row, created_at: now });
+  return (await getCampaignBySlug(input.slug))!;
 }
 
-export function deleteCampaign(id: number) {
-  getDb().prepare("DELETE FROM marketing_campaigns WHERE id = ?").run(id);
+export async function deleteCampaign(id: number) {
+  await qe("DELETE FROM marketing_campaigns WHERE id = ?", id);
 }
 
-export function getActiveCampaigns(): MarketingCampaign[] {
-  const today = new Date().toISOString().slice(0, 10);
-  return getDb()
-    .prepare(
-      "SELECT * FROM marketing_campaigns WHERE active = 1 AND (start_date IS NULL OR start_date <= ?) AND (end_date IS NULL OR end_date >= ?) ORDER BY COALESCE(end_date, '9999-12-31') ASC, id ASC"
-    )
-    .all(today, today) as MarketingCampaign[];
+export async function getActiveCampaigns(): Promise<MarketingCampaign[]> {  const today = new Date().toISOString().slice(0, 10);
+  return (await qr("SELECT * FROM marketing_campaigns WHERE active = 1 AND (start_date IS NULL OR start_date <= ?) AND (end_date IS NULL OR end_date >= ?) ORDER BY COALESCE(end_date, '9999-12-31') ASC, id ASC", today, today)) as MarketingCampaign[];
 }
 
 // ---- Addresses ----
 
-export function listAddressesForUser(userId: string): DbAddress[] {
-  return getDb()
-    .prepare("SELECT * FROM addresses WHERE user_id = ? ORDER BY is_default DESC, created_at DESC")
-    .all(userId) as DbAddress[];
+export async function listAddressesForUser(userId: string): Promise<DbAddress[]> {  return (await qr("SELECT * FROM addresses WHERE user_id = ? ORDER BY is_default DESC, created_at DESC", userId)) as DbAddress[];
 }
 
-export function createAddress(input: {
+export async function createAddress(input: {
   user_id: string;
   label: string;
   name: string;
@@ -1302,8 +1217,7 @@ export function createAddress(input: {
   address_line: string;
   city: string;
   county: string;
-}): DbAddress {
-  const existing = listAddressesForUser(input.user_id);
+}): Promise<DbAddress> {  const existing = await listAddressesForUser(input.user_id);
   const address: DbAddress = {
     id: randomUUID(),
     user_id: input.user_id,
@@ -1316,59 +1230,41 @@ export function createAddress(input: {
     is_default: existing.length === 0 ? 1 : 0,
     created_at: new Date().toISOString(),
   };
-  getDb()
-    .prepare(
-      "INSERT INTO addresses (id, user_id, label, name, phone, address_line, city, county, is_default, created_at) VALUES (@id, @user_id, @label, @name, @phone, @address_line, @city, @county, @is_default, @created_at)"
-    )
-    .run(address);
+  await qe("INSERT INTO addresses (id, user_id, label, name, phone, address_line, city, county, is_default, created_at) VALUES (@id, @user_id, @label, @name, @phone, @address_line, @city, @county, @is_default, @created_at)", address);
   return address;
 }
 
-export function getAddress(id: string): DbAddress | undefined {
-  return getDb().prepare("SELECT * FROM addresses WHERE id = ?").get(id) as DbAddress | undefined;
+export async function getAddress(id: string): Promise<DbAddress | undefined> {  return (await q1("SELECT * FROM addresses WHERE id = ?", id)) as DbAddress | undefined;
 }
 
-export function deleteAddress(id: string) {
-  const addr = getAddress(id);
-  getDb().prepare("DELETE FROM addresses WHERE id = ?").run(id);
+export async function deleteAddress(id: string) {
+  const addr = await getAddress(id);
+  await qe("DELETE FROM addresses WHERE id = ?", id);
   if (addr?.is_default === 1) {
-    const next = getDb()
-      .prepare("SELECT * FROM addresses WHERE user_id = ? ORDER BY created_at DESC LIMIT 1")
-      .get(addr.user_id) as DbAddress | undefined;
-    if (next) setDefaultAddress(next.id);
+    const next = (await q1("SELECT * FROM addresses WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", addr.user_id)) as DbAddress | undefined;
+    if (next) await setDefaultAddress(next.id);
   }
 }
 
-export function setDefaultAddress(id: string) {
-  const addr = getAddress(id);
+export async function setDefaultAddress(id: string) {
+  const addr = await getAddress(id);
   if (!addr) return;
-  const db = getDb();
-  db.prepare("UPDATE addresses SET is_default = 0 WHERE user_id = ?").run(addr.user_id);
-  db.prepare("UPDATE addresses SET is_default = 1 WHERE id = ?").run(id);
+  await qe("UPDATE addresses SET is_default = 0 WHERE user_id = ?", addr.user_id);
+  await qe("UPDATE addresses SET is_default = 1 WHERE id = ?", id);
 }
 
 // ---- Support tickets ----
 
-export function listTicketsForUser(userId: string): DbTicket[] {
-  return getDb()
-    .prepare("SELECT * FROM support_tickets WHERE user_id = ? ORDER BY created_at DESC")
-    .all(userId) as DbTicket[];
+export async function listTicketsForUser(userId: string): Promise<DbTicket[]> {  return (await qr("SELECT * FROM support_tickets WHERE user_id = ? ORDER BY created_at DESC", userId)) as DbTicket[];
 }
 
-export function listAllTickets(): DbTicket[] {
-  return getDb()
-    .prepare(
-      "SELECT t.*, u.name AS user_name, u.email AS user_email FROM support_tickets t LEFT JOIN users u ON u.id = t.user_id ORDER BY (t.status = 'Closed') ASC, t.updated_at DESC"
-    )
-    .all() as (DbTicket & { user_name: string | null; user_email: string | null })[];
+export async function listAllTickets(): Promise<DbTicket[]> {  return (await qr("SELECT t.*, u.name AS user_name, u.email AS user_email FROM support_tickets t LEFT JOIN users u ON u.id = t.user_id ORDER BY (t.status = 'Closed') ASC, t.updated_at DESC")) as (DbTicket & { user_name: string | null; user_email: string | null })[];
 }
 
-export function getTicket(id: string): DbTicket | undefined {
-  return getDb().prepare("SELECT * FROM support_tickets WHERE id = ?").get(id) as DbTicket | undefined;
+export async function getTicket(id: string): Promise<DbTicket | undefined> {  return (await q1("SELECT * FROM support_tickets WHERE id = ?", id)) as DbTicket | undefined;
 }
 
-export function createTicket(input: { user_id: string; subject: string; message: string }): DbTicket {
-  const now = new Date().toISOString();
+export async function createTicket(input: { user_id: string; subject: string; message: string }): Promise<DbTicket> {  const now = new Date().toISOString();
   const ticket: DbTicket = {
     id: `TKT-${Math.floor(10000 + Math.random() * 89999)}`,
     user_id: input.user_id,
@@ -1378,27 +1274,19 @@ export function createTicket(input: { user_id: string; subject: string; message:
     created_at: now,
     updated_at: now,
   };
-  getDb()
-    .prepare(
-      "INSERT INTO support_tickets (id, user_id, subject, message, status, created_at, updated_at) VALUES (@id, @user_id, @subject, @message, @status, @created_at, @updated_at)"
-    )
-    .run(ticket);
+  await qe("INSERT INTO support_tickets (id, user_id, subject, message, status, created_at, updated_at) VALUES (@id, @user_id, @subject, @message, @status, @created_at, @updated_at)", ticket);
   return ticket;
 }
 
-export function listTicketReplies(ticketId: string): DbTicketReply[] {
-  return getDb()
-    .prepare("SELECT * FROM ticket_replies WHERE ticket_id = ? ORDER BY created_at ASC")
-    .all(ticketId) as DbTicketReply[];
+export async function listTicketReplies(ticketId: string): Promise<DbTicketReply[]> {  return (await qr("SELECT * FROM ticket_replies WHERE ticket_id = ? ORDER BY created_at ASC", ticketId)) as DbTicketReply[];
 }
 
-export function addTicketReply(input: {
+export async function addTicketReply(input: {
   ticket_id: string;
   user_id?: string | null;
   staff_name?: string | null;
   message: string;
-}): DbTicketReply {
-  const reply: DbTicketReply = {
+}): Promise<DbTicketReply> {  const reply: DbTicketReply = {
     id: randomUUID(),
     ticket_id: input.ticket_id,
     user_id: input.user_id ?? null,
@@ -1407,43 +1295,30 @@ export function addTicketReply(input: {
     created_at: new Date().toISOString(),
   };
   const now = new Date().toISOString();
-  getDb()
-    .prepare(
-      "INSERT INTO ticket_replies (id, ticket_id, user_id, staff_name, message, created_at) VALUES (@id, @ticket_id, @user_id, @staff_name, @message, @created_at)"
-    )
-    .run(reply);
-  getDb()
-    .prepare("UPDATE support_tickets SET updated_at = ?, status = 'Open' WHERE id = ?")
-    .run(now, input.ticket_id);
+  await qe("INSERT INTO ticket_replies (id, ticket_id, user_id, staff_name, message, created_at) VALUES (@id, @ticket_id, @user_id, @staff_name, @message, @created_at)", reply);
+  await qe("UPDATE support_tickets SET updated_at = ?, status = 'Open' WHERE id = ?", now, input.ticket_id);
   return reply;
 }
 
-export function setTicketStatus(id: string, status: string) {
-  getDb()
-    .prepare("UPDATE support_tickets SET status = ?, updated_at = ? WHERE id = ?")
-    .run(status, new Date().toISOString(), id);
+export async function setTicketStatus(id: string, status: string) {
+  await qe("UPDATE support_tickets SET status = ?, updated_at = ? WHERE id = ?", status, new Date().toISOString(), id);
 }
 
 // ---- Returns ----
 
-export function listReturnsForUser(userId: string): DbReturn[] {
-  return getDb()
-    .prepare("SELECT * FROM returns WHERE user_id = ? ORDER BY created_at DESC")
-    .all(userId) as DbReturn[];
+export async function listReturnsForUser(userId: string): Promise<DbReturn[]> {  return (await qr("SELECT * FROM returns WHERE user_id = ? ORDER BY created_at DESC", userId)) as DbReturn[];
 }
 
-export function listAllReturns(): DbReturn[] {
-  return getDb().prepare("SELECT * FROM returns ORDER BY created_at DESC").all() as DbReturn[];
+export async function listAllReturns(): Promise<DbReturn[]> {  return (await qr("SELECT * FROM returns ORDER BY created_at DESC")) as DbReturn[];
 }
 
-export function createReturn(input: {
+export async function createReturn(input: {
   user_id: string;
   order_id: string;
   product_name: string;
   qty: number;
   reason: string;
-}): DbReturn {
-  const now = new Date().toISOString();
+}): Promise<DbReturn> {  const now = new Date().toISOString();
   const ret: DbReturn = {
     id: `RET-${Math.floor(10000 + Math.random() * 89999)}`,
     user_id: input.user_id,
@@ -1455,30 +1330,23 @@ export function createReturn(input: {
     created_at: now,
     updated_at: now,
   };
-  getDb()
-    .prepare(
-      "INSERT INTO returns (id, user_id, order_id, product_name, qty, reason, status, created_at, updated_at) VALUES (@id, @user_id, @order_id, @product_name, @qty, @reason, @status, @created_at, @updated_at)"
-    )
-    .run(ret);
+  await qe("INSERT INTO returns (id, user_id, order_id, product_name, qty, reason, status, created_at, updated_at) VALUES (@id, @user_id, @order_id, @product_name, @qty, @reason, @status, @created_at, @updated_at)", ret);
   return ret;
 }
 
-export function setReturnStatus(id: string, status: string) {
-  getDb()
-    .prepare("UPDATE returns SET status = ?, updated_at = ? WHERE id = ?")
-    .run(status, new Date().toISOString(), id);
+export async function setReturnStatus(id: string, status: string) {
+  await qe("UPDATE returns SET status = ?, updated_at = ? WHERE id = ?", status, new Date().toISOString(), id);
 }
 
 // ---- Notifications ----
 
-export function createNotification(input: {
+export async function createNotification(input: {
   user_id: string;
   type?: string;
   title: string;
   message?: string;
   link?: string | null;
-}): DbNotification {
-  const notification: DbNotification = {
+}): Promise<DbNotification> {  const notification: DbNotification = {
     id: randomUUID(),
     user_id: input.user_id,
     type: input.type ?? "general",
@@ -1488,31 +1356,21 @@ export function createNotification(input: {
     read: 0,
     created_at: new Date().toISOString(),
   };
-  getDb()
-    .prepare(
-      "INSERT INTO notifications (id, user_id, type, title, message, link, read, created_at) VALUES (@id, @user_id, @type, @title, @message, @link, @read, @created_at)"
-    )
-    .run(notification);
+  await qe("INSERT INTO notifications (id, user_id, type, title, message, link, read, created_at) VALUES (@id, @user_id, @type, @title, @message, @link, @read, @created_at)", notification);
   return notification;
 }
 
-export function listNotificationsForUser(userId: string): DbNotification[] {
-  return getDb()
-    .prepare("SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50")
-    .all(userId) as DbNotification[];
+export async function listNotificationsForUser(userId: string): Promise<DbNotification[]> {  return (await qr("SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50", userId)) as DbNotification[];
 }
 
-export function countUnreadNotifications(userId: string): number {
-  const row = getDb()
-    .prepare("SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND read = 0")
-    .get(userId) as { n: number };
+export async function countUnreadNotifications(userId: string): Promise<number> {  const row = (await q1("SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = ? AND read = 0", userId)) as { n: number };
   return row.n;
 }
 
-export function markNotificationRead(id: string) {
-  getDb().prepare("UPDATE notifications SET read = 1 WHERE id = ?").run(id);
+export async function markNotificationRead(id: string) {
+  await qe("UPDATE notifications SET read = 1 WHERE id = ?", id);
 }
 
-export function markAllNotificationsRead(userId: string) {
-  getDb().prepare("UPDATE notifications SET read = 1 WHERE user_id = ?").run(userId);
+export async function markAllNotificationsRead(userId: string) {
+  await qe("UPDATE notifications SET read = 1 WHERE user_id = ?", userId);
 }

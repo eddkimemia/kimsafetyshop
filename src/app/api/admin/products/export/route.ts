@@ -9,7 +9,7 @@ export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
 
-  const products = mergedCatalog() as {
+  const products = (await mergedCatalog()) as {
     sku: string;
     name: string;
     brand: string;

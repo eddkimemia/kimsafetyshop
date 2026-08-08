@@ -33,7 +33,7 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   };
 }
 
-export default function BrandPage({ params }: { params: { slug: string } }) {
+export default async function BrandPage({ params }: { params: { slug: string } }) {
   const brand = brands.find((b) => b.slug === params.slug);
   if (!brand) return notFound();
   const itemListJsonLd = {
@@ -45,7 +45,7 @@ export default function BrandPage({ params }: { params: { slug: string } }) {
     isPartOf: { "@type": "WebSite", name: "KimSafety", url: "/" },
     mainEntity: {
       "@type": "ItemList",
-      itemListElement: liveCatalog()
+      itemListElement: (await liveCatalog())
         .filter((p) => p.brand === brand.name)
         .slice(0, 30)
         .map((p, i) => ({

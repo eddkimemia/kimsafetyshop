@@ -11,8 +11,8 @@ import { DealsBanner } from "@/components/home/deals-banner";
 import { CampaignStrip } from "@/components/home/campaign-strip";
 import { getActiveBanners, getActiveCampaigns } from "@/lib/db";
 
-export default function Home() {
-  const bannerSlides: HeroSlide[] = getActiveBanners().map((b) => ({
+export default async function Home() {
+  const bannerSlides: HeroSlide[] = (await getActiveBanners()).map((b) => ({
     kicker: b.kicker,
     title: b.title,
     subtitle: b.subtitle,
@@ -28,7 +28,7 @@ export default function Home() {
     stat2_value: b.stat2_value,
     bg: b.image,
   }));
-  const campaigns = getActiveCampaigns();
+  const campaigns = await getActiveCampaigns();
 
   return (
     <>

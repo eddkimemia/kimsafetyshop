@@ -3,10 +3,11 @@ import { listAdminProducts } from "@/lib/db";
 import { slugify } from "@/lib/utils";
 import type { Product } from "@/lib/types";
 
-function mergedCatalog(): Product[] {
+async function mergedCatalog(): Promise<Product[]> {
+  const rows = await listAdminProducts();
   const overrides = new Map<string, Record<string, unknown>>();
   const customs: Record<string, unknown>[] = [];
-  for (const row of listAdminProducts()) {
+  for (const row of rows) {
     const data = JSON.parse(String(row.data)) as Record<string, unknown> & { sku: string; static?: boolean };
     if (data.static) overrides.set(data.sku, data);
     else customs.push(data);
@@ -45,20 +46,20 @@ function mergedCatalog(): Product[] {
   return [...merged, ...customProducts.map((p) => ({ ...p, downloads: normalizeDownloads(p.downloads) }))];
 }
 
-export function liveCatalog(): Product[] {
+export async function liveCatalog(): Promise<Product[]> {
   return mergedCatalog();
 }
 
-export function liveGetProduct(id: string): Product | undefined {
-  return mergedCatalog().find((p) => p.id === id);
+export async function liveGetProduct(id: string): Promise<Product | undefined> {
+  return (await mergedCatalog()).find((p) => p.id === id);
 }
 
-export function liveGetBySlug(slug: string): Product | undefined {
-  return mergedCatalog().find((p) => p.slug === slug || p.sku === slug || p.id === slug);
+export async function liveGetBySlug(slug: string): Promise<Product | undefined> {
+  return (await mergedCatalog()).find((p) => p.slug === slug || p.sku === slug || p.id === slug);
 }
 
-export function liveRelatedFor(product: Product, count = 8): Product[] {
-  const list = mergedCatalog();
+export async function liveRelatedFor(product: Product, count = 8): Promise<Product[]> {
+  const list = await mergedCatalog();
   const sameCat = list.filter((p) => p.category === product.category && p.id !== product.id);
   const sameBrand = list.filter(
     (p) => p.brand === product.brand && p.id !== product.id && !sameCat.includes(p)

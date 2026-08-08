@@ -1,11 +1,14 @@
-// Seed 10 detailed, SEO-rich blog posts into data/kimsafety.db
-// Usage: node scripts/seed-blog.cjs
-const Database = require("better-sqlite3");
+// Seed 10 detailed, SEO-rich blog posts into Postgres
+// Usage: DATABASE_URL=... node scripts/seed-blog.cjs
+const { Client } = require("pg");
 const { randomUUID } = require("crypto");
-const path = require("path");
 
-const DB_PATH = path.join(__dirname, "..", "data", "kimsafety.db");
-const db = new Database(DB_PATH, { fileMustExist: true });
+const url = process.env.DATABASE_URL;
+if (!url) {
+  console.error("DATABASE_URL environment variable is required");
+  process.exit(1);
+}
+const db = new Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
 
 const now = new Date().toISOString();
 const day = (offsetDays) => {
@@ -678,28 +681,31 @@ const posts = [
   },
 ];
 
-const insert = db.prepare(
-  "INSERT OR REPLACE INTO posts (id, slug, title, category, excerpt, content, cover, author, read_time, published, created_at, updated_at) VALUES (@id, @slug, @title, @category, @excerpt, @content, @cover, @author, @read_time, @published, @created_at, @updated_at)"
-);
+const insert = {
+  text: "INSERT INTO posts (id, slug, title, category, excerpt, content, cover, author, read_time, published, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) ON CONFLICT (slug) DO UPDATE SET title = EXCLUDED.title, category = EXCLUDED.category, excerpt = EXCLUDED.excerpt, content = EXCLUDED.content, cover = EXCLUDED.cover, author = EXCLUDED.author, read_time = EXCLUDED.read_time, published = EXCLUDED.published, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at",
+};
 
-const tx = db.transaction(() => {
+(async () => {
+  await db.connect();
   for (const p of posts) {
-    insert.run({
-      id: randomUUID(),
-      slug: p.slug,
-      title: p.title,
-      category: p.category,
-      excerpt: p.excerpt,
-      content: p.content.trim(),
-      cover: p.cover,
-      author: p.author,
-      read_time: p.read_time,
-      published: 1,
-      created_at: p.created_at,
-      updated_at: now,
-    });
+    await db.query(insert, [
+      randomUUID(),
+      p.slug,
+      p.title,
+      p.category,
+      p.excerpt,
+      p.content.trim(),
+      p.cover,
+      p.author,
+      p.read_time,
+      1,
+      p.created_at,
+      now,
+    ]);
   }
+  await db.end();
+  console.log(`Seeded ${posts.length} blog posts into Postgres`);
+})().catch((err) => {
+  console.error("Seeding failed:", err);
+  process.exit(1);
 });
-
-tx();
-console.log(`Seeded ${posts.length} blog posts into ${DB_PATH}`);

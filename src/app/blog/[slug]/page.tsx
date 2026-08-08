@@ -14,7 +14,7 @@ import { BlogNewsletter } from "@/components/blog/blog-newsletter";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const post = getPostBySlug(params.slug);
+  const post = await getPostBySlug(params.slug);
   if (!post) return { title: "Post not found" };
   const images = post.cover ? [{ url: post.cover, alt: post.title }] : [{ url: "/og-image.png", width: 1200, height: 630, alt: post.title }];
   return {
@@ -47,17 +47,19 @@ function formatShortDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export default function BlogPostPage({ params }: { params: { slug: string } }) {
-  const post = getPostBySlug(params.slug);
+export default async function BlogPostPage({ params }: { params: { slug: string } }) {
+  const post = await getPostBySlug(params.slug);
   if (!post) return notFound();
 
-  const recent = listPosts()
+  const recent = (await listPosts())
     .filter((p) => p.slug !== post.slug)
     .slice(0, 4);
 
+  const catalogProducts = await liveCatalog();
+
   const deals = (() => {
     const onSale: { product: Product; oldPrice: number }[] = [];
-    for (const p of liveCatalog()) {
+    for (const p of catalogProducts) {
       if (p.oldPrice != null && p.price < p.oldPrice) onSale.push({ product: p, oldPrice: p.oldPrice });
     }
     onSale.sort(
@@ -67,7 +69,6 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
     return onSale.slice(0, 4);
   })();
 
-  const catalogProducts = liveCatalog();
   const recommended = catalogProducts
     .filter((p) => p.featured)
     .sort((a, b) => b.sold - a.sold)

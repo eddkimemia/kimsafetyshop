@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
-import { getDb, listOrders, listQuotes, listUsers, listAdminProducts } from "@/lib/db";
+import { q1, listOrders, listQuotes, listUsers, listAdminProducts } from "@/lib/db";
 import { products } from "@/lib/data/products";
 
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
 
-  const db = getDb();
-  const totals = db.prepare("SELECT COALESCE(SUM(total), 0) AS s FROM orders WHERE status != 'Cancelled'").get() as { s: number };
-  const pendingOrders = db.prepare("SELECT COUNT(*) AS c FROM orders WHERE status IN ('Processing', 'In transit')").get() as { c: number };
-  const lowStock = listAdminProducts().filter((p) => {
+  const totals = await q1<{ s: number }>("SELECT COALESCE(SUM(total), 0)::int AS s FROM orders WHERE status != 'Cancelled'");
+  const pendingOrders = await q1<{ c: number }>("SELECT COUNT(*)::int AS c FROM orders WHERE status IN ('Processing', 'In transit')");
+  const [orders, quotes, users, adminRows] = await Promise.all([listOrders(), listQuotes(), listUsers(), listAdminProducts()]);
+  const lowStock = adminRows.filter((p) => {
     const data = p.data as { stock?: number; lowStockAt?: number };
     return typeof data.stock === "number" && typeof data.lowStockAt === "number" && data.stock <= data.lowStockAt;
   });
@@ -18,13 +18,13 @@ export async function GET() {
 
   return NextResponse.json({
     stats: {
-      revenue: totals.s,
-      orders: listOrders().length,
-      pendingOrders: pendingOrders.c,
-      users: listUsers().length,
-      quotes: listQuotes().length,
+      revenue: totals?.s ?? 0,
+      orders: orders.length,
+      pendingOrders: pendingOrders?.c ?? 0,
+      users: users.length,
+      quotes: quotes.length,
       lowStock: lowStock.length + lowStockStatic,
-      products: products.length + listAdminProducts().filter((p) => !(p.data as { static?: boolean }).static).length,
+      products: products.length + adminRows.filter((p) => !(p.data as { static?: boolean }).static).length,
     },
   });
 }

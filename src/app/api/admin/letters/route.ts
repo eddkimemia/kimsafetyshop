@@ -41,7 +41,7 @@ export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
   const me = await getSessionUser();
-  const letters = me?.role === "superadmin" ? listLetters() : listLettersFor(me?.id ?? "");
+  const letters = me?.role === "superadmin" ? await listLetters() : await listLettersFor(me?.id ?? "");
   return NextResponse.json({ letters });
 }
 
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   const body = await parseBody(req);
   if ("error" in body) return NextResponse.json({ error: body.error }, { status: body.status });
 
-  const letter = createLetter({
+  const letter = await createLetter({
     type: body.type,
     recipient_name: body.recipient_name!.trim(),
     recipient_title: body.recipient_title,
@@ -79,13 +79,13 @@ export async function PUT(req: Request) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing letter id" }, { status: 400 });
-  const blocked = await canAccess(getLetterById(id), me);
+  const blocked = await canAccess(await getLetterById(id), me);
   if (blocked) return NextResponse.json({ error: blocked.error }, { status: blocked.status });
 
   const body = await parseBody(req);
   if ("error" in body) return NextResponse.json({ error: body.error }, { status: body.status });
 
-  const letter = updateLetter(id, {
+  const letter = await updateLetter(id, {
     type: body.type,
     recipient_name: body.recipient_name!.trim(),
     recipient_title: body.recipient_title,
@@ -110,8 +110,8 @@ export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing letter id" }, { status: 400 });
-  const blocked = await canAccess(getLetterById(id), me);
+  const blocked = await canAccess(await getLetterById(id), me);
   if (blocked) return NextResponse.json({ error: blocked.error }, { status: blocked.status });
-  deleteLetter(id);
+  await deleteLetter(id);
   return NextResponse.json({ ok: true });
 }

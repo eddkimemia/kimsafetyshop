@@ -26,7 +26,7 @@ function parseBody(body: unknown): PostInput | null {
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
-  const posts = listPosts(true).map((p) => ({ ...p, published: Boolean(p.published) }));
+  const posts = (await listPosts(true)).map((p) => ({ ...p, published: Boolean(p.published) }));
   return NextResponse.json({ posts });
 }
 
@@ -41,10 +41,10 @@ export async function POST(req: Request) {
   }
   const input = parseBody(body);
   if (!input) return NextResponse.json({ error: "Title is required" }, { status: 400 });
-  if (getPostBySlug(input.slug, true)) {
+  if (await getPostBySlug(input.slug, true)) {
     return NextResponse.json({ error: `Slug "${input.slug}" already exists` }, { status: 409 });
   }
-  const post = createPost(input);
+  const post = await createPost(input);
   return NextResponse.json({ post }, { status: 201 });
 }
 
@@ -62,11 +62,11 @@ export async function PATCH(req: Request) {
   if (!slug) return NextResponse.json({ error: "Missing slug" }, { status: 400 });
   const input = parseBody(body);
   if (!input) return NextResponse.json({ error: "Title is required" }, { status: 400 });
-  const conflict = getPostBySlug(input.slug, true);
+  const conflict = await getPostBySlug(input.slug, true);
   if (conflict && conflict.slug !== slug) {
     return NextResponse.json({ error: `Slug "${input.slug}" already exists` }, { status: 409 });
   }
-  const post = updatePost(slug, input);
+  const post = await updatePost(slug, input);
   if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
   return NextResponse.json({ post: { ...post, published: Boolean(post.published) } });
 }
@@ -77,6 +77,6 @@ export async function DELETE(req: Request) {
   const url = new URL(req.url);
   const slug = url.searchParams.get("slug");
   if (!slug) return NextResponse.json({ error: "Missing slug" }, { status: 400 });
-  deletePost(slug);
+  await deletePost(slug);
   return NextResponse.json({ ok: true });
 }

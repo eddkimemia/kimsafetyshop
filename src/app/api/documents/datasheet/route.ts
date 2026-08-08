@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   const sku = searchParams.get("sku");
   if (!sku) return NextResponse.json({ error: "Missing sku" }, { status: 400 });
 
-  const product = liveCatalog().find((p) => p.sku === sku || p.slug === sku || p.id === sku);
+  const product = (await liveCatalog()).find((p) => p.sku === sku || p.slug === sku || p.id === sku);
   if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
 
   const doc = new PDFDocument({

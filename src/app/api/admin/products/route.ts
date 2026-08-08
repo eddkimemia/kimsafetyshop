@@ -7,7 +7,7 @@ import { mergedCatalog } from "@/lib/admin-products";
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
-  return NextResponse.json({ products: mergedCatalog() });
+  return NextResponse.json({ products: await mergedCatalog() });
 }
 
 export async function POST(req: Request) {
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Name and price are required" }, { status: 400 });
   }
   const sku = body.sku?.trim() || `KS-CUS-${Math.floor(1000 + Math.random() * 9000)}`;
-  if (getAdminProduct(sku)) {
+  if (await getAdminProduct(sku)) {
     return NextResponse.json({ error: `SKU ${sku} already exists` }, { status: 409 });
   }
   const record = {
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     downloads: Array.isArray(body.downloads) ? body.downloads : [],
     static: false,
   };
-  upsertAdminProduct(sku, record);
+  await upsertAdminProduct(sku, record);
   return NextResponse.json({ product: record }, { status: 201 });
 }
 
@@ -78,13 +78,13 @@ export async function PATCH(req: Request) {
   const sku = body.sku;
   if (!sku) return NextResponse.json({ error: "Missing SKU" }, { status: 400 });
 
-  const existing = getAdminProduct(sku) ?? (products.find((p) => p.sku === sku) as unknown as Record<string, unknown>);
+  const existing = (await getAdminProduct(sku)) ?? (products.find((p) => p.sku === sku) as unknown as Record<string, unknown>);
   if (!existing) return NextResponse.json({ error: "Product not found" }, { status: 404 });
 
   const isStatic = Boolean((existing as { static?: boolean }).static) || Boolean(products.find((p) => p.sku === sku));
   const merged = { ...existing, ...body, sku, static: isStatic };
   delete merged.id;
-  upsertAdminProduct(sku, merged);
+  await upsertAdminProduct(sku, merged);
   return NextResponse.json({ product: merged });
 }
 
@@ -94,11 +94,11 @@ export async function DELETE(req: Request) {
   const url = new URL(req.url);
   const sku = url.searchParams.get("sku");
   if (!sku) return NextResponse.json({ error: "Missing SKU" }, { status: 400 });
-  const existing = getAdminProduct(sku);
+  const existing = await getAdminProduct(sku);
   if (!existing) return NextResponse.json({ error: "Product not found" }, { status: 404 });
   if (existing.static) {
     return NextResponse.json({ error: "Seed products cannot be deleted — adjust stock to 0 instead" }, { status: 400 });
   }
-  deleteAdminProduct(sku);
+  await deleteAdminProduct(sku);
   return NextResponse.json({ ok: true });
 }

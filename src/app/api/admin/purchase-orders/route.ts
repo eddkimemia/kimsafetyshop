@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
-  return NextResponse.json({ purchaseOrders: listPurchaseOrders() });
+  return NextResponse.json({ purchaseOrders: await listPurchaseOrders() });
 }
 
 export async function PATCH(req: Request) {
@@ -18,7 +18,7 @@ export async function PATCH(req: Request) {
     const id = String(body.id ?? "");
     const status = String(body.status ?? "");
     if (!id || !status) return NextResponse.json({ error: "id and status are required" }, { status: 400 });
-    setPurchaseOrderStatus(id, status);
+    await setPurchaseOrderStatus(id, status);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Failed to update purchase order status:", err);

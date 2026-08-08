@@ -6,7 +6,7 @@ import { listAdminProducts } from "@/lib/db";
 export async function GET() {
   const images: Record<string, string> = {};
   const galleries: Record<string, string[]> = {};
-  for (const row of listAdminProducts()) {
+  for (const row of await listAdminProducts()) {
     const data = JSON.parse(String(row.data)) as { sku?: string; image?: string; gallery?: string[] };
     if (data?.sku) {
       if (typeof data.image === "string" && data.image.startsWith("/")) {

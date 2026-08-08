@@ -8,7 +8,7 @@ type OrderItem = { productId: string; name?: string; qty: number };
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  return NextResponse.json({ returns: listReturnsForUser(user.id) });
+  return NextResponse.json({ returns: await listReturnsForUser(user.id) });
 }
 
 export async function POST(req: Request) {
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
-  const order = body.order_id ? getOrderById(body.order_id) : undefined;
+  const order = body.order_id ? await getOrderById(body.order_id) : undefined;
   if (!order || order.user_id !== user.id) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
@@ -38,10 +38,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Only ${matched.qty} of this item was ordered` }, { status: 400 });
   }
 
-  const ret = createReturn({
+  const ret = await createReturn({
     user_id: user.id,
     order_id: order.id,
-    product_name: matched.name ?? liveGetProduct(matched.productId)?.name ?? matched.productId,
+    product_name: matched.name ?? (await liveGetProduct(matched.productId))?.name ?? matched.productId,
     qty: body.qty,
     reason: body.reason.trim(),
   });

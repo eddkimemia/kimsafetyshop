@@ -10,8 +10,8 @@ export const metadata: Metadata = {
     "Reach KimSafety — Nairobi warehouse in Industrial Area. Sales, quotes, support and technical advice via phone, email or WhatsApp.",
 };
 
-export default function ContactPage() {
-  const s = getAllSettings();
+export default async function ContactPage() {
+  const s = await getAllSettings();
   const field =
     "w-full rounded-xl border border-line bg-white px-3.5 py-3 text-sm outline-none transition-all focus:border-safety-400 focus:ring-4 focus:ring-safety-500/10";
   return (

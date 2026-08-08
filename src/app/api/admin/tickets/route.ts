@@ -15,12 +15,12 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const thread = searchParams.get("thread");
   if (thread) {
-    const ticket = getTicket(thread);
+    const ticket = await getTicket(thread);
     if (!ticket) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
-    return NextResponse.json({ ticket, replies: listTicketReplies(thread) });
+    return NextResponse.json({ ticket, replies: await listTicketReplies(thread) });
   }
 
-  const tickets = listAllTickets();
+  const tickets = await listAllTickets();
   return NextResponse.json({ tickets });
 }
 
@@ -38,13 +38,13 @@ export async function POST(req: Request) {
   if (!body.id || !body.message?.trim()) {
     return NextResponse.json({ error: "Ticket id and message are required" }, { status: 400 });
   }
-  const ticket = getTicket(body.id);
+  const ticket = await getTicket(body.id);
   if (!ticket) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   if (ticket.status === "Closed") {
     return NextResponse.json({ error: "This ticket is closed" }, { status: 400 });
   }
 
-  const reply = addTicketReply({
+  const reply = await addTicketReply({
     ticket_id: body.id,
     user_id: null,
     staff_name: user?.name ?? "KimSafety Support",
@@ -66,7 +66,7 @@ export async function PATCH(req: Request) {
   if (!body.id || !["Closed", "Open"].includes(body.status ?? "")) {
     return NextResponse.json({ error: "Invalid ticket id or status" }, { status: 400 });
   }
-  const ticket = getTicket(body.id);
+  const ticket = await getTicket(body.id);
   if (!ticket) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   setTicketStatus(body.id, body.status as string);
   return NextResponse.json({ ok: true });

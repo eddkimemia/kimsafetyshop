@@ -7,7 +7,7 @@ const VALID = ["Pending", "Reviewing", "Approved", "Declined"];
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
-  const applications = listCorporateApplications().map((a) => ({
+  const applications = (await listCorporateApplications()).map((a) => ({
     ...a,
     documents: JSON.parse(a.documents),
   }));
@@ -26,6 +26,6 @@ export async function PATCH(req: Request) {
   if (!body.id || !VALID.includes(body.status ?? "")) {
     return NextResponse.json({ error: "Invalid application id or status" }, { status: 400 });
   }
-  setCorporateApplicationStatus(body.id, body.status as string);
+  await setCorporateApplicationStatus(body.id, body.status as string);
   return NextResponse.json({ ok: true });
 }

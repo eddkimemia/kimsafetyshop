@@ -13,11 +13,11 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (id) {
-    const quote = getQuoteById(id);
+    const quote = await getQuoteById(id);
     if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 });
     const result = { ...quote, items: JSON.parse(quote.items) } as Record<string, unknown>;
     if (quote.user_id && (!quote.email || !quote.phone)) {
-      const account = getUserById(quote.user_id);
+      const account = await getUserById(quote.user_id);
       if (account) {
         result.email = quote.email ?? account.email;
         result.phone = quote.phone ?? account.phone ?? null;
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ quote: result });
   }
 
-  const quotes = listQuotes().map((q) => ({ ...q, items: JSON.parse(q.items) }));
+  const quotes = (await listQuotes()).map((q) => ({ ...q, items: JSON.parse(q.items) }));
   return NextResponse.json({ quotes });
 }
 
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
   const validDays = Math.min(Math.max(body.validDays ?? 14, 1), 90);
   const validUntil = new Date(Date.now() + validDays * 86400000).toISOString();
 
-  const quote = createQuote({
+  const quote = await createQuote({
     name,
     company: body.company?.trim() || null,
     email: body.email?.trim() || null,
@@ -94,11 +94,11 @@ export async function PATCH(req: Request) {
   if (!body.id || !VALID.includes(body.status ?? "")) {
     return NextResponse.json({ error: "Invalid quote id or status" }, { status: 400 });
   }
-  const quote = getQuoteById(body.id);
+  const quote = await getQuoteById(body.id);
   if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 });
-  setQuoteStatus(body.id, body.status as string);
+  await setQuoteStatus(body.id, body.status as string);
   if (quote.user_id) {
-    createNotification({
+    await createNotification({
       user_id: quote.user_id,
       type: "quote",
       title: `Quote ${quote.id} is now ${body.status}`,

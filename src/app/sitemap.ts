@@ -6,7 +6,7 @@ import { listPosts } from "@/lib/db";
 
 const base = "https://kimsafety.co.ke";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = [
     { url: `${base}`, changeFrequency: "weekly" as const, priority: 1 },
     { url: `${base}/search`, changeFrequency: "weekly" as const, priority: 0.8 },
@@ -23,7 +23,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/terms`, changeFrequency: "yearly" as const, priority: 0.2 },
   ].map((r) => ({ ...r, lastModified: new Date() }));
 
-  const productRoutes = liveCatalog().map((p) => ({
+  const productRoutes = (await liveCatalog()).map((p) => ({
     url: `${base}/product/${p.slug}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,
@@ -51,7 +51,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.5,
   }));
 
-  const postRoutes = listPosts().map((p) => ({
+  const postRoutes = (await listPosts()).map((p) => ({
     url: `${base}/blog/${p.slug}`,
     lastModified: new Date(p.updated_at ?? p.created_at),
     changeFrequency: "monthly" as const,

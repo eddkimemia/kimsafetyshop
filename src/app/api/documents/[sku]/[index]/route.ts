@@ -79,7 +79,7 @@ function downloadFilename(sku: string, doc: { name: string; file?: string }): st
 }
 
 export async function GET(_req: Request, { params }: { params: { sku: string; index: string } }) {
-  const list = mergedCatalog() as Product[];
+  const list = (await mergedCatalog()) as Product[];
   const product = list.find((p) => p.sku === params.sku || p.id === params.sku);
   const idx = Number(params.index);
   const doc = product?.downloads?.[idx];
@@ -167,7 +167,7 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
     logoWidth = 50 * 3.34;
   }
   const textLeft = padL + Math.max(logoWidth, 140) + 14;
-  pdf.font("Helvetica-Bold").fontSize(12).fillColor(NAVY).text(getSetting("tagline") || DEFAULT_SETTINGS.tagline || "", textLeft, 34, { width: padR - textLeft });
+  pdf.font("Helvetica-Bold").fontSize(12).fillColor(NAVY).text((await getSetting("tagline")) || DEFAULT_SETTINGS.tagline || "", textLeft, 34, { width: padR - textLeft });
   pdf
     .font("Helvetica")
     .fontSize(10)

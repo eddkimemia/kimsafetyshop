@@ -38,10 +38,10 @@ function money(n: number) {
 }
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const order = getOrderById(params.id);
+  const order = await getOrderById(params.id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-  const s = getAllSettings();
+  const s = await getAllSettings();
   const COMPANY = {
     name: s.site_name || FALLBACK_COMPANY.name,
     address: s.address || FALLBACK_COMPANY.address,
@@ -64,12 +64,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   }
 
   const items = JSON.parse(order.items) as { productId: string; qty: number; price?: number }[];
-  const rows = items
-    .map((i) => {
-      const p = liveGetProduct(i.productId);
+  const rows = (await Promise.all(items.map(async (i) => {
+      const p = await liveGetProduct(i.productId);
       return { name: p?.name ?? i.productId, qty: i.qty, price: p ? bulkUnitPrice(p, i.qty) : (i.price ?? 0) };
-    })
-    .filter((r) => r.qty > 0);
+    }))).filter((r) => r.qty > 0);
 
   const doc = new PDFDocument({
     size: "A4",

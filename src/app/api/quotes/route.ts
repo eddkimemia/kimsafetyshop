@@ -7,7 +7,7 @@ import { bulkUnitPrice } from "@/lib/utils";
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  const quotes = quotesForUser(user.id).map((q) => ({ ...q, items: JSON.parse(q.items) }));
+  const quotes = (await quotesForUser(user.id)).map((q) => ({ ...q, items: JSON.parse(q.items) }));
   return NextResponse.json({ quotes });
 }
 
@@ -25,18 +25,20 @@ export async function POST(req: Request) {
   }
 
   const items = body.items as QuoteItem[];
-  const known = items.every((i) => liveGetProduct(i.productId));
+  const found = await Promise.all(items.map((i) => liveGetProduct(i.productId)));
+  const known = found.every(Boolean);
   if (!known) {
     return NextResponse.json({ error: "One or more products could not be found" }, { status: 400 });
   }
-  const total = items.reduce((sum, i) => {
+  let total = 0;
+  for (const i of items) {
     const qty = typeof i.qty === "number" && i.qty > 0 ? Math.floor(i.qty) : 0;
-    const p = liveGetProduct(i.productId);
-    return sum + (p ? bulkUnitPrice(p, qty) * qty : 0);
-  }, 0);
+    const p = await liveGetProduct(i.productId);
+    total += p ? bulkUnitPrice(p, qty) * qty : 0;
+  }
 
   const user = await getSessionUser();
-  const quote = createQuote({
+  const quote = await createQuote({
     user_id: user?.id ?? null,
     name: body.name,
     company: body.company ?? null,

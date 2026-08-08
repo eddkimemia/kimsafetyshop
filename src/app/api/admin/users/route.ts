@@ -5,7 +5,7 @@ import { createUser, listUsers, setUserRole, setUserVerified, getUserById, getUs
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
-  const users = listUsers().map((u) => ({
+  const users = (await listUsers()).map((u) => ({
     id: u.id,
     name: u.name,
     email: u.email,
@@ -39,11 +39,11 @@ export async function POST(req: Request) {
   if (password.length < 6) {
     return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
   }
-  if (getUserByEmail(email)) {
+  if (await getUserByEmail(email)) {
     return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
   }
 
-  const user = createUser({
+  const user = await createUser({
     name,
     email,
     password,
@@ -70,7 +70,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const target = body.id ? getUserById(body.id) : undefined;
+  const target = body.id ? await getUserById(body.id) : undefined;
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   if (body.role !== undefined) {
@@ -83,11 +83,11 @@ export async function PATCH(req: Request) {
     if (target.id === me?.id && body.role !== "admin") {
       return NextResponse.json({ error: "You cannot change your own role" }, { status: 400 });
     }
-    setUserRole(target.id, body.role);
+    await setUserRole(target.id, body.role);
   }
 
   if (body.verified !== undefined) {
-    setUserVerified(target.id, body.verified ? 1 : 0);
+    await setUserVerified(target.id, body.verified ? 1 : 0);
   }
 
   return NextResponse.json({ ok: true });

@@ -39,7 +39,7 @@ function parseBanner(body: unknown): (Omit<MarketingBanner, "id" | "created_at" 
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
-  return NextResponse.json({ banners: listBanners().map((b) => ({ ...b, active: Boolean(b.active) })) });
+  return NextResponse.json({ banners: (await listBanners()).map((b) => ({ ...b, active: Boolean(b.active) })) });
 }
 
 export async function POST(req: Request) {
@@ -53,10 +53,10 @@ export async function POST(req: Request) {
   }
   const input = parseBanner(body);
   if (!input) return NextResponse.json({ error: "Title and image are required" }, { status: 400 });
-  if (input.id && !getBannerById(input.id)) {
+  if (input.id && !(await getBannerById(input.id))) {
     return NextResponse.json({ error: "Banner not found" }, { status: 404 });
   }
-  const banner = upsertBanner(input);
+  const banner = await upsertBanner(input);
   return NextResponse.json({ banner: { ...banner, active: Boolean(banner.active) } }, { status: 201 });
 }
 
@@ -66,6 +66,6 @@ export async function DELETE(req: Request) {
   const url = new URL(req.url);
   const id = Number(url.searchParams.get("id"));
   if (!Number.isInteger(id)) return NextResponse.json({ error: "Missing banner id" }, { status: 400 });
-  deleteBanner(id);
+  await deleteBanner(id);
   return NextResponse.json({ ok: true });
 }

@@ -29,7 +29,7 @@ export async function GET(req: Request) {
   if (denied) return denied;
   const me = await getSessionUser();
 
-  const s = getAllSettings();
+  const s = await getAllSettings();
   const COMPANY = {
     name: s.site_name || FALLBACK_COMPANY.name,
     address: s.address || FALLBACK_COMPANY.address,
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing quote id" }, { status: 400 });
 
-  const quote = getQuoteById(id);
+  const quote = await getQuoteById(id);
   if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 });
 
   const preparedBy = me?.name ?? "KimSafety Team";

@@ -6,19 +6,21 @@ import { bulkUnitPrice } from "@/lib/utils";
 
 const VALID = ["Processing", "In transit", "Delivered", "Cancelled"];
 
-function withItems(o: ReturnType<typeof listOrders>[number]) {
+async function withItems(o: Awaited<ReturnType<typeof listOrders>>[number]) {
   const items = JSON.parse(o.items) as { productId: string; qty: number; name?: string; price?: number }[];
   return {
     ...o,
-    items: items.map((i) => {
-      const p = liveGetProduct(i.productId);
-      return {
-        ...i,
-        name: p?.name ?? i.name ?? i.productId,
-        sku: p?.sku ?? i.productId,
-        price: p ? bulkUnitPrice(p, i.qty) : (i.price ?? 0),
-      };
-    }),
+    items: await Promise.all(
+      items.map(async (i) => {
+        const p = await liveGetProduct(i.productId);
+        return {
+          ...i,
+          name: p?.name ?? i.name ?? i.productId,
+          sku: p?.sku ?? i.productId,
+          price: p ? bulkUnitPrice(p, i.qty) : (i.price ?? 0),
+        };
+      })
+    ),
   };
 }
 
@@ -29,12 +31,12 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (id) {
-    const order = getOrderById(id);
+    const order = await getOrderById(id);
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     return NextResponse.json({ order: withItems(order) });
   }
 
-  const orders = listOrders().map(withItems);
+  const orders = await Promise.all((await listOrders()).map(withItems));
   return NextResponse.json({ orders });
 }
 
@@ -50,11 +52,11 @@ export async function PATCH(req: Request) {
   if (!body.id || !VALID.includes(body.status ?? "")) {
     return NextResponse.json({ error: "Invalid order id or status" }, { status: 400 });
   }
-  const order = getOrderById(body.id);
+  const order = await getOrderById(body.id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  setOrderStatus(body.id, body.status as string);
+  await setOrderStatus(body.id, body.status as string);
   if (order.user_id) {
-    createNotification({
+    await createNotification({
       user_id: order.user_id,
       type: "order",
       title: `Order ${order.id} is now ${body.status}`,

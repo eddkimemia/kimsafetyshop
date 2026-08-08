@@ -3,15 +3,16 @@ import { listAdminGuides } from "@/lib/db";
 import { sanitizePostHtml } from "@/lib/blog";
 import type { Guide } from "@/lib/types";
 
-export function mergedGuides(): Guide[] {
-  const overrides = listAdminGuides().reduce<Record<string, Record<string, unknown>>>((acc, row) => {
+export async function mergedGuides(): Promise<Guide[]> {
+  const rows = await listAdminGuides();
+  const overrides = rows.reduce<Record<string, Record<string, unknown>>>((acc, row) => {
     acc[row.slug] = JSON.parse(String(row.data)) as Record<string, unknown>;
     return acc;
   }, {});
 
   const merged = guides.map((g) => ({ ...g, ...(overrides[g.slug] ?? {}) }));
 
-  const custom = listAdminGuides()
+  const custom = rows
     .filter((row) => !(JSON.parse(String(row.data)) as { static?: boolean }).static)
     .map((row) => JSON.parse(String(row.data)) as Guide);
   return [...merged, ...custom];

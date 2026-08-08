@@ -14,7 +14,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid purchase order file" }, { status: 400 });
     }
 
-    const po = createPurchaseOrder({
+    const po = await createPurchaseOrder({
       company,
       contact_name: body.contact_name ? String(body.contact_name).trim() : null,
       phone: body.phone ? String(body.phone).trim() : null,

@@ -13,8 +13,8 @@ export const metadata: Metadata = {
     "Safety news, product updates, compliance insights and practical tips from the KimSafety team.",
 };
 
-export default function BlogPage() {
-  const posts = listPosts();
+export default async function BlogPage() {
+  const posts = await listPosts();
 
   return (
     <div className="bg-surface pb-20">

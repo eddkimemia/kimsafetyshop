@@ -37,14 +37,14 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   };
 }
 
-export default function GuidePage({ params }: { params: { slug: string } }) {
-  const allGuides = mergedGuides();
+export default async function GuidePage({ params }: { params: { slug: string } }) {
+  const allGuides = await mergedGuides();
   const guide = allGuides.find((g) => g.slug === params.slug);
   if (!guide) return notFound();
 
   const hasEditorContent = Boolean(guide.content?.trim());
   const sections = guideBody();
-  const recommendations = liveCatalog().filter((p) => p.featured).slice(0, 4);
+  const recommendations = (await liveCatalog()).filter((p) => p.featured).slice(0, 4);
   const moreGuides = allGuides.filter((g) => g.slug !== guide.slug).slice(0, 4);
 
   const articleJsonLd = {

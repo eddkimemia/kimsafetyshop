@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing letter id" }, { status: 400 });
 
-  const letter = getLetterById(id);
+  const letter = await getLetterById(id);
   if (!letter) return NextResponse.json({ error: "Letter not found" }, { status: 404 });
 
   const me = await getSessionUser();
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "You can only download letters you created" }, { status: 403 });
   }
 
-  const settings = getAllSettings();
+  const settings = await getAllSettings();
   const pdf = await renderLetterPdf(letter, settings);
 
   return new NextResponse(new Uint8Array(pdf), {

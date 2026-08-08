@@ -34,7 +34,7 @@ function parseCampaign(
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
-  return NextResponse.json({ campaigns: listCampaigns().map((c) => ({ ...c, active: Boolean(c.active) })) });
+  return NextResponse.json({ campaigns: (await listCampaigns()).map((c) => ({ ...c, active: Boolean(c.active) })) });
 }
 
 export async function POST(req: Request) {
@@ -48,11 +48,11 @@ export async function POST(req: Request) {
   }
   const input = parseCampaign(body);
   if (!input) return NextResponse.json({ error: "Campaign name is required" }, { status: 400 });
-  const conflict = getCampaignBySlug(input.slug);
+  const conflict = await getCampaignBySlug(input.slug);
   if (conflict && conflict.id !== input.id) {
     return NextResponse.json({ error: `Slug "${input.slug}" already exists` }, { status: 409 });
   }
-  const campaign = upsertCampaign(input);
+  const campaign = await upsertCampaign(input);
   return NextResponse.json({ campaign: { ...campaign, active: Boolean(campaign.active) } }, { status: 201 });
 }
 
@@ -62,6 +62,6 @@ export async function DELETE(req: Request) {
   const url = new URL(req.url);
   const id = Number(url.searchParams.get("id"));
   if (!Number.isInteger(id)) return NextResponse.json({ error: "Missing campaign id" }, { status: 400 });
-  deleteCampaign(id);
+  await deleteCampaign(id);
   return NextResponse.json({ ok: true });
 }

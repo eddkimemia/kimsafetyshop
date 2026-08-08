@@ -4,7 +4,7 @@ import { getActiveBanners, getActiveCampaigns } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const banners = getActiveBanners().map((b) => ({
+  const banners = (await getActiveBanners()).map((b) => ({
     id: b.id,
     kicker: b.kicker,
     title: b.title,
@@ -21,7 +21,7 @@ export async function GET() {
     stat2_value: b.stat2_value,
     bg: b.image,
   }));
-  const campaigns = getActiveCampaigns().map((c) => ({
+  const campaigns = (await getActiveCampaigns()).map((c) => ({
     id: c.id,
     name: c.name,
     slug: c.slug,

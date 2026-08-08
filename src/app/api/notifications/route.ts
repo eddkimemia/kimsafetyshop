@@ -11,8 +11,8 @@ export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   return NextResponse.json({
-    notifications: listNotificationsForUser(user.id),
-    unread: countUnreadNotifications(user.id),
+    notifications: await listNotificationsForUser(user.id),
+    unread: await countUnreadNotifications(user.id),
   });
 }
 
@@ -27,13 +27,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
   if (body.action === "readAll") {
-    markAllNotificationsRead(user.id);
+    await markAllNotificationsRead(user.id);
     return NextResponse.json({ ok: true });
   }
   if (body.action === "read" && body.id) {
-    const owned = listNotificationsForUser(user.id).some((n) => n.id === body.id);
+    const owned = (await listNotificationsForUser(user.id)).some((n) => n.id === body.id);
     if (!owned) return NextResponse.json({ error: "Notification not found" }, { status: 404 });
-    markNotificationRead(body.id);
+    await markNotificationRead(body.id);
     return NextResponse.json({ ok: true });
   }
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });

@@ -27,7 +27,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const denied = await requireAdmin();
   if (denied) return denied;
 
-  const s = getAllSettings();
+  const s = await getAllSettings();
   const COMPANY = {
     name: s.site_name || FALLBACK_COMPANY.name,
     address: s.address || FALLBACK_COMPANY.address,
@@ -36,7 +36,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     website: FALLBACK_COMPANY.website,
   };
 
-  const po = getSupplierOrder(params.id);
+  const po = await getSupplierOrder(params.id);
   if (!po) return NextResponse.json({ error: "Purchase order not found" }, { status: 404 });
 
   const items = JSON.parse(po.items) as { name: string; qty: number; unitPrice: number }[];

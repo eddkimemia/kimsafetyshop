@@ -12,8 +12,8 @@ export function generateStaticParams() {
   return products.map((p) => ({ slug: p.slug }));
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
-  const product = liveGetBySlug(params.slug);
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const product = await liveGetBySlug(params.slug);
   if (!product) return { title: "Product not found" };
   const meta = product.description.replace(/<[^>]+>/g, " ").trim().slice(0, 160);
   const images = product.gallery?.[0]
@@ -39,11 +39,11 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   };
 }
 
-export default function ProductPage({ params }: { params: { slug: string } }) {
-  const product = liveGetBySlug(params.slug);
+export default async function ProductPage({ params }: { params: { slug: string } }) {
+  const product = await liveGetBySlug(params.slug);
   if (!product) return notFound();
 
-  const related = liveRelatedFor(product);
+  const related = await liveRelatedFor(product);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
