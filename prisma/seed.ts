@@ -1,5 +1,6 @@
 import "dotenv/config";
 import prisma from "../src/lib/prisma";
+import { seedMarketing, seedUsers } from "../src/lib/db";
 
 async function main() {
   const users = await Promise.all(
@@ -25,6 +26,13 @@ async function main() {
         { title: "Next steps", content: "Add your real models with prisma migrate dev.", authorId: users[0].id },
       ],
     });
+  }
+
+  await seedMarketing();
+  try {
+    await seedUsers();
+  } catch (e) {
+    console.warn("Admin seed skipped:", (e as Error).message);
   }
 
   console.log(`Seeded ${users.length} users and ${existing === 0 ? 3 : "existing"} posts into Prisma Postgres.`);
