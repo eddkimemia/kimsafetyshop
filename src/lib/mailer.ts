@@ -1,5 +1,4 @@
 import nodemailer from "nodemailer";
-import { getAllSettings } from "@/lib/db";
 import { siteUrl } from "@/lib/site";
 
 export type SmtpConfig = {
@@ -16,20 +15,17 @@ export function isSmtpConfigured(cfg?: SmtpConfig): boolean {
   return Boolean(cfg.host && cfg.user && cfg.pass);
 }
 
-export async function getSmtpConfig(): Promise<SmtpConfig | null> {
-  try {
-    const settings = await getAllSettings();
-    const host = process.env.SMTP_HOST || settings.smtp_host || "";
-    const user = process.env.SMTP_USER || settings.smtp_user || "";
-    const pass = process.env.SMTP_PASS || settings.smtp_pass || "";
-    const port = Number(process.env.SMTP_PORT || settings.smtp_port || 587);
-    const secure = port === 465;
-    const from = process.env.SMTP_FROM || settings.smtp_from || (settings.site_name ? `${settings.site_name} <${user}>` : "");
-    if (!host || !user || !pass) return null;
-    return { host, port, secure, user, pass, from };
-  } catch {
-    return null;
-  }
+// SMTP is configured exclusively through environment variables — never via the admin
+// settings page. Keep SMTP credentials out of the database.
+export function getSmtpConfig(): SmtpConfig | null {
+  const host = process.env.SMTP_HOST || "";
+  const user = process.env.SMTP_USER || "";
+  const pass = process.env.SMTP_PASS || "";
+  if (!host || !user || !pass) return null;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const secure = port === 465;
+  const from = process.env.SMTP_FROM || `${user}`;
+  return { host, port, secure, user, pass, from };
 }
 
 export async function sendNewsletterBroadcast(input: {

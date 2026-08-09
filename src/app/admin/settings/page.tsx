@@ -196,42 +196,21 @@ export default function AdminSettingsPage() {
             </div>
           </div>
         </AdminCard>
-
-        <AdminCard title="Email (SMTP)" subtitle="Used to send newsletter briefings — overridden by the SMTP_HOST / SMTP_USER / SMTP_PASS environment variables">
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="smtp_host" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                SMTP host
-              </label>
-              <input id="smtp_host" placeholder="smtp.gmail.com" value={form.smtp_host ?? ""} onChange={(e) => set("smtp_host", e.target.value)} className={field} />
-            </div>
-            <div>
-              <label htmlFor="smtp_port" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                SMTP port (465 = SSL, 587 = STARTTLS)
-              </label>
-              <input id="smtp_port" placeholder="587" value={form.smtp_port ?? ""} onChange={(e) => set("smtp_port", e.target.value.replace(/[^\d]/g, ""))} className={field} />
-            </div>
-            <div>
-              <label htmlFor="smtp_user" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                SMTP username
-              </label>
-              <input id="smtp_user" placeholder="sales@kimsafety.co.ke" value={form.smtp_user ?? ""} onChange={(e) => set("smtp_user", e.target.value)} className={field} />
-            </div>
-            <div>
-              <label htmlFor="smtp_pass" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                SMTP password / app password
-              </label>
-              <input id="smtp_pass" type="password" value={form.smtp_pass ?? ""} onChange={(e) => set("smtp_pass", e.target.value)} className={field} />
-            </div>
-            <div>
-              <label htmlFor="smtp_from" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                From address (optional — defaults to the username)
-              </label>
-              <input id="smtp_from" placeholder="KimSafety <sales@kimsafety.co.ke>" value={form.smtp_from ?? ""} onChange={(e) => set("smtp_from", e.target.value)} className={field} />
-            </div>
-          </div>
-        </AdminCard>
       </div>
+
+      <AdminCard title="Email (SMTP)" subtitle="SMTP is configured in the environment (.env / Vercel) — not here. See .env.example for SMTP_HOST, SMTP_USER, SMTP_PASS">
+        <div className="rounded-xl border border-dashed border-line bg-surface/60 px-4 py-6 text-center">
+          <Mail className="mx-auto mb-2 h-5 w-5 text-safety-600" />
+          <p className="text-sm font-bold text-navy-900">Email is configured via environment variables</p>
+          <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-gray-500">
+            Set <code className="rounded bg-white px-1.5 py-0.5 font-mono text-[11px] text-safety-700">SMTP_HOST</code>,{" "}
+            <code className="rounded bg-white px-1.5 py-0.5 font-mono text-[11px] text-safety-700">SMTP_USER</code> and{" "}
+            <code className="rounded bg-white px-1.5 py-0.5 font-mono text-[11px] text-safety-700">SMTP_PASS</code>{" "}
+            in your .env file (or the Vercel environment) to enable invoices, order confirmations, password
+            resets and the newsletter. Credentials are never stored in the database.
+          </p>
+        </div>
+      </AdminCard>
     </div>
   );
 }

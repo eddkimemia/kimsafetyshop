@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   const cfg = await getSmtpConfig();
   if (!cfg || !isSmtpConfigured(cfg)) {
     return NextResponse.json(
-      { error: "SMTP is not configured — set SMTP_HOST, SMTP_USER, SMTP_PASS (env) or smtp_host/smtp_user/smtp_pass (settings)" },
+      { error: "SMTP is not configured — set SMTP_HOST, SMTP_USER, SMTP_PASS in your .env (or Vercel environment)" },
       { status: 400 }
     );
   }

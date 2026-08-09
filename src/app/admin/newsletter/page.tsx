@@ -142,7 +142,7 @@ export default function AdminNewsletterPage() {
 
       <AdminCard
         title="Send a briefing"
-        subtitle="Uses SMTP — configure SMTP_HOST / SMTP_USER / SMTP_PASS in the environment or in Settings"
+        subtitle="Uses SMTP — configure SMTP_HOST / SMTP_USER / SMTP_PASS in the .env file (or Vercel environment), not in Settings"
       >
         <div className="space-y-4">
           <input
