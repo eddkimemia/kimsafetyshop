@@ -10,12 +10,19 @@ export function AuthStatus() {
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/auth/session")
-      .then((r) => r.json())
-      .then((s) => {
-        if (alive) setSession(s);
-      })
-      .catch(() => {});
+    const load = async () => {
+      try {
+        const res = await fetch("/api/auth/session");
+        if (!alive) return;
+        setSession(await res.json());
+      } catch {
+        // Transient network/lambda failures: retry shortly so the account
+        // button catches up instead of staying stuck on "Hello, sign in".
+        if (!alive) return;
+        setTimeout(load, 3000);
+      }
+    };
+    load();
     return () => {
       alive = false;
     };
