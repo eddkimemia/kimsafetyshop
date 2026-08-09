@@ -162,39 +162,76 @@ export function AccountShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <div className="mx-auto grid max-w-shell grid-cols-[3.25rem_minmax(0,1fr)] gap-3 px-4 pt-6 md:grid-cols-[13.5rem_minmax(0,1fr)] md:gap-8 md:pt-8 lg:px-8">
-          <aside className="sticky top-20 h-fit rounded-2xl border border-line bg-white p-2 shadow-card md:top-24 md:p-3">
-            <nav className="flex flex-col gap-0.5 pb-16 lg:pb-0" aria-label="Account navigation">
-              {nav.map(([href, label, Icon]) => {
-                const active = pathname === href;
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    aria-current={active ? "page" : undefined}
-                    title={label}
-                    className={cn(
-                      "flex items-center justify-center gap-3 rounded-xl px-2 py-3 text-sm font-semibold transition-colors md:justify-start md:px-4",
-                      active ? "bg-navy-900 text-white" : "text-gray-500 hover:bg-surface hover:text-navy-900"
-                    )}
-                  >
-                    <Icon className="h-4.5 w-4.5 shrink-0" />
-                    <span className="hidden md:inline">{label}</span>
-                  </Link>
-                );
-              })}
-              <button
-                onClick={() => signOut({ callbackUrl: "/" })}
-                title="Sign out"
-                className="mt-2 flex items-center justify-center gap-3 rounded-xl border-t border-line px-2 py-3 text-sm font-semibold text-danger md:justify-start md:px-4"
-              >
-                <LogOut className="h-4.5 w-4.5 shrink-0" />
-                <span className="hidden md:inline">Sign Out</span>
-              </button>
-            </nav>
-          </aside>
+        <div className="mx-auto max-w-shell px-4 pt-6 lg:px-8">
+          <div className="grid gap-6 md:grid-cols-[13.5rem_minmax(0,1fr)] md:gap-8">
+            {/* Mobile: horizontal tab bar at the top (Returns hidden on mobile) */}
+            <aside className="sticky top-20 z-20 h-fit rounded-2xl border border-line bg-white p-1.5 shadow-card md:hidden">
+              <nav className="no-scrollbar flex items-center gap-1 overflow-x-auto" aria-label="Account navigation">
+                {nav
+                  .filter(([href]) => href !== "/account/returns")
+                  .map(([href, label, Icon]) => {
+                    const active = pathname === href;
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        aria-current={active ? "page" : undefined}
+                        title={label}
+                        className={cn(
+                          "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+                          active ? "bg-navy-900 text-white" : "text-gray-500 hover:bg-surface hover:text-navy-900"
+                        )}
+                      >
+                        <Icon className="h-4.5 w-4.5 shrink-0" />
+                        <span className="hidden sm:inline">{label}</span>
+                      </Link>
+                    );
+                  })}
+                <button
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                  title="Sign out"
+                  className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border-l border-line px-3 py-2.5 text-sm font-semibold text-danger transition-colors hover:bg-red-50"
+                >
+                  <LogOut className="h-4.5 w-4.5 shrink-0" />
+                  <span className="hidden sm:inline">Sign Out</span>
+                </button>
+              </nav>
+            </aside>
 
-          <div className="min-w-0">{children}</div>
+            {/* Desktop: sidebar on the left */}
+            <aside className="sticky top-20 hidden h-fit rounded-2xl border border-line bg-white p-2 shadow-card md:top-24 md:block md:p-3">
+              <nav className="flex flex-col gap-0.5" aria-label="Account navigation">
+                {nav.map(([href, label, Icon]) => {
+                  const active = pathname === href;
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      aria-current={active ? "page" : undefined}
+                      title={label}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors",
+                        active ? "bg-navy-900 text-white" : "text-gray-500 hover:bg-surface hover:text-navy-900"
+                      )}
+                    >
+                      <Icon className="h-4.5 w-4.5 shrink-0" />
+                      <span>{label}</span>
+                    </Link>
+                  );
+                })}
+                <button
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                  title="Sign out"
+                  className="mt-2 flex items-center gap-3 rounded-xl border-t border-line px-4 py-3 text-sm font-semibold text-danger"
+                >
+                  <LogOut className="h-4.5 w-4.5 shrink-0" />
+                  <span>Sign Out</span>
+                </button>
+              </nav>
+            </aside>
+
+            <div className="min-w-0">{children}</div>
+          </div>
         </div>
       </div>
     </StatsContext.Provider>

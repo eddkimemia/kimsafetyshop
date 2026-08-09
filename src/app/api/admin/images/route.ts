@@ -89,7 +89,9 @@ export async function POST(req: Request) {
     const existing = new Set([...(await listStoredFiles()), ...listDir("products")].map((f) => f.toLowerCase()));
     let n = 1;
     while (existing.has(filename.toLowerCase())) {
-      filename = `${base} (${n})${ext}`;
+      // Use a dash suffix ("file-1.jpg") instead of the classic " (1)" pattern
+      // so generated names stay clean and consistently servable.
+      filename = `${base}-${n}${ext}`;
       n++;
     }
   }

@@ -99,14 +99,14 @@ export function CoverImagePicker({
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line bg-surface/60 px-4 py-10 text-center text-xs font-bold text-gray-500 transition-colors hover:border-safety-400 hover:text-safety-600">
           {uploading ? (
             <>
-              <Loader2 className="h-5 w-5 animate-spin" /> Uploading… (JPG, PNG, WEBP, GIF — max 8MB)
+              <Loader2 className="h-5 w-5 animate-spin" /> Uploading… (JPG, PNG, WEBP — max 8MB)
             </>
           ) : (
             <>
               <Upload className="h-5 w-5" /> Click to upload an image — it will be set as the cover
             </>
           )}
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploading} className="sr-only" onChange={onFiles} />
+          <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} className="sr-only" onChange={onFiles} />
         </label>
       ) : (
         <div className="grid max-h-64 grid-cols-4 gap-2 overflow-auto pr-1 sm:grid-cols-6">

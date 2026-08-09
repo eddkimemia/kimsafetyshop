@@ -790,8 +790,8 @@ function DocumentRow({
       }
       const type = file.name.split(".").pop()?.toUpperCase() ?? "PDF";
       onChange({ file: json.path as string, type });
-    } catch {
-      setError("Upload failed");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -905,8 +905,8 @@ function UploadZone({
       } else {
         onUploaded?.(json.path as string);
       }
-    } catch {
-      setError("Upload failed");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -917,7 +917,7 @@ function UploadZone({
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
@@ -948,7 +948,7 @@ function UploadZone({
           <span className="text-xs font-bold text-navy-900">
             {uploading ? "Uploading…" : variant === "gallery" ? "Upload an image to the gallery" : "Upload a new image"}
           </span>
-          <span className="text-[11px] text-gray-400">JPG, PNG, WEBP or GIF · max 8 MB</span>
+          <span className="text-[11px] text-gray-400">JPG, PNG or WEBP · max 8 MB</span>
         </button>
       )}
       {error && <p className="mt-2 text-[11px] font-semibold text-danger">{error}</p>}

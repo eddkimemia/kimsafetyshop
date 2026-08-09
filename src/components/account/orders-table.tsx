@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { Check, ChevronRight, Truck, X } from "lucide-react";
 import { cn, formatKES } from "@/lib/utils";
-import { getProduct } from "@/lib/data/products";
-import { ProductArt } from "@/components/product/product-art";
 import type { AccountOrder } from "@/components/account/account-shell";
 
 function StatusBadge({ status }: { status: string }) {
@@ -44,28 +42,15 @@ export function OrdersTable({ orders, loading, limit }: { orders: AccountOrder[]
             href={`/account/orders/${o.id}`}
             className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white p-4 transition-colors hover:border-safety-400"
           >
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex -space-x-2 shrink-0">
-                {o.items.slice(0, 3).map((i) => {
-                  const p = getProduct(i.productId);
-                  if (!p) return null;
-                  return (
-                    <span key={`${o.id}-${i.productId}`} className="h-9 w-9 overflow-hidden rounded-lg border-2 border-white shadow-sm">
-                      <ProductArt tags={p.tags} categoryName={p.categoryName} brand={p.brand} sku={p.sku} className="h-full w-full" />
-                    </span>
-                  );
-                })}
-              </div>
-              <div className="min-w-0">
-                <p className="font-bold text-navy-900">#{o.id}</p>
-                <p className="text-[11px] text-gray-400">
-                  {new Date(o.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })} · {(() => {
-                    const count = o.items.reduce((s, i) => s + (i.qty || 0), 0);
-                    return `${count} item${count === 1 ? "" : "s"}`;
-                  })()}
-                </p>
-                <div className="mt-1.5"><StatusBadge status={o.status} /></div>
-              </div>
+            <div className="min-w-0">
+              <p className="font-bold text-navy-900">#{o.id}</p>
+              <p className="text-[11px] text-gray-400">
+                {new Date(o.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })} · {(() => {
+                  const count = o.items.reduce((s, i) => s + (i.qty || 0), 0);
+                  return `${count} item${count === 1 ? "" : "s"}`;
+                })()}
+              </p>
+              <div className="mt-1.5"><StatusBadge status={o.status} /></div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <p className="font-extrabold text-navy-900">{formatKES(o.total)}</p>
@@ -77,12 +62,11 @@ export function OrdersTable({ orders, loading, limit }: { orders: AccountOrder[]
 
       {/* Table layout on large screens */}
       <div className="hidden overflow-x-auto lg:block">
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
               <th className="pb-3">Order</th>
               <th className="pb-3">Date</th>
-              <th className="pb-3">Items</th>
               <th className="pb-3">Total</th>
               <th className="pb-3">Status</th>
               <th className="pb-3" />
@@ -93,19 +77,6 @@ export function OrdersTable({ orders, loading, limit }: { orders: AccountOrder[]
               <tr key={o.id} className="border-b border-line/60 last:border-0">
                 <td className="py-3.5 font-bold text-navy-900">#{o.id}</td>
                 <td className="py-3.5 text-gray-500">{new Date(o.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</td>
-                <td className="py-3.5">
-                  <div className="flex -space-x-2">
-                    {o.items.slice(0, 4).map((i) => {
-                      const p = getProduct(i.productId);
-                      if (!p) return null;
-                      return (
-                        <span key={`${o.id}-${i.productId}`} className="h-9 w-9 overflow-hidden rounded-lg border-2 border-white shadow-sm">
-                          <ProductArt tags={p.tags} categoryName={p.categoryName} brand={p.brand} sku={p.sku} className="h-full w-full" />
-                        </span>
-                      );
-                    })}
-                  </div>
-                </td>
                 <td className="py-3.5 font-bold text-navy-900">{formatKES(o.total)}</td>
                 <td className="py-3.5"><StatusBadge status={o.status} /></td>
                 <td className="py-3.5">

@@ -5,7 +5,10 @@ import fs from "fs";
 import path from "path";
 import { getStoredFile } from "@/lib/file-store";
 
-const SAFE_NAME = /^[\w .-]+\.(jpe?g|png|webp|gif)$/i;
+// Allow parentheses/brackets/commas/&/@ etc. — many real uploads contain them
+// (e.g. the old dedupe suffix "file (1).jpg"). No slashes, so path traversal is
+// impossible; the explicit ".." check below is extra defence.
+const SAFE_NAME = /^[\w .\-()\[\],&'@+]+\.(jpe?g|png|webp|gif)$/i;
 
 export async function GET(_req: Request, { params }: { params: { file: string } }) {
   const file = params.file;

@@ -29,6 +29,19 @@ jobs:
       - name: Pull Vercel environment information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
+      - name: Install dependencies
+        # No lockfile is committed, so use `npm install` (same as Vercel would).
+        run: npm install --no-audit --no-fund
+
+      - name: Apply database migrations before deploy
+        # Uses the production env pulled from Vercel. Adopts the raw-SQL-built
+        # database for Prisma (baselines migrations already present), then runs
+        # `prisma migrate deploy` so tables like upload_files exist before the
+        # new build ships. Fail-closed: no deploy if migrations fail.
+        run: |
+          cp .vercel/.env.production.local .env
+          node scripts/deploy-db.mjs
+
       - name: Build project artifacts
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
