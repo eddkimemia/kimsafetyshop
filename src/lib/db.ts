@@ -200,13 +200,13 @@ function isTransientPgError(err: unknown): boolean {
   return false;
 }
 
-async function runQuery<T>(text: string, values: unknown[], retries = 2): Promise<T> {
+async function runQuery<T>(text: string, values: unknown[], retries = 4): Promise<T> {
   try {
     const res = await getDb().query(text, values);
     return res as T;
   } catch (err) {
     if (retries > 0 && isTransientPgError(err)) {
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 800 * (5 - retries) + 200));
       return runQuery<T>(text, values, retries - 1);
     }
     throw err;

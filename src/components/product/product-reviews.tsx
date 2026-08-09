@@ -285,12 +285,14 @@ export function ProductReviews({ product }: { product: Product }) {
           </>
         )}
 
-        <p className="text-center text-xs text-gray-400">
-          <Link href="/login" className="font-bold text-safety-600 hover:underline">
-            Sign in
-          </Link>{" "}
-          to leave a review — only verified purchasers can write one.
-        </p>
+        {!sessionUser && (
+          <p className="text-center text-xs text-gray-400">
+            <Link href="/login" className="font-bold text-safety-600 hover:underline">
+              Sign in
+            </Link>{" "}
+            to leave a review — only verified purchasers can write one.
+          </p>
+        )}
       </div>
     </div>
   );
