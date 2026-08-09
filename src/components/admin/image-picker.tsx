@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search, Upload, Loader2 } from "lucide-react";
 import { adminField, useFetch } from "@/components/admin/ui";
 import { cn } from "@/lib/utils";
+import { processImageInBrowser } from "@/lib/client-image-process";
 
 type Tab = "upload" | "products" | "hero";
 
@@ -30,8 +31,13 @@ export function CoverImagePicker({
     setUploading(true);
     setError(null);
     try {
+      // Process in the browser (white background + KimSafety branding) so the
+      // result is identical on Vercel, where the Python pipeline can't run,
+      // and stays under Vercel's 4.5MB serverless body limit.
+      const finalFile = await processImageInBrowser(file);
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", finalFile);
+      fd.append("processed", "1");
       const res = await fetch("/api/admin/images", { method: "POST", body: fd });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Upload failed");

@@ -109,12 +109,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Could not save file" }, { status: 500 });
   }
 
-  // Auto-process: white background + KimSafety logo/contact branding
-  // (runs the same pipeline as public/images/products/process_images.py)
-  // Only when the local file exists (never on serverless — no Python).
-  const processed = fs.existsSync(localFileFor("images/products", filename))
-    ? await processProductImage(filename)
-    : false;
+  // Auto-process: white background + KimSafety logo/contact branding.
+  // When the client already processed the image in the browser (processed=1),
+  // skip the Python pipeline entirely — it cannot run on serverless anyway.
+  const clientProcessed = form.get("processed") === "1";
+  const processed =
+    !clientProcessed && fs.existsSync(localFileFor("images/products", filename))
+      ? await processProductImage(filename)
+      : clientProcessed;
 
   return NextResponse.json(
     { path: `/api/uploads/${encodeURIComponent(filename)}`, processed },

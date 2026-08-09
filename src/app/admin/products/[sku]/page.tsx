@@ -20,6 +20,7 @@ import {
 import { useFetch, AdminCard, adminField } from "@/components/admin/ui";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { ProductArt, productImageFor } from "@/components/product/product-art";
+import { processImageInBrowser } from "@/lib/client-image-process";
 
 type SpecRow = { label: string; value: string };
 type BulkTier = { qty: string; price: string; savings: string };
@@ -842,9 +843,14 @@ function UploadZone({
   const upload = async (file: File) => {
     setUploading(true);
     setError(null);
-    const form = new FormData();
-    form.append("file", file);
     try {
+      // Process in the browser (white background + KimSafety branding) so the
+      // result is identical on Vercel, where the Python pipeline can't run,
+      // and stays under Vercel's 4.5MB serverless body limit.
+      const finalFile = await processImageInBrowser(file);
+      const form = new FormData();
+      form.append("file", finalFile);
+      form.append("processed", "1");
       const res = await fetch("/api/admin/images", { method: "POST", body: form });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
