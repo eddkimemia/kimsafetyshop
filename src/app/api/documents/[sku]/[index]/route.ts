@@ -7,7 +7,7 @@ import PDFDocument from "pdfkit";
 import { mergedCatalog } from "@/lib/admin-products";
 import { htmlToBlocks, TextRun, Block } from "@/lib/html-blocks";
 import { getSetting } from "@/lib/db";
-import { readPublicFile } from "@/lib/file-store";
+import { getStoredFile, readPublicFile } from "@/lib/file-store";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { productImages, productGalleries } from "@/lib/data/product-images";
 import type { Product } from "@/lib/types";
@@ -69,11 +69,13 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
 
   // Uploaded real file takes precedence
   if (doc.file && doc.file.startsWith("/")) {
-    const buf = await readPublicFile(doc.file);
+    const filename = decodeURIComponent(path.basename(doc.file));
+    const stored = await getStoredFile(filename);
+    const buf = stored ? stored.data : await readPublicFile(doc.file);
     if (buf) {
       return new NextResponse(new Uint8Array(buf), {
         headers: {
-          "Content-Type": "application/pdf",
+          "Content-Type": stored?.mime ?? "application/octet-stream",
           "Content-Disposition": `attachment; filename="${encodeURIComponent(downloadFilename(product.sku, doc))}"`,
         },
       });
@@ -165,12 +167,13 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
   y += 30;
 
   // ---- Title ----
-  pdf.font("Helvetica-Bold").fontSize(9).fillColor(GRAY).text("PRODUCT DOCUMENT", padL, y);
+  pdf.font("Helvetica-Bold").fontSize(9).fillColor(GRAY).text("PRODUCT DATASHEET", padL, y);
   y += 15;
-  pdf.font("Helvetica-Bold").fontSize(17).fillColor(NAVY).text(doc.name, padL, y, { width: BODY_W });
-  y += 24;
-  pdf.font("Helvetica-Oblique").fontSize(10.5).fillColor(GRAY).text(product.name, padL, y, { width: BODY_W });
-  y += 24;
+  // Product name is the headline — sized for long names (wraps safely).
+  pdf.font("Helvetica-Bold").fontSize(20).fillColor(NAVY);
+  const titleH = pdf.heightOfString(product.name, { width: BODY_W });
+  pdf.text(product.name, padL, y, { width: BODY_W });
+  y += titleH + 8;
 
   // ---- Product image grid (3-up square) ----
   const adminProduct = product as Product & { image?: string; gallery?: string[] };

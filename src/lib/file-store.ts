@@ -61,8 +61,14 @@ export async function readPublicFile(publicPath: string): Promise<Buffer | undef
     return undefined;
   }
   if (publicPath.startsWith("/documents/")) {
-    const local = path.join(process.cwd(), "public", decodeURIComponent(publicPath).replace(/^\//, ""));
-    if (fs.existsSync(local)) return fs.readFileSync(local);
+    // Admin document uploads (src/app/api/admin/documents) persist in the DB and
+    // return /documents/<name> paths. Check the DB first (source of truth on
+    // serverless), then the local disk mirror.
+    const filename = decodeURIComponent(path.basename(publicPath));
+    const stored = await getStoredFile(filename);
+    if (stored) return stored.data;
+    const local = localFileFor("documents", filename);
+    if (local && fs.existsSync(local)) return fs.readFileSync(local);
     return undefined;
   }
   return undefined;
