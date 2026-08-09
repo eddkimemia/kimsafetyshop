@@ -5,16 +5,22 @@ import { createUser, listUsers, setUserRole, setUserVerified, getUserById, getUs
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
-  const users = (await listUsers()).map((u) => ({
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    role: u.role,
-    company: u.company,
-    phone: u.phone,
-    verified: u.verified,
-    created_at: u.created_at,
-  }));
+  const me = await getSessionUser();
+  // Staff (non-superadmin) can only see customers, never other staff accounts.
+  const isSuper = me?.role === "superadmin";
+  const all = await listUsers();
+  const users = all
+    .filter((u) => isSuper || u.role === "user")
+    .map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      company: u.company,
+      phone: u.phone,
+      verified: u.verified,
+      created_at: u.created_at,
+    }));
   return NextResponse.json({ users });
 }
 
@@ -74,13 +80,13 @@ export async function PATCH(req: Request) {
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   if (body.role !== undefined) {
-    if (body.role !== "user" && body.role !== "admin") {
+    if (body.role !== "user" && body.role !== "admin" && body.role !== "superadmin") {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
     const deniedSuper = await requireSuperAdmin();
     if (deniedSuper) return deniedSuper;
     const me = await getSessionUser();
-    if (target.id === me?.id && body.role !== "admin") {
+    if (target.id === me?.id) {
       return NextResponse.json({ error: "You cannot change your own role" }, { status: 400 });
     }
     await setUserRole(target.id, body.role);

@@ -321,13 +321,22 @@ export function renderLetterPdf(letter: LetterInput, settings: LetterSettings): 
   for (const block of htmlToBlocks(letter.body)) drawBlock(block);
 
   // ---- Closing ----
-  if (y + 80 > usableBottom) {
+  if (y + 120 > usableBottom) {
     doc.addPage();
     y = 56;
   }
   y += 6;
   doc.font("Helvetica").fontSize(10.5).fillColor(INK).text(letter.closing + ",", padL, y);
-  y += 56;
+  y += 46;
+
+  // ---- Signatory: signature line, sender name, then their department below ----
+  doc
+    .moveTo(padL, y)
+    .lineTo(padL + 160, y)
+    .lineWidth(0.9)
+    .strokeColor(GRAY)
+    .stroke();
+  y += 20;
 
   doc
     .font("Helvetica-Bold")

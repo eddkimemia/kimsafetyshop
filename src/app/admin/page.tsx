@@ -76,12 +76,12 @@ export default function AdminDashboardPage() {
         <p className="text-sm text-gray-500">Store overview — refresh to pull the latest numbers.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-6">
         {cards.map(([Icon, label, value, sub, href, tone]) => (
-          <Link key={label} href={href} className="rounded-2xl border border-line bg-white p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-cardHover">
+          <Link key={label} href={href} className="rounded-2xl border border-line bg-white p-4 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-cardHover xl:p-5">
             <Icon className={`mb-3 h-5 w-5 ${tone}`} />
-            <p className="text-xs text-gray-400">{label}</p>
-            <p className="font-display text-2xl font-extrabold text-navy-900">{value}</p>
+            <p className="text-[11px] text-gray-400 xl:text-xs">{label}</p>
+            <p className="font-display text-xl font-extrabold text-navy-900 xl:text-2xl">{value}</p>
             <p className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-safety-600">
               {sub} <ArrowRight className="h-3 w-3" />
             </p>
@@ -134,12 +134,12 @@ export default function AdminDashboardPage() {
               ))}
             </div>
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[560px] text-sm">
+              <table className="w-full min-w-[520px] text-sm">
                 <thead>
                   <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                     <th className="pb-3">Order</th>
                     <th className="pb-3">Customer</th>
-                    <th className="hidden pb-3 md:table-cell">Items</th>
+                    <th className="hidden pb-3 xl:table-cell">Items</th>
                     <th className="pb-3">Total</th>
                     <th className="pb-3">Status</th>
                     <th className="pb-3" />
@@ -152,7 +152,7 @@ export default function AdminDashboardPage() {
                         <Link href={`/admin/orders/${encodeURIComponent(o.id)}`} className="hover:text-safety-600">#{o.id}</Link>
                       </td>
                       <td className="py-3 text-gray-500">{o.name}</td>
-                      <td className="hidden py-3 text-gray-500 md:table-cell">{o.items.reduce((s, i) => s + i.qty, 0)} units</td>
+                      <td className="hidden py-3 text-gray-500 xl:table-cell">{o.items.reduce((s, i) => s + i.qty, 0)} units</td>
                       <td className="py-3 font-bold text-navy-900">{formatKES(o.total)}</td>
                       <td className="py-3"><StatusBadge status={o.status} map={orderStatusTones} /></td>
                       <td className="py-3 text-right">

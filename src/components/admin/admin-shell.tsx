@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Package, ShoppingCart, Users, ClipboardList, Building2, BookOpen, Newspaper, LogOut, ShieldCheck, Menu, X, ArrowLeft, Truck, Store, Settings, FileText, Megaphone, LifeBuoy, Star, Mail } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, ClipboardList, Building2, BookOpen, Newspaper, LogOut, ShieldCheck, Menu, X, ArrowLeft, Truck, Store, Settings, FileText, Megaphone, LifeBuoy, Star, Mail, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/logo";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
@@ -146,6 +146,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             >
               <FileText className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Docs</span>
             </Link>
+            <Link
+              href="/admin/password"
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition-colors",
+                pathname.startsWith("/admin/password")
+                  ? "border-safety-300 bg-safety-50 text-safety-600"
+                  : "border-line text-navy-900 hover:bg-surface"
+              )}
+            >
+              <KeyRound className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Password</span>
+            </Link>
             {role === "superadmin" && (
               <Link
                 href="/admin/settings"
@@ -166,7 +177,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <Store className="h-3.5 w-3.5" /> View storefront
             </Link>
             <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={() => signOut({ callbackUrl: "/admin/login" })}
               className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-bold text-navy-900 transition-colors hover:bg-surface"
             >
               <LogOut className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Sign out</span>

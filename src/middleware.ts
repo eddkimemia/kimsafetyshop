@@ -6,9 +6,16 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({ req });
   const { pathname } = req.nextUrl;
 
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", pathname);
+
   if (!token) {
+    // The admin sign-in page must render for unauthenticated visitors — otherwise this would loop.
+    if (pathname === "/admin/login") {
+      return NextResponse.next({ request: { headers: requestHeaders } });
+    }
     const url = req.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = pathname.startsWith("/admin") ? "/admin/login" : "/login";
     url.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(url);
   }
@@ -17,7 +24,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/account", req.url));
   }
 
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {

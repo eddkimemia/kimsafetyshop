@@ -16,6 +16,7 @@ import {
   LifeBuoy,
   Download,
   Bell,
+  KeyRound,
   LogOut,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -74,6 +75,7 @@ const nav = [
   ["/account/invoices", "Invoices", FileText],
   ["/account/quotes", "Saved Quotes", ClipboardList],
   ["/account/addresses", "Addresses", MapPin],
+  ["/account/password", "Password", KeyRound],
   ["/account/returns", "Returns", RotateCcw],
   ["/account/tickets", "Support Tickets", LifeBuoy],
   ["/account/downloads", "Downloads", Download],
@@ -153,9 +155,9 @@ export function AccountShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <div className="mx-auto grid max-w-shell grid-cols-1 gap-8 px-4 pt-8 lg:grid-cols-4 lg:px-8">
-          <aside className="h-fit rounded-2xl border border-line bg-white p-3 shadow-card lg:sticky lg:top-28">
-            <nav className="flex flex-col gap-0.5" aria-label="Account navigation">
+        <div className="mx-auto grid max-w-shell grid-cols-[3.25rem_minmax(0,1fr)] gap-3 px-4 pt-6 md:grid-cols-[13.5rem_minmax(0,1fr)] md:gap-8 md:pt-8 lg:px-8">
+          <aside className="sticky top-20 h-fit rounded-2xl border border-line bg-white p-2 shadow-card md:top-24 md:p-3">
+            <nav className="flex flex-col gap-0.5 pb-16 lg:pb-0" aria-label="Account navigation">
               {nav.map(([href, label, Icon]) => {
                 const active = pathname === href;
                 return (
@@ -163,25 +165,29 @@ export function AccountShell({ children }: { children: ReactNode }) {
                     key={href}
                     href={href}
                     aria-current={active ? "page" : undefined}
+                    title={label}
                     className={cn(
-                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors",
+                      "flex items-center justify-center gap-3 rounded-xl px-2 py-3 text-sm font-semibold transition-colors md:justify-start md:px-4",
                       active ? "bg-navy-900 text-white" : "text-gray-500 hover:bg-surface hover:text-navy-900"
                     )}
                   >
-                    <Icon className="h-4.5 w-4.5" /> {label}
+                    <Icon className="h-4.5 w-4.5 shrink-0" />
+                    <span className="hidden md:inline">{label}</span>
                   </Link>
                 );
               })}
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="mt-2 flex items-center gap-3 rounded-xl border-t border-line px-4 py-3 text-sm font-semibold text-danger"
+                title="Sign out"
+                className="mt-2 flex items-center justify-center gap-3 rounded-xl border-t border-line px-2 py-3 text-sm font-semibold text-danger md:justify-start md:px-4"
               >
-                <LogOut className="h-4.5 w-4.5" /> Sign Out
+                <LogOut className="h-4.5 w-4.5 shrink-0" />
+                <span className="hidden md:inline">Sign Out</span>
               </button>
             </nav>
           </aside>
 
-          <div className="lg:col-span-3">{children}</div>
+          <div className="min-w-0">{children}</div>
         </div>
       </div>
     </StatsContext.Provider>

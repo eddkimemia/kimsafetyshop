@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -12,7 +13,12 @@ export const metadata: Metadata = {
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
-  if (!session) redirect(`/login?callbackUrl=${encodeURIComponent("/admin")}`);
+  const isLoginPage = (headers().get("x-pathname") ?? "").startsWith("/admin/login");
+
+  // The admin sign-in page renders standalone — its own layout handles signed-in users.
+  if (isLoginPage) return <>{children}</>;
+
+  if (!session) redirect(`/admin/login?callbackUrl=${encodeURIComponent("/admin")}`);
   if (session.user.role !== "admin" && session.user.role !== "superadmin") redirect("/account");
 
   return <AdminShell>{children}</AdminShell>;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { listNewsletterSubscribers } from "@/lib/db";
 import { getSmtpConfig, isSmtpConfigured, newsletterHtml, sendNewsletterBroadcast } from "@/lib/mailer";
+import { sanitizePostHtml } from "@/lib/blog";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
@@ -17,11 +18,13 @@ export async function POST(req: Request) {
   }
 
   const subject = typeof body.subject === "string" ? body.subject.trim() : "";
-  const text = typeof body.body === "string" ? body.body.trim() : "";
+  // Body is HTML from the rich text editor — sanitize before it is embedded in the email.
+  const html = sanitizePostHtml(typeof body.body === "string" ? body.body.trim() : "");
+  const plain = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   if (!subject) return NextResponse.json({ error: "Subject is required" }, { status: 400 });
   if (subject.length > 150) return NextResponse.json({ error: "Subject is too long" }, { status: 400 });
-  if (!text) return NextResponse.json({ error: "Message body is required" }, { status: 400 });
-  if (text.length > 100_000) return NextResponse.json({ error: "Message is too long" }, { status: 400 });
+  if (!plain) return NextResponse.json({ error: "Message body is required" }, { status: 400 });
+  if (html.length > 100_000) return NextResponse.json({ error: "Message is too long" }, { status: 400 });
 
   const cfg = await getSmtpConfig();
   if (!cfg || !isSmtpConfigured(cfg)) {
@@ -43,7 +46,7 @@ export async function POST(req: Request) {
     const recipient = to[0];
     const { sent, failed } = await sendNewsletterBroadcast({
       subject,
-      html: newsletterHtml({ title: subject, body: text }),
+      html: newsletterHtml({ title: subject, body: html }),
       to: [recipient],
       cfg,
     });
@@ -53,7 +56,7 @@ export async function POST(req: Request) {
   try {
     const { sent, failed } = await sendNewsletterBroadcast({
       subject,
-      html: newsletterHtml({ title: subject, body: text }),
+      html: newsletterHtml({ title: subject, body: html }),
       to,
       cfg,
     });

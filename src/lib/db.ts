@@ -456,12 +456,16 @@ export async function createUser(input: { name: string; email: string; password:
 export async function listUsers(): Promise<DbUser[]> {  return (await qr("SELECT * FROM users ORDER BY created_at DESC")) as DbUser[];
 }
 
-export async function setUserRole(id: string, role: "user" | "admin") {
+export async function setUserRole(id: string, role: "user" | "admin" | "superadmin") {
   await qe("UPDATE users SET role = ? WHERE id = ?", role, id);
 }
 
 export async function setUserVerified(id: string, verified: number) {
   await qe("UPDATE users SET verified = ? WHERE id = ?", verified, id);
+}
+
+export async function setUserPassword(id: string, password: string) {
+  await qe("UPDATE users SET password_hash = ? WHERE id = ?", hashPassword(password), id);
 }
 
 // ---- Orders ----

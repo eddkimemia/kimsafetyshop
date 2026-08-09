@@ -70,18 +70,23 @@ export async function sendNewsletterBroadcast(input: {
 }
 
 export function newsletterHtml(input: { title: string; body: string }): string {
-  const paragraphs = input.body
-    .split(/\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => `<p style="margin:0 0 14px 0;line-height:1.7;">${p.replace(/</g, "&lt;")}</p>`)
-    .join("");
+  // Body is sanitized HTML from the rich text editor; fall back to plain text
+  // paragraphs when the message contains no markup at all.
+  const isHtml = /<[a-zA-Z][\s\S]*>/.test(input.body);
+  const content = isHtml
+    ? input.body
+    : input.body
+        .split(/\n+/)
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .map((p) => `<p style="margin:0 0 14px 0;line-height:1.7;">${p.replace(/</g, "&lt;")}</p>`)
+        .join("");
   return `
   <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f6f8fa;">
     <div style="background:#ffffff;border-radius:12px;padding:32px;border:1px solid #e2e8f0;">
       <p style="font-size:12px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#0f2847;margin:0 0 12px 0;">KimSafety · Safety briefing</p>
       <h1 style="font-size:22px;color:#0f2847;margin:0 0 18px 0;">${input.title.replace(/</g, "&lt;")}</h1>
-      ${paragraphs}
+      <div style="font-size:14px;line-height:1.7;color:#334155;">${content}</div>
       <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px 0;" />
       <p style="font-size:12px;color:#64748b;margin:0 0 6px 0;">
         KimSafety House, Enterprise Road, Industrial Area, Nairobi, Kenya
@@ -92,6 +97,52 @@ export function newsletterHtml(input: { title: string; body: string }): string {
       </p>
     </div>
   </div>`;
+}
+
+export async function sendPasswordResetEmail(input: {
+  to: string;
+  name?: string | null;
+  resetUrl: string;
+}): Promise<boolean> {
+  const cfg: SmtpConfig | null = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+
+  const { to, name, resetUrl } = input;
+  const transporter = nodemailer.createTransport({
+    host: cfg.host,
+    port: cfg.port,
+    secure: cfg.secure,
+    auth: { user: cfg.user, pass: cfg.pass },
+  });
+
+  const firstName = (name ?? "").split(" ")[0] || "there";
+  await transporter.sendMail({
+    from: cfg.from,
+    to,
+    subject: "Reset your KimSafety password",
+    text: `Hi ${firstName},\n\nWe received a request to reset the password for your KimSafety account. Open the link below to choose a new password. The link expires in 1 hour.\n\n${resetUrl}\n\nIf you did not request this, you can safely ignore this email.\n\n— KimSafety Team`,
+    html: `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f6f8fa;">
+    <div style="background:#ffffff;border-radius:12px;padding:32px;border:1px solid #e2e8f0;">
+      <p style="font-size:12px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#0f2847;margin:0 0 12px 0;">KimSafety · Account security</p>
+      <h1 style="font-size:22px;color:#0f2847;margin:0 0 18px 0;">Reset your password</h1>
+      <p style="font-size:14px;line-height:1.7;color:#334155;margin:0 0 14px 0;">Hi ${firstName},</p>
+      <p style="font-size:14px;line-height:1.7;color:#334155;margin:0 0 14px 0;">
+        We received a request to reset the password for your KimSafety account. Tap the button below to
+        choose a new password. This link expires in <strong>1 hour</strong>.
+      </p>
+      <p style="margin:0 0 18px 0;">
+        <a href="${resetUrl}" style="display:inline-block;background:#0f2847;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:10px;">Reset password</a>
+      </p>
+      <p style="font-size:13px;line-height:1.7;color:#64748b;margin:0 0 14px 0;">If the button does not work, copy and paste this link into your browser:</p>
+      <p style="font-size:12px;color:#64748b;margin:0 0 14px 0;word-break:break-all;">${resetUrl}</p>
+      <p style="font-size:13px;line-height:1.7;color:#64748b;margin:0;">If you did not request this, you can safely ignore this email.</p>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px 0;" />
+      <p style="font-size:12px;color:#64748b;margin:0;">— KimSafety Team · KimSafety House, Enterprise Road, Industrial Area, Nairobi, Kenya</p>
+    </div>
+  </div>`,
+  });
+  return true;
 }
 
 export async function sendOrderInvoiceEmail(input: {

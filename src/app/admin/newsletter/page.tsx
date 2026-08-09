@@ -5,16 +5,15 @@ import * as XLSX from "xlsx";
 import {
   Download,
   Loader2,
-  Mail,
   MailPlus,
   Send,
   Trash2,
   Users,
   CheckCircle2,
   XCircle,
-  AlertTriangle,
 } from "lucide-react";
 import { useFetch, AdminCard } from "@/components/admin/ui";
+import { RichTextEditor } from "@/components/admin/rich-text-editor";
 
 type Subscriber = {
   id: string;
@@ -28,6 +27,8 @@ type Subscriber = {
 
 const inputCls =
   "w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm outline-none transition-all focus:border-safety-400 focus:bg-white focus:ring-4 focus:ring-safety-500/10";
+
+const plainText = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
 export default function AdminNewsletterPage() {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -91,13 +92,14 @@ export default function AdminNewsletterPage() {
   };
 
   const send = async (test: boolean) => {
-    if (!subject.trim() || !body.trim()) {
+    if (!subject.trim() || !plainText(body)) {
       setError("Subject and message are required");
       return;
     }
     setError(null);
     setNotice(null);
-    test ? setSendingTest(true) : setSending(true);
+    if (test) setSendingTest(true);
+    else setSending(true);
     try {
       const res = await fetch("/api/admin/newsletter/send", {
         method: "POST",
@@ -150,13 +152,7 @@ export default function AdminNewsletterPage() {
             maxLength={150}
             onChange={(e) => setSubject(e.target.value)}
           />
-          <textarea
-            className={inputCls}
-            rows={6}
-            placeholder={"Write your briefing…\n\nOne email a month, no spam. Unsubscribe links are added automatically."}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-          />
+          <RichTextEditor value={body} onChange={setBody} />
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => send(false)}

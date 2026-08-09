@@ -66,7 +66,26 @@ export default function AccountOrderDetailPage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Product list — cards on small/medium screens, table on large (no horizontal scroll) */}
+            <div className="space-y-3 lg:hidden">
+              {order.items.map((i, idx) => (
+                <div key={`${i.productId}-${idx}`} className="rounded-xl border border-line p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-navy-900">{i.name}</p>
+                      {i.sku && <p className="text-[11px] text-gray-400">{i.sku}</p>}
+                    </div>
+                    <p className="shrink-0 font-bold text-navy-900">{formatKES((i.price ?? 0) * i.qty)}</p>
+                  </div>
+                  <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                    <span>Qty: <strong className="text-navy-900">{i.qty}</strong></span>
+                    <span className="text-line">|</span>
+                    <span>Unit: <strong className="text-navy-900">{i.price != null ? formatKES(i.price) : "—"}</strong></span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[520px] text-sm">
                 <thead>
                   <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
