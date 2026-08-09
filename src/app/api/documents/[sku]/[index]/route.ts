@@ -7,6 +7,7 @@ import PDFDocument from "pdfkit";
 import { mergedCatalog } from "@/lib/admin-products";
 import { htmlToBlocks, TextRun, Block } from "@/lib/html-blocks";
 import { getSetting } from "@/lib/db";
+import { readPublicFile } from "@/lib/file-store";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { productImages, productGalleries } from "@/lib/data/product-images";
 import type { Product } from "@/lib/types";
@@ -48,27 +49,6 @@ type Token = {
   strike?: boolean;
 };
 
-function serverFileFor(publicPath: string | undefined): string | null {
-  if (!publicPath || !publicPath.startsWith("/")) return null;
-  if (publicPath.startsWith("/api/uploads/")) {
-    const base = path.basename(publicPath);
-    const dir = path.join(process.cwd(), "public", "images", "products");
-    const direct = path.join(dir, base);
-    return fs.existsSync(direct) ? direct : path.join(dir, decodeURIComponent(base));
-  }
-  if (publicPath.startsWith("/images/")) {
-    const local = path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
-    return fs.existsSync(local) ? local : path.join(process.cwd(), "public", publicPath.slice(1).split("/").map(decodeURIComponent).join("/"));
-  }
-  if (publicPath.startsWith("/documents/")) {
-    const base = path.basename(publicPath);
-    const dir = path.join(process.cwd(), "public", "documents");
-    const direct = path.join(dir, base);
-    return fs.existsSync(direct) ? direct : path.join(dir, decodeURIComponent(base));
-  }
-  return null;
-}
-
 function downloadFilename(sku: string, doc: { name: string; file?: string }): string {
   if (doc.file) {
     const base = path.basename(doc.file);
@@ -89,10 +69,9 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
 
   // Uploaded real file takes precedence
   if (doc.file && doc.file.startsWith("/")) {
-    const local = serverFileFor(doc.file);
-    if (local && fs.existsSync(local)) {
-      const data = fs.readFileSync(local);
-      return new NextResponse(data, {
+    const buf = await readPublicFile(doc.file);
+    if (buf) {
+      return new NextResponse(new Uint8Array(buf), {
         headers: {
           "Content-Type": "application/pdf",
           "Content-Disposition": `attachment; filename="${encodeURIComponent(downloadFilename(product.sku, doc))}"`,
@@ -201,22 +180,20 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
     ...(productGalleries[product.sku] ?? []),
     productImages[product.sku],
     `/images/products/${product.sku}.jpg`,
-  ].filter(
-    (u): u is string =>
-      typeof u === "string" && !!u && serverFileFor(u) !== null && fs.existsSync(serverFileFor(u)!)
+  ].filter((u): u is string => typeof u === "string" && !!u);
+  const galleryBufs = (await Promise.all(gridCandidates.map((u) => readPublicFile(u)))).filter(
+    (b): b is Buffer => !!b
   );
-  const gallery = gridCandidates
-    .filter((u, i, arr) => arr.indexOf(u) === i)
-    .slice(0, 3);
+  const gallery = galleryBufs.slice(0, 3);
 
   if (gallery.length > 0) {
     const gridGap = 12;
     const cellW = (BODY_W - gridGap * 2) / 3;
     ensure(cellW + 16);
-    gallery.forEach((f, i) => {
+    gallery.forEach((buf, i) => {
       const cx = padL + i * (cellW + gridGap);
       pdf.rect(cx, y, cellW, cellW).lineWidth(1).strokeColor("#E2E8F0").stroke();
-      pdf.image(serverFileFor(f)!, cx, y, { width: cellW, height: cellW });
+      pdf.image(buf, cx, y, { width: cellW, height: cellW });
     });
     y += cellW + 16;
   }
@@ -228,16 +205,14 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
     adminProduct.image,
     productImages[product.sku],
     `/images/products/${product.sku}.jpg`,
-  ].filter(
-    (u): u is string => typeof u === "string" && !!u && serverFileFor(u) !== null && fs.existsSync(serverFileFor(u)!)
-  );
+  ].filter((u): u is string => typeof u === "string" && !!u);
   for (const cand of imageCandidates) {
-    const f = serverFileFor(cand);
-    if (f && fs.existsSync(f)) {
+    const buf = await readPublicFile(cand);
+    if (buf) {
       imageW = 118;
       imageH = 118;
       pdf.rect(padR - imageW, y, imageW, imageH).lineWidth(1).strokeColor("#E2E8F0").stroke();
-      pdf.image(f, padR - imageW, y, { width: imageW, height: imageH });
+      pdf.image(buf, padR - imageW, y, { width: imageW, height: imageH });
       pdf.rect(padR - imageW, y, imageW, 16).fill(NAVY);
       pdf
         .font("Helvetica-Bold")

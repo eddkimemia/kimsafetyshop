@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { saveStoredFile } from "@/lib/file-store";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,14 @@ export async function POST(req: Request) {
     }
     const name = uniqueName(dir, file.name);
     const dest = path.join(dir, name);
-    fs.writeFileSync(dest, Buffer.from(await file.arrayBuffer()));
+    const data = Buffer.from(await file.arrayBuffer());
+    await saveStoredFile(name, data, file.type);
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(dest, data);
+    } catch {
+      // Disk write failed (read-only filesystem) — the DB copy is what matters.
+    }
     urls.push(`/uploads/documents/${name}`);
   }
 

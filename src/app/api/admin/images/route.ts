@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import { requireAdmin } from "@/lib/api-helpers";
 import { processProductImage } from "@/lib/image-processor";
+import { saveStoredFile, listStoredFiles, localFileFor } from "@/lib/file-store";
 
 const IMAGE_RE = /\.(jpe?g|png|webp|gif)$/i;
 const MIME_EXT: Record<string, string> = {
@@ -17,23 +18,34 @@ const MAX_BYTES = 8 * 1024 * 1024;
 
 function listDir(relative: string): string[] {
   const dir = path.join(process.cwd(), "public", "images", relative);
-  try {
-    return fs
-      .readdirSync(dir)
-      .filter((f) => IMAGE_RE.test(f))
-      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-  } catch {
-    return [];
-  }
+  const local = (() => {
+    try {
+      return fs
+        .readdirSync(dir)
+        .filter((f) => IMAGE_RE.test(f))
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    } catch {
+      return [] as string[];
+    }
+  })();
+  return local;
 }
 
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
+  const [products, hero, logo, stored] = await Promise.all([
+    listDir("products"),
+    listDir("hero"),
+    listDir("logo"),
+    listStoredFiles(),
+  ]);
+  const storedImages = stored.filter((f) => IMAGE_RE.test(f));
+  const all = Array.from(new Set([...storedImages, ...products]));
   return NextResponse.json({
-    products: listDir("products"),
-    hero: listDir("hero"),
-    logo: listDir("logo"),
+    products: all,
+    hero,
+    logo,
   });
 }
 
@@ -67,21 +79,42 @@ export async function POST(req: Request) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 60);
-  const stamp = Date.now().toString(36);
-  const filename = `${safeBase || "image"} ${stamp}${ext}`;
   const dir = path.join(process.cwd(), "public", "images", "products");
+  const base = safeBase || "image";
+
+  // Keep the original file name so downloads save as the uploader named the file.
+  // On serverless the disk is empty, so also check the DB-backed library.
+  let filename = `${base}${ext}`;
+  {
+    const existing = new Set([...(await listStoredFiles()), ...listDir("products")].map((f) => f.toLowerCase()));
+    let n = 1;
+    while (existing.has(filename.toLowerCase())) {
+      filename = `${base} (${n})${ext}`;
+      n++;
+    }
+  }
   const dest = path.join(dir, filename);
 
+  const data = Buffer.from(await file.arrayBuffer());
   try {
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(dest, Buffer.from(await file.arrayBuffer()));
+    // Persist in the DB first (source of truth on serverless), then mirror to disk locally.
+    await saveStoredFile(filename, data, file.type);
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(dest, data);
+    } catch {
+      // Disk write failed (read-only filesystem) — the DB copy is what matters.
+    }
   } catch {
     return NextResponse.json({ error: "Could not save file" }, { status: 500 });
   }
 
   // Auto-process: white background + KimSafety logo/contact branding
   // (runs the same pipeline as public/images/products/process_images.py)
-  const processed = await processProductImage(filename);
+  // Only when the local file exists (never on serverless — no Python).
+  const processed = fs.existsSync(localFileFor("images/products", filename))
+    ? await processProductImage(filename)
+    : false;
 
   return NextResponse.json(
     { path: `/api/uploads/${encodeURIComponent(filename)}`, processed },

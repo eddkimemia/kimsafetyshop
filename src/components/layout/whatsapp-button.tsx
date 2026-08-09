@@ -1,11 +1,46 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { useSettings } from "@/lib/settings";
 
 export function WhatsAppButton() {
   const { whatsapp, site_name } = useSettings();
+  const pathname = usePathname();
+  const [product, setProduct] = useState<{ name: string; sku?: string; price?: string } | null>(null);
+
+  useEffect(() => {
+    setProduct(null);
+    const match = pathname?.match(/^\/product\/([^/]+)/);
+    if (!match) return;
+    let cancelled = false;
+    fetch(`/api/catalog?slug=${encodeURIComponent(match[1])}`)
+      .then((r) => (r.ok ? r.json() : { products: [] }))
+      .then((d: { products?: { name?: string; sku?: string; price?: number }[] }) => {
+        if (cancelled) return;
+        const p = d.products?.[0];
+        if (p?.name) {
+          setProduct({
+            name: p.name,
+            sku: p.sku,
+            price: p.price != null ? `KSh ${p.price.toLocaleString()}` : undefined,
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
+  const message = product
+    ? `Hello ${site_name}! I'd like to order: ${product.name}${product.sku ? ` (${product.sku})` : ""}${product.price ? ` — ${product.price}` : ""}.`
+    : `Hello ${site_name}! I need help with a safety equipment order.`;
+
   return (
     <a
-      href={`https://wa.me/${whatsapp}?text=Hello%20${encodeURIComponent(site_name)}%2C%20I%20need%20help%20with%20a%20safety%20equipment%20order.`}
+      href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(message)}`}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat on WhatsApp"

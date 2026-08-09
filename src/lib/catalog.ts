@@ -3,8 +3,27 @@ import { listAdminProducts } from "@/lib/db";
 import { slugify } from "@/lib/utils";
 import type { Product } from "@/lib/types";
 
-async function mergedCatalog(): Promise<Product[]> {
+// The admin product table only changes on admin edits. Caching it with a short
+// TTL cuts the repeated remote-DB round trips per page render (each serverless
+// cold start has to open a fresh TLS connection to the hosted Postgres), which
+// caused product/category pages to error on first load then work on retry.
+const CATALOG_TTL_MS = 20 * 1000;
+let cachedAdminRows: { at: number; rows: Awaited<ReturnType<typeof listAdminProducts>> } | null = null;
+
+async function adminRows(): Promise<Awaited<ReturnType<typeof listAdminProducts>>> {
+  const now = Date.now();
+  if (cachedAdminRows && now - cachedAdminRows.at < CATALOG_TTL_MS) return cachedAdminRows.rows;
   const rows = await listAdminProducts();
+  cachedAdminRows = { at: now, rows };
+  return rows;
+}
+
+export function invalidateCatalogCache() {
+  cachedAdminRows = null;
+}
+
+async function mergedCatalog(): Promise<Product[]> {
+  const rows = await adminRows();
   const overrides = new Map<string, Record<string, unknown>>();
   const customs: Record<string, unknown>[] = [];
   for (const row of rows) {

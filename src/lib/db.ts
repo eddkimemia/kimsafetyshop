@@ -48,6 +48,7 @@ export type DbQuote = {
   phone: string | null;
   notes: string | null;
   valid_until: string | null;
+  created_by_id: string | null;
   created_at: string;
 };
 
@@ -91,6 +92,7 @@ export type DbSupplierOrder = {
   expected_date: string | null;
   notes: string | null;
   status: string;
+  created_by_id: string | null;
   created_at: string;
 };
 
@@ -493,6 +495,7 @@ export async function createQuote(input: {
   phone?: string | null;
   notes?: string | null;
   valid_until?: string | null;
+  created_by_id?: string | null;
 }): Promise<DbQuote> {  const quote: DbQuote = {
     id: `QUO-${Math.floor(1000 + Math.random() * 9000)}`,
     user_id: input.user_id ?? null,
@@ -506,10 +509,15 @@ export async function createQuote(input: {
     phone: input.phone ?? null,
     notes: input.notes ?? null,
     valid_until: input.valid_until ?? null,
+    created_by_id: input.created_by_id ?? null,
     created_at: new Date().toISOString(),
   };
-  await qe("INSERT INTO quotes (id, user_id, name, company, items, total, status, attachment, email, phone, notes, valid_until, created_at) VALUES (@id, @user_id, @name, @company, @items, @total, @status, @attachment, @email, @phone, @notes, @valid_until, @created_at)", quote);
+  await qe("INSERT INTO quotes (id, user_id, name, company, items, total, status, attachment, email, phone, notes, valid_until, created_by_id, created_at) VALUES (@id, @user_id, @name, @company, @items, @total, @status, @attachment, @email, @phone, @notes, @valid_until, @created_by_id, @created_at)", quote);
   return quote;
+}
+
+export async function deleteQuote(id: string) {
+  await qe("DELETE FROM quotes WHERE id = ?", id);
 }
 
 export async function getQuoteById(id: string): Promise<DbQuote | undefined> {  return (await q1("SELECT * FROM quotes WHERE id = ?", id)) as DbQuote | undefined;
@@ -727,6 +735,7 @@ export async function createSupplierOrder(input: {
   shipping?: number;
   expected_date?: string | null;
   notes?: string | null;
+  created_by_id?: string | null;
 }): Promise<DbSupplierOrder> {  const subtotal = Math.round(
     input.items.reduce((sum, i) => sum + (i.qty || 0) * (i.unitPrice || 0), 0)
   );
@@ -744,9 +753,10 @@ export async function createSupplierOrder(input: {
     expected_date: input.expected_date ?? null,
     notes: input.notes ?? null,
     status: "Draft",
+    created_by_id: input.created_by_id ?? null,
     created_at: new Date().toISOString(),
   };
-  await qe("INSERT INTO supplier_orders (id, supplier, contact_name, phone, email, items, subtotal, shipping, total, expected_date, notes, status, created_at) VALUES (@id, @supplier, @contact_name, @phone, @email, @items, @subtotal, @shipping, @total, @expected_date, @notes, @status, @created_at)", po);
+  await qe("INSERT INTO supplier_orders (id, supplier, contact_name, phone, email, items, subtotal, shipping, total, expected_date, notes, status, created_by_id, created_at) VALUES (@id, @supplier, @contact_name, @phone, @email, @items, @subtotal, @shipping, @total, @expected_date, @notes, @status, @created_by_id, @created_at)", po);
   return po;
 }
 
@@ -754,6 +764,10 @@ export async function listSupplierOrders(): Promise<DbSupplierOrder[]> {  return
 }
 
 export async function getSupplierOrder(id: string): Promise<DbSupplierOrder | undefined> {  return (await q1("SELECT * FROM supplier_orders WHERE id = ?", id)) as DbSupplierOrder | undefined;
+}
+
+export async function deleteSupplierOrder(id: string) {
+  await qe("DELETE FROM supplier_orders WHERE id = ?", id);
 }
 
 export async function setSupplierOrderStatus(id: string, status: string) {
@@ -1143,4 +1157,73 @@ export async function markNotificationRead(id: string) {
 
 export async function markAllNotificationsRead(userId: string) {
   await qe("UPDATE notifications SET read = 1 WHERE user_id = ?", userId);
+}
+
+// ---- Reviews ----
+
+export type DbReview = {
+  id: string;
+  product_id: string;
+  user_id: string;
+  user_name: string;
+  rating: number;
+  title: string;
+  text: string;
+  status: string;
+  verified: number;
+  helpful: number;
+  created_at: string;
+};
+
+export async function listReviewsForProduct(productId: string): Promise<DbReview[]> {  return (await qr("SELECT * FROM reviews WHERE product_id = ? AND status = 'approved' ORDER BY created_at DESC", productId)) as DbReview[];
+}
+
+export async function listAllReviews(): Promise<DbReview[]> {  return (await qr("SELECT * FROM reviews ORDER BY (status = 'approved') DESC, created_at DESC")) as DbReview[];
+}
+
+export async function getReview(id: string): Promise<DbReview | undefined> {  return (await q1("SELECT * FROM reviews WHERE id = ?", id)) as DbReview | undefined;
+}
+
+export async function getReviewByUserAndProduct(userId: string, productId: string): Promise<DbReview | undefined> {  return (await q1("SELECT * FROM reviews WHERE user_id = ? AND product_id = ?", userId, productId)) as DbReview | undefined;
+}
+
+export async function hasPurchasedProduct(userId: string, productId: string): Promise<boolean> {
+  const escaped = productId.replace(/[\\%_]/g, (m) => `\\${m}`);
+  const row = (await q1("SELECT COUNT(*)::int AS n FROM orders WHERE user_id = ? AND items LIKE ?", userId, `%"productId":"${escaped}"%`)) as { n: number };
+  return (row?.n ?? 0) > 0;
+}
+
+export async function createReview(input: {
+  product_id: string;
+  user_id: string;
+  user_name: string;
+  rating: number;
+  title: string;
+  text: string;
+  status?: string;
+  verified?: number;
+}): Promise<DbReview> {  const review: DbReview = {
+    id: randomUUID(),
+    product_id: input.product_id,
+    user_id: input.user_id,
+    user_name: input.user_name,
+    rating: input.rating,
+    title: input.title,
+    text: input.text,
+    status: input.status ?? "pending",
+    verified: input.verified ?? 1,
+    helpful: 0,
+    created_at: new Date().toISOString(),
+  };
+  await qe("INSERT INTO reviews (id, product_id, user_id, user_name, rating, title, text, status, verified, helpful, created_at) VALUES (@id, @product_id, @user_id, @user_name, @rating, @title, @text, @status, @verified, @helpful, @created_at)", review);
+  return review;
+}
+
+export async function updateReview(id: string, patch: Partial<Pick<DbReview, "rating" | "title" | "text" | "status" | "verified" | "helpful">>) {  const sets = Object.entries(patch).map(([k]) => `${k} = @${k}`);
+  if (sets.length === 0) return;
+  await qe(`UPDATE reviews SET ${sets.join(", ")} WHERE id = @id`, { ...patch, id } as Record<string, unknown>);
+}
+
+export async function deleteReview(id: string) {
+  await qe("DELETE FROM reviews WHERE id = ?", id);
 }

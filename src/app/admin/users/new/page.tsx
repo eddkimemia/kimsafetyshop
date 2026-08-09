@@ -72,8 +72,8 @@ export default function AdminCreateStaffPage() {
               <input className={adminField} value={form.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="+254 7…" />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-bold text-gray-500">Company / department</span>
-              <input className={adminField} value={form.company} onChange={(e) => set({ company: e.target.value })} placeholder="KimSafety Ltd" />
+              <span className="mb-1 block text-xs font-bold text-gray-500">Department</span>
+              <input className={adminField} value={form.company} onChange={(e) => set({ company: e.target.value })} placeholder="e.g. Sales, Procurement, Operations" />
             </label>
           </div>
         </div>

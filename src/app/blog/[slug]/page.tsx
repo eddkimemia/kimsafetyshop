@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const post = await getPostBySlug(params.slug);
   if (!post) return { title: "Post not found" };
-  const images = post.cover ? [{ url: post.cover, alt: post.title }] : [{ url: "/og-image.png", width: 1200, height: 630, alt: post.title }];
+  const images = post.cover ? [{ url: post.cover, alt: post.title }] : [{ url: "/og-image.jpg", width: 1200, height: 630, alt: post.title }];
   return {
     title: `${post.title} — KimSafety Blog`,
     description: post.excerpt.slice(0, 160),
@@ -79,7 +79,7 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
     "@type": "BlogPosting",
     headline: post.title,
     description: post.excerpt,
-    image: post.cover ?? `${"https://kimsafety.co.ke"}/og-image.png`,
+    image: post.cover ?? `${"https://kimsafety.co.ke"}/og-image.jpg`,
     datePublished: post.created_at,
     dateModified: post.updated_at ?? post.created_at,
     author: { "@type": "Organization", name: post.author || "KimSafety" },

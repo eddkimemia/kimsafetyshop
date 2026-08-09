@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 export async function GET() {
   const denied = await requireSuperAdmin();
   if (denied) return denied;
-  return NextResponse.json({ settings: getAllSettings() });
+  return NextResponse.json({ settings: await getAllSettings() });
 }
 
 export async function PUT(req: Request) {
@@ -27,8 +27,8 @@ export async function PUT(req: Request) {
   }
 
   for (const [key, value] of entries) {
-    setSetting(key, typeof value === "string" ? value : String(value ?? ""));
+    await setSetting(key, typeof value === "string" ? value : String(value ?? ""));
   }
 
-  return NextResponse.json({ settings: getAllSettings() });
+  return NextResponse.json({ settings: await getAllSettings() });
 }

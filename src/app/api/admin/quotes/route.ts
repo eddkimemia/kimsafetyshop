@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/api-helpers";
-import { createQuote, createNotification, getQuoteById, getUserById, listQuotes, setQuoteStatus } from "@/lib/db";
+import { requireAdmin, getSessionUser } from "@/lib/api-helpers";
+import { createQuote, createNotification, deleteQuote, getQuoteById, getUserById, listQuotes, setQuoteStatus } from "@/lib/db";
 
 const VALID = ["Open", "Pending", "Sent", "Accepted", "Expired", "Declined"];
 
@@ -33,6 +33,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
+  const me = await getSessionUser();
 
   let body: {
     name?: string;
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
     total,
     notes: body.notes?.trim() || null,
     valid_until: validUntil,
+    created_by_id: me?.id ?? null,
   });
 
   return NextResponse.json(
@@ -106,5 +108,22 @@ export async function PATCH(req: Request) {
       link: "/account/quotes",
     });
   }
+  return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(req: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+  const me = await getSessionUser();
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing quote id" }, { status: 400 });
+  const quote = await getQuoteById(id);
+  if (!quote) return NextResponse.json({ error: "Quote not found" }, { status: 404 });
+  // Staff can only delete quotes they created; superadmins can delete anything.
+  if (me?.role !== "superadmin" && (!quote.created_by_id || quote.created_by_id !== me?.id)) {
+    return NextResponse.json({ error: "You can only delete quotes you created" }, { status: 403 });
+  }
+  await deleteQuote(id);
   return NextResponse.json({ ok: true });
 }

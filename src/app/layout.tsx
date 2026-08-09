@@ -79,14 +79,14 @@ export const metadata: Metadata = {
     title: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya",
     description:
       "Certified PPE, medical, fire, road and lab safety equipment. Bulk discounts, same-day Nairobi delivery, corporate procurement support.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya" }],
+    images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya",
     description:
       "Certified PPE, medical, fire, road and lab safety equipment. Bulk discounts, same-day Nairobi delivery, corporate procurement support.",
-    images: ["/og-image.png"],
+    images: ["/og-image.jpg"],
   },
   icons: {
     icon: "/images/logo/fav.jpeg",

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Pencil, Plus, Trash2, BookOpen } from "lucide-react";
+import { ExternalLink, Pencil, Plus, Trash2, BookOpen } from "lucide-react";
 import { useFetch, AdminCard } from "@/components/admin/ui";
 
 type Guide = {
@@ -67,6 +67,15 @@ export default function AdminContentPage() {
                       <p className="mt-0.5 font-mono text-[11px] text-gray-400">/{g.slug}</p>
                     </div>
                     <div className="flex shrink-0 gap-1.5">
+                      <a
+                        href={`/knowledge/${encodeURIComponent(g.slug)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`View ${g.title}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-300 hover:text-safety-600"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
                       <Link
                         href={`/admin/content/${encodeURIComponent(g.slug)}`}
                         aria-label={`Edit ${g.title}`}
@@ -118,6 +127,15 @@ export default function AdminContentPage() {
                       <td className="hidden py-3.5 text-gray-500 md:table-cell">{g.readTime}</td>
                       <td className="py-3.5">
                         <div className="flex justify-end gap-1.5">
+                          <a
+                            href={`/knowledge/${encodeURIComponent(g.slug)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`View ${g.title}`}
+                            className="flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-300 hover:text-safety-600"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
                           <Link
                             href={`/admin/content/${encodeURIComponent(g.slug)}`}
                             aria-label={`Edit ${g.title}`}

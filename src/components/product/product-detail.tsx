@@ -21,7 +21,6 @@ import {
   Minus,
   Plus,
   BadgeCheck,
-  ThumbsUp,
   Package,
   Award,
   ScrollText,
@@ -29,14 +28,15 @@ import {
 } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
-import { activeBulkTier, discountPercent, formatKES, cn } from "@/lib/utils";
+import { activeBulkTier, bulkUnitPrice, discountPercent, formatKES, cn } from "@/lib/utils";
 import { sanitizePostHtml } from "@/lib/blog";
 import { ProductArt, productImageFor, useAdminImageOverrides, useAdminGalleries } from "@/components/product/product-art";
 import { productGalleries } from "@/lib/data/product-images";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { ProductCard } from "@/components/product/product-card";
+import { ProductReviews } from "@/components/product/product-reviews";
 import { RatingStars } from "@/components/ui/rating";
-import { Badge, Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export function ProductDetail({
   product,
@@ -62,6 +62,9 @@ export function ProductDetail({
   const inCompare = compare.includes(product.id);
   const out = product.stock <= 0;
   const low = !out && product.stock <= product.lowStockAt;
+  const unitPrice = bulkUnitPrice(product, qty);
+  const bulkPriceActive = unitPrice < product.price;
+  const activeTier = activeBulkTier(product, qty);
 
   const galleryVariants = useMemo(() => {
     const main = productImageFor(product.sku);
@@ -194,13 +197,21 @@ export function ProductDetail({
               <div>
                 <div className="flex items-end gap-2.5">
                   <span className="font-display text-4xl font-extrabold tracking-tight text-navy-900">
-                    {formatKES(product.price)}
+                    {formatKES(unitPrice)}
                   </span>
-                  {off && product.oldPrice != null && product.oldPrice > product.price && (
+                  {bulkPriceActive && (
+                    <span className="pb-1 text-base text-gray-400 line-through">{formatKES(product.price)}</span>
+                  )}
+                  {!bulkPriceActive && off && product.oldPrice != null && product.oldPrice > product.price && (
                     <span className="pb-1 text-base text-gray-400 line-through">{formatKES(product.oldPrice)}</span>
                   )}
                 </div>
-                {off && product.oldPrice != null && product.oldPrice > product.price && (
+                {bulkPriceActive && activeTier && (
+                  <p className="mt-1 text-xs font-semibold text-emerald-600">
+                    Bulk price unlocked — {formatKES(product.price - unitPrice)} off per unit ({activeTier.savings})
+                  </p>
+                )}
+                {!bulkPriceActive && off && product.oldPrice != null && product.oldPrice > product.price && (
                   <p className="mt-1 text-xs font-semibold text-emerald-600">
                     You save {formatKES(product.oldPrice - product.price)} ({off}%)
                   </p>
@@ -284,34 +295,40 @@ export function ProductDetail({
 
             <div className="mt-3 flex items-center gap-3">
               <a
-                href={`https://wa.me/254715135141?text=${encodeURIComponent(`Hello, I'd like to order: ${product.name} (${product.sku})`)}`}
+                href={`https://wa.me/254715135141?text=${encodeURIComponent(
+                  `Hello KimSafety! I'd like to order:\n• ${product.name} (${product.sku})\n• Quantity: ${qty}\n• Unit price: ${formatKES(unitPrice)}${bulkPriceActive ? " (bulk price)" : ""}\n• Total: ${formatKES(qty * unitPrice)}`
+                )}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#25D366]/10 text-sm font-bold text-[#128C4A] transition-colors hover:bg-[#25D366]/20"
+                className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 text-sm font-bold text-white transition-colors hover:bg-[#1DA851]"
               >
-                <WhatsAppIcon className="h-4 w-4" /> Order via WhatsApp
+                <WhatsAppIcon className="h-4 w-4 shrink-0 text-white" /> Order via WhatsApp
               </a>
               <button
                 onClick={() => toggleWishlist(product.id)}
                 aria-pressed={inWish}
+                aria-label={inWish ? "Remove from wishlist" : "Add to wishlist"}
+                title={inWish ? "Remove from wishlist" : "Add to wishlist"}
                 className={cn(
-                  "flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-colors",
+                  "flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold transition-colors sm:w-auto sm:flex-1",
                   inWish ? "border-danger/30 bg-danger/5 text-danger" : "border-line text-navy-900 hover:bg-surface"
                 )}
               >
                 <Heart className={cn("h-4 w-4", inWish && "fill-danger")} />
-                {inWish ? "In Wishlist" : "Wishlist"}
+                <span className="hidden sm:inline">{inWish ? "In Wishlist" : "Wishlist"}</span>
               </button>
               <button
                 onClick={() => toggleCompare(product.id)}
                 aria-pressed={inCompare}
+                aria-label={inCompare ? "Remove from compare" : "Add to compare"}
+                title={inCompare ? "Remove from compare" : "Add to compare"}
                 className={cn(
-                  "flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-colors",
+                  "flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold transition-colors sm:w-auto sm:flex-1",
                   inCompare ? "border-navy-200 bg-navy-50 text-navy-800" : "border-line text-navy-900 hover:bg-surface"
                 )}
               >
                 <Scale className="h-4 w-4" />
-                {inCompare ? "Comparing" : "Compare"}
+                <span className="hidden sm:inline">{inCompare ? "Comparing" : "Compare"}</span>
               </button>
             </div>
 
@@ -452,110 +469,35 @@ export function ProductDetail({
               </div>
             )}
 
-            {tab === "reviews" && (
-              <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-                <div className="rounded-2xl border border-line p-6 text-center">
-                  <p className="font-display text-5xl font-extrabold text-navy-900">{product.rating}</p>
-                  <RatingStars rating={product.rating} size="md" className="mt-2 justify-center" />
-                  <p className="mt-1 text-xs text-gray-400">Based on {product.reviews} verified reviews</p>
-                  <div className="mt-4 space-y-1.5 text-left text-xs">
-                    {[5, 4, 3, 2, 1].map((star) => {
-                      const pct = star === 5 ? 78 : star === 4 ? 15 : star === 3 ? 4 : 2;
-                      return (
-                        <div key={star} className="flex items-center gap-2">
-                          <span className="w-6 font-bold text-gray-500">{star}★</span>
-                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
-                            <div className="h-full rounded-full bg-amber-400" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="w-8 text-right text-gray-400">{pct}%</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <Button variant="outline" className="mt-5 w-full">Write a Review</Button>
-                </div>
-                <div className="space-y-4 lg:col-span-2">
-                  {[
-                    {
-                      name: "James K.",
-                      role: "Safety Officer · Construction",
-                      rating: 5,
-                      date: "2 weeks ago",
-                      title: "Excellent quality, exactly as certified",
-                      text: "Ordered for our site crew. Certification documents arrived with the goods and the helmets meet EN 397 exactly as listed. Delivery to Mombasa took 2 days.",
-                    },
-                    {
-                      name: "Mercy N.",
-                      role: "Procurement Lead · Hospital",
-                      rating: 5,
-                      date: "1 month ago",
-                      title: "Our go-to supplier for medical supplies",
-                      text: "Bulk pricing is competitive and the team responds to quotations within hours. The gloves are genuine Ansell — verified with the manufacturer.",
-                    },
-                    {
-                      name: "Peter W.",
-                      role: "Facility Manager",
-                      rating: 4,
-                      date: "2 months ago",
-                      title: "Great product, quick delivery",
-                      text: "Same-day delivery to our Westlands office. Would recommend to any facility team.",
-                    },
-                  ].map((r) => (
-                    <article key={r.name} className="rounded-2xl border border-line p-5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-navy-700 to-navy-900 text-xs font-bold text-white">
-                            {r.name.charAt(0)}
-                          </span>
-                          <div>
-                            <p className="text-sm font-bold text-navy-900">{r.name}</p>
-                            <p className="text-[11px] text-gray-400">{r.role} · {r.date}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: r.rating }).map((_, i) => (
-                            <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                          ))}
-                        </div>
-                      </div>
-                      <h3 className="mt-3 flex items-center gap-2 text-sm font-bold text-navy-900">
-                        {r.title} <Badge tone="success">Verified Purchase</Badge>
-                      </h3>
-                      <p className="mt-1.5 text-sm leading-relaxed text-gray-600">{r.text}</p>
-                      <button className="mt-3 flex items-center gap-1.5 text-xs font-bold text-gray-400 transition-colors hover:text-safety-600">
-                        <ThumbsUp className="h-3.5 w-3.5" /> Helpful
-                      </button>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            )}
+            {tab === "reviews" && <ProductReviews product={product} />}
 
             {tab === "qa" && (
-              <div className="max-w-3xl space-y-4">
-                {[
-                  {
-                    q: "Is this certified for use in Kenya?",
-                    a: "Yes. All KimSafety products are imported through authorized channels with certificates of conformance and meet the relevant EN/ISO standards referenced on this page.",
-                  },
-                  {
-                    q: "Can I get an invoice for corporate procurement?",
-                    a: "Absolutely — we issue ETR-compliant tax invoices for every order. Corporate clients can also access monthly statements and negotiated pricing via the Corporate Portal.",
-                  },
-                  {
-                    q: "How long does delivery take outside Nairobi?",
-                    a: "We dispatch from our Industrial Area warehouse within 24 hours. Deliveries to major towns take 24–48 hours and to remote counties up to 72 hours.",
-                  },
-                ].map((item) => (
-                  <details key={item.q} className="group rounded-2xl border border-line bg-surface open:bg-white">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 text-sm font-bold text-navy-900">
-                      {item.q}
-                      <ChevronDown className="h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180" />
-                    </summary>
-                    <p className="px-5 pb-5 text-sm leading-relaxed text-gray-600">{item.a}</p>
-                  </details>
-                ))}
-                <div className="flex flex-col items-center gap-3 rounded-2xl bg-surface p-6 text-center sm:flex-row sm:text-left">
+              <div>
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  {[
+                    {
+                      q: "Is this certified for use in Kenya?",
+                      a: "Yes. All KimSafety products are imported through authorized channels with certificates of conformance and meet the relevant EN/ISO standards referenced on this page.",
+                    },
+                    {
+                      q: "Can I get an invoice for corporate procurement?",
+                      a: "Absolutely — we issue ETR-compliant tax invoices for every order. Corporate clients can also access monthly statements and negotiated pricing via the Corporate Portal.",
+                    },
+                    {
+                      q: "How long does delivery take outside Nairobi?",
+                      a: "We dispatch from our Industrial Area warehouse within 24 hours. Deliveries to major towns take 24–48 hours and to remote counties up to 72 hours.",
+                    },
+                  ].map((item) => (
+                    <details key={item.q} className="group rounded-2xl border border-line bg-surface open:bg-white">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 text-sm font-bold text-navy-900">
+                        {item.q}
+                        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180" />
+                      </summary>
+                      <p className="px-5 pb-5 text-sm leading-relaxed text-gray-600">{item.a}</p>
+                    </details>
+                  ))}
+                </div>
+                <div className="mt-4 flex flex-col items-center gap-3 rounded-2xl bg-surface p-6 text-center sm:flex-row sm:text-left">
                   <p className="flex-1 text-sm text-gray-600">
                     Still have a question? Our safety specialists reply within the hour.
                   </p>
@@ -565,7 +507,7 @@ export function ProductDetail({
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 rounded-xl bg-[#25D366] px-5 py-2.5 text-sm font-bold text-white"
                   >
-                    <WhatsAppIcon className="h-4 w-4" /> Ask on WhatsApp
+                    <WhatsAppIcon className="h-4 w-4 text-white" /> Ask on WhatsApp
                   </a>
                 </div>
               </div>

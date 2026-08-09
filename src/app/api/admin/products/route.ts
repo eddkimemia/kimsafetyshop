@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { products } from "@/lib/data/products";
 import { getAdminProduct, upsertAdminProduct, deleteAdminProduct } from "@/lib/db";
-import { mergedCatalog } from "@/lib/admin-products";
+import { mergedCatalog, invalidateCatalogCache } from "@/lib/admin-products";
 
 export async function GET() {
   const denied = await requireAdmin();
@@ -63,6 +63,7 @@ export async function POST(req: Request) {
     static: false,
   };
   await upsertAdminProduct(sku, record);
+  invalidateCatalogCache();
   return NextResponse.json({ product: record }, { status: 201 });
 }
 
@@ -85,6 +86,7 @@ export async function PATCH(req: Request) {
   const merged = { ...existing, ...body, sku, static: isStatic };
   delete merged.id;
   await upsertAdminProduct(sku, merged);
+  invalidateCatalogCache();
   return NextResponse.json({ product: merged });
 }
 
@@ -100,5 +102,6 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Seed products cannot be deleted — adjust stock to 0 instead" }, { status: 400 });
   }
   await deleteAdminProduct(sku);
+  invalidateCatalogCache();
   return NextResponse.json({ ok: true });
 }

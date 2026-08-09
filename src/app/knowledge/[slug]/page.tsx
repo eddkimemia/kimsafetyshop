@@ -52,7 +52,7 @@ export default async function GuidePage({ params }: { params: { slug: string } }
     "@type": "Article",
     headline: guide.title,
     description: guide.excerpt,
-    image: guide.image ?? `${"https://kimsafety.co.ke"}/og-image.png`,
+    image: guide.image ?? `${"https://kimsafety.co.ke"}/og-image.jpg`,
     dateModified: new Date().toISOString(),
     author: { "@type": "Organization", name: "KimSafety HSE Team" },
     publisher: { "@type": "Organization", name: "KimSafety", url: "https://kimsafety.co.ke" },

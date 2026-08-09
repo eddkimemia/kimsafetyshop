@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const meta = product.description.replace(/<[^>]+>/g, " ").trim().slice(0, 160);
   const images = product.gallery?.[0]
     ? [{ url: product.gallery[0], alt: product.name }]
-    : [{ url: "/og-image.png", width: 1200, height: 630, alt: product.name }];
+    : [{ url: "/og-image.jpg", width: 1200, height: 630, alt: product.name }];
   return {
     title: `${product.name} — ${product.brand}`,
     description: meta,

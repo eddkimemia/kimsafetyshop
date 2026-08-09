@@ -47,7 +47,7 @@ const plainText = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g
 
 export default function AdminDocsPage() {
   const { data, loading, refresh } = useFetch<{ letters: Letter[] }>("/api/admin/letters");
-  const [me, setMe] = useState<{ name?: string | null; role?: string } | null>(null);
+  const [me, setMe] = useState<{ name?: string | null; company?: string | null; role?: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +60,16 @@ export default function AdminDocsPage() {
   useEffect(() => {
     fetch("/api/auth/session")
       .then((r) => r.json())
-      .then((s) => s?.user && setMe(s.user));
+      .then((s) => {
+        if (!s?.user) return;
+        setMe(s.user);
+        // Prefill sender details with the logged-in staff member's name and department.
+        setForm((f) => ({
+          ...f,
+          sender_name: f.sender_name || s.user.name || "",
+          sender_title: f.sender_title || s.user.company || "",
+        }));
+      });
   }, []);
 
   useEffect(() => {
@@ -258,7 +267,7 @@ export default function AdminDocsPage() {
               <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-400">Sender / signatory</p>
               <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface/50 p-3 sm:grid-cols-2">
                 <input placeholder={`Sender name (default: ${me?.name ?? "logged-in staff"})`} value={form.sender_name} onChange={(e) => set("sender_name", e.target.value)} className={field} />
-                <input placeholder="Sender title (e.g. Sales Manager)" value={form.sender_title} onChange={(e) => set("sender_title", e.target.value)} className={field} />
+                <input placeholder={`Sender title (default: ${me?.company ?? "your department"})`} value={form.sender_title} onChange={(e) => set("sender_title", e.target.value)} className={field} />
               </div>
             </div>
 

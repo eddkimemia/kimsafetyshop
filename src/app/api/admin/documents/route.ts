@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { requireAdmin } from "@/lib/api-helpers";
+import { saveStoredFile } from "@/lib/file-store";
 
 const ALLOWED_EXT: Record<string, string> = {
   "application/pdf": ".pdf",
@@ -56,9 +57,16 @@ export async function POST(req: Request) {
   const dir = path.join(process.cwd(), "public", "documents");
   const dest = path.join(dir, filename);
 
+  const data = Buffer.from(await file.arrayBuffer());
   try {
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(dest, Buffer.from(await file.arrayBuffer()));
+    // Persist in the DB first (source of truth on serverless), then mirror to disk locally.
+    await saveStoredFile(filename, data, file.type);
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(dest, data);
+    } catch {
+      // Disk write failed (read-only filesystem) — the DB copy is what matters.
+    }
   } catch {
     return NextResponse.json({ error: "Could not save file" }, { status: 500 });
   }

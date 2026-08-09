@@ -154,7 +154,7 @@ export default function AdminUsersPage() {
                           </p>
                           <p className="truncate text-[11px] text-gray-400">{u.email}{u.phone ? ` · ${u.phone}` : ""}</p>
                           <p className="mt-0.5 text-[11px] text-gray-400">
-                            {u.company ?? "—"} · {new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
+                            <span className="font-semibold text-gray-500">Department:</span> {u.company ?? "—"} · {new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
                           </p>
                         </div>
                       </div>
@@ -175,7 +175,7 @@ export default function AdminUsersPage() {
                     <thead>
                       <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                         <th className="pb-3">User</th>
-                        <th className="hidden pb-3 md:table-cell">Company</th>
+                        <th className="hidden pb-3 md:table-cell">Department</th>
                         <th className="hidden pb-3 md:table-cell">Joined</th>
                         <th className="pb-3 text-right">Actions</th>
                       </tr>

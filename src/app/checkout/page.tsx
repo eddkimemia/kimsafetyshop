@@ -38,7 +38,8 @@ export default function CheckoutPage() {
       fetch("/api/orders").then((r) => (r.ok ? r.json() : { orders: [] })).catch(() => ({ orders: [] })),
     ]).then(([sess, addrData, ordData]) => {
       const user = (sess as { user?: { name?: string; email?: string; phone?: string | null } }).user;
-      const addresses = (addrData as { addresses?: { is_default: number; name: string; phone: string; address_line: string; city: string; county: string }[] }).addresses ?? [];
+      const rawAddresses = (addrData as { addresses?: unknown }).addresses;
+      const addresses = Array.isArray(rawAddresses) ? (rawAddresses as { is_default: number; name: string; phone: string; address_line: string; city: string; county: string }[]) : [];
       const orders = (ordData as { orders?: { address?: string }[] }).orders ?? [];
       const saved = addresses.find((a) => a.is_default === 1) ?? addresses[0];
 

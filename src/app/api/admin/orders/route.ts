@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { createNotification, getOrderById, listOrders, setOrderStatus } from "@/lib/db";
 import { liveGetProduct } from "@/lib/catalog";
+import { productImages } from "@/lib/data/product-images";
 import { bulkUnitPrice } from "@/lib/utils";
 
 const VALID = ["Processing", "In transit", "Delivered", "Cancelled"];
@@ -18,6 +19,7 @@ async function withItems(o: Awaited<ReturnType<typeof listOrders>>[number]) {
           name: p?.name ?? i.name ?? i.productId,
           sku: p?.sku ?? i.productId,
           price: p ? bulkUnitPrice(p, i.qty) : (i.price ?? 0),
+          image: p?.image ?? (p?.sku ? productImages[p.sku] : undefined) ?? null,
         };
       })
     ),
@@ -33,7 +35,7 @@ export async function GET(req: Request) {
   if (id) {
     const order = await getOrderById(id);
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    return NextResponse.json({ order: withItems(order) });
+    return NextResponse.json({ order: await withItems(order) });
   }
 
   const orders = await Promise.all((await listOrders()).map(withItems));

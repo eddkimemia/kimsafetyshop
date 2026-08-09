@@ -5,7 +5,7 @@ import { getSessionUser } from "@/lib/api-helpers";
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  return NextResponse.json({ tickets: listTicketsForUser(user.id) });
+  return NextResponse.json({ tickets: await listTicketsForUser(user.id) });
 }
 
 export async function POST(req: Request) {

@@ -30,7 +30,10 @@ export function AddressesTab() {
   const load = useCallback(() => {
     fetch("/api/addresses")
       .then((r) => r.json())
-      .then((d) => setAddresses(d.addresses ?? []))
+      .then((d) => {
+        const raw = d.addresses;
+        setAddresses(Array.isArray(raw) ? raw : []);
+      })
       .finally(() => setLoading(false));
   }, []);
 

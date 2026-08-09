@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2, Eye, EyeOff } from "lucide-react";
+import { ExternalLink, Pencil, Plus, Trash2, Eye, EyeOff } from "lucide-react";
 import { useFetch, AdminCard } from "@/components/admin/ui";
 
 type AdminPost = {
@@ -87,6 +87,17 @@ export default function AdminBlogPage() {
                     </span>
                   </div>
                   <div className="mt-3 flex justify-end gap-1.5 border-t border-line/60 pt-3">
+                    {p.published && (
+                      <a
+                        href={`/blog/${encodeURIComponent(p.slug)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`View ${p.title}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-300 hover:text-safety-600"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
                     <button
                       onClick={() => router.push(`/admin/blog/${encodeURIComponent(p.slug)}`)}
                       aria-label={`Edit ${p.title}`}
@@ -149,6 +160,17 @@ export default function AdminBlogPage() {
                       </td>
                       <td className="py-3">
                         <div className="flex justify-end gap-1.5">
+                          {p.published && (
+                            <a
+                              href={`/blog/${encodeURIComponent(p.slug)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`View ${p.title}`}
+                              className="flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-300 hover:text-safety-600"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          )}
                           <button
                             onClick={() => router.push(`/admin/blog/${encodeURIComponent(p.slug)}`)}
                             aria-label={`Edit ${p.title}`}

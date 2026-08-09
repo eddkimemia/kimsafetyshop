@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/api-helpers";
-import { createSupplierOrder, listSupplierOrders, setSupplierOrderStatus } from "@/lib/db";
+import { requireAdmin, getSessionUser } from "@/lib/api-helpers";
+import { createSupplierOrder, deleteSupplierOrder, getSupplierOrder, listSupplierOrders, setSupplierOrderStatus } from "@/lib/db";
 import type { SupplierOrderItem } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -16,6 +16,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
+  const me = await getSessionUser();
 
   let body: {
     supplier?: string;
@@ -58,9 +59,27 @@ export async function POST(req: Request) {
     shipping: body.shipping,
     expected_date: body.expected_date || null,
     notes: body.notes ? String(body.notes).trim() : null,
+    created_by_id: me?.id ?? null,
   });
 
   return NextResponse.json({ order: { ...order, items: JSON.parse(order.items) } }, { status: 201 });
+}
+
+export async function DELETE(req: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+  const me = await getSessionUser();
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing order id" }, { status: 400 });
+  const order = await getSupplierOrder(id);
+  if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  // Staff can only delete purchase orders they created; superadmins can delete anything.
+  if (me?.role !== "superadmin" && (!order.created_by_id || order.created_by_id !== me?.id)) {
+    return NextResponse.json({ error: "You can only delete purchase orders you created" }, { status: 403 });
+  }
+  await deleteSupplierOrder(id);
+  return NextResponse.json({ ok: true });
 }
 
 export async function PATCH(req: Request) {

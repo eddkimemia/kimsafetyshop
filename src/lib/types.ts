@@ -45,6 +45,7 @@ export type Product = {
   warranty?: string;
   shelfLife?: string;
   country?: string;
+  image?: string;
   description: string;
   features: string[];
   gallery?: string[];

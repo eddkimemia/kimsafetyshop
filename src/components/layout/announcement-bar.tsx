@@ -3,7 +3,7 @@ import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { useSettings } from "@/lib/settings";
 
 export function AnnouncementBar() {
-  const { phone, email, whatsapp } = useSettings();
+  const { phone, email, whatsapp, site_name } = useSettings();
   return (
     <div className="bg-navy-900 text-white">
       <div className="mx-auto flex h-9 max-w-shell items-center justify-between gap-4 px-4 text-[11px] font-medium lg:px-8">
@@ -29,7 +29,7 @@ export function AnnouncementBar() {
             <Mail className="h-3.5 w-3.5" /> {email}
           </a>
           <a
-            href={`https://wa.me/${whatsapp}`}
+            href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(`Hello ${site_name}! I'd like to know more about your safety equipment and current offers.`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 rounded-full bg-[#25D366]/15 px-2.5 py-0.5 transition-colors hover:bg-[#25D366]/30"

@@ -24,6 +24,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           role: user.role,
+          company: user.company,
           phone: user.phone,
         };
       },
@@ -34,6 +35,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = (user as { role?: string }).role ?? "user";
         token.uid = user.id;
+        token.company = (user as { company?: string | null }).company ?? null;
         token.phone = (user as { phone?: string | null }).phone ?? null;
       }
       return token;
@@ -42,7 +44,8 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.uid as string;
         session.user.role = (token.role as "user" | "admin" | "superadmin") ?? "user";
-        (session.user as { phone?: string | null }).phone = (token.phone as string | null) ?? null;
+        session.user.company = (token.company as string | null) ?? null;
+        session.user.phone = (token.phone as string | null) ?? null;
       }
       return session;
     },

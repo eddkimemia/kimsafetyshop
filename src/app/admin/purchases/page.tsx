@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, PackagePlus, Truck, ChevronRight } from "lucide-react";
+import { Plus, PackagePlus, Truck, ChevronRight, Trash2 } from "lucide-react";
 import { useFetch, AdminCard, StatusBadge } from "@/components/admin/ui";
 import { formatKES } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ type SupplierOrder = {
   expected_date: string | null;
   notes: string | null;
   status: string;
+  created_by_id: string | null;
   created_at: string;
 };
 
@@ -35,7 +36,12 @@ const statusTones: Record<string, string> = {
 export default function AdminPurchasesPage() {
   const { data, loading, refresh } = useFetch<{ orders: SupplierOrder[] }>("/api/admin/supplier-orders");
   const [notice, setNotice] = useState<string | null>(null);
+  const [me, setMe] = useState<{ id?: string; role?: string } | null>(null);
   const orders = data?.orders ?? [];
+
+  useEffect(() => {
+    fetch("/api/admin/me").then((r) => r.json()).then((s) => s?.user && setMe(s.user));
+  }, []);
 
   const setStatus = async (id: string, status: string) => {
     const res = await fetch("/api/admin/supplier-orders", {
@@ -47,6 +53,16 @@ export default function AdminPurchasesPage() {
     setNotice(res.ok ? `Purchase order ${id} → ${status}` : json.error ?? "Update failed");
     refresh();
   };
+
+  const del = async (id: string) => {
+    if (!window.confirm(`Delete purchase order ${id}? This cannot be undone.`)) return;
+    const res = await fetch(`/api/admin/supplier-orders?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    const json = await res.json().catch(() => ({}));
+    setNotice(res.ok ? `Purchase order ${id} deleted` : json.error ?? "Delete failed");
+    refresh();
+  };
+
+  const canDelete = (o: SupplierOrder) => me?.role === "superadmin" || (!!o.created_by_id && o.created_by_id === me?.id);
 
   return (
     <div className="space-y-6">
@@ -87,7 +103,18 @@ export default function AdminPurchasesPage() {
                     <Link href={`/admin/purchases/${o.id}`} className="min-w-0 font-mono text-xs font-bold text-navy-900 underline-offset-2 hover:text-safety-600 hover:underline">
                       {o.id}
                     </Link>
-                    <StatusBadge status={o.status} map={statusTones} />
+                    <div className="flex shrink-0 items-center gap-2">
+                      <StatusBadge status={o.status} map={statusTones} />
+                      {canDelete(o) && (
+                        <button
+                          onClick={() => del(o.id)}
+                          aria-label={`Delete ${o.id}`}
+                          className="rounded-lg border border-line bg-white p-1.5 text-gray-400 transition-colors hover:border-danger hover:text-danger"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <Link href={`/admin/purchases/${o.id}`} className="mt-1 block font-semibold text-navy-900 underline-offset-2 hover:text-safety-600 hover:underline">
                     {o.supplier}
@@ -183,13 +210,24 @@ export default function AdminPurchasesPage() {
                         {new Date(o.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}
                       </td>
                       <td className="py-3.5 text-right">
-                        <Link
-                          href={`/admin/purchases/${o.id}`}
-                          aria-label={`View purchase order ${o.id}`}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 transition-colors hover:border-safety-400 hover:text-safety-600"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          {canDelete(o) && (
+                            <button
+                              onClick={() => del(o.id)}
+                              aria-label={`Delete ${o.id}`}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 transition-colors hover:border-danger hover:text-danger"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                          <Link
+                            href={`/admin/purchases/${o.id}`}
+                            aria-label={`View purchase order ${o.id}`}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 transition-colors hover:border-safety-400 hover:text-safety-600"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}

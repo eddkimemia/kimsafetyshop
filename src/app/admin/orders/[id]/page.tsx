@@ -3,11 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Download, Mail, MapPin, Phone, Receipt, Truck, User } from "lucide-react";
+import { ArrowLeft, Download, Mail, MapPin, Package, Phone, Receipt, Truck, User } from "lucide-react";
 import { useFetch, AdminCard, StatusBadge, orderStatusTones } from "@/components/admin/ui";
 import { formatKES } from "@/lib/utils";
 
-type OrderItem = { productId: string; name: string; qty: number; price: number };
+type OrderItem = { productId: string; name: string; qty: number; price: number; image?: string | null };
 
 type Order = {
   id: string;
@@ -134,12 +134,22 @@ export default function AdminOrderDetailPage() {
                 <div className="space-y-3 md:hidden">
                   {order.items.map((i, idx) => (
                     <div key={`${i.productId}-${idx}`} className="flex items-start justify-between gap-3 rounded-xl border border-line bg-white p-4">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-navy-900">{i.name}</p>
-                        <p className="font-mono text-[11px] text-gray-400">{i.productId}</p>
-                        <p className="mt-0.5 text-xs text-gray-500">
-                          {i.qty} × {formatKES(i.price)}
-                        </p>
+                      <div className="flex min-w-0 items-start gap-3">
+                        {i.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={i.image} alt={i.name} className="h-12 w-12 shrink-0 rounded-lg border border-line object-cover" />
+                        ) : (
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                            <Package className="h-5 w-5 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-navy-900">{i.name}</p>
+                          <p className="font-mono text-[11px] text-gray-400">{i.productId}</p>
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            {i.qty} × {formatKES(i.price)}
+                          </p>
+                        </div>
                       </div>
                       <p className="shrink-0 font-bold text-navy-900">{formatKES(i.price * i.qty)}</p>
                     </div>
@@ -159,8 +169,20 @@ export default function AdminOrderDetailPage() {
                       {order.items.map((i, idx) => (
                         <tr key={`${i.productId}-${idx}`} className="border-b border-line/60 last:border-0">
                           <td className="py-3">
-                            <p className="font-semibold text-navy-900">{i.name}</p>
-                            <p className="text-[11px] text-gray-400">{i.productId}</p>
+                            <div className="flex items-center gap-3">
+                              {i.image ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={i.image} alt={i.name} className="h-11 w-11 shrink-0 rounded-lg border border-line object-cover" />
+                              ) : (
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                                  <Package className="h-5 w-5 text-gray-400" />
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-semibold text-navy-900">{i.name}</p>
+                                <p className="text-[11px] text-gray-400">{i.productId}</p>
+                              </div>
+                            </div>
                           </td>
                           <td className="py-3 text-center text-gray-500">{i.qty}</td>
                           <td className="py-3 text-right text-gray-500">{formatKES(i.price)}</td>
