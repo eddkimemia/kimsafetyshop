@@ -39,6 +39,10 @@ jobs:
         # `prisma migrate deploy` so tables like upload_files exist before the
         # new build ships. Fail-closed: no deploy if migrations fail.
         run: |
+          if [ ! -f .vercel/.env.production.local ]; then
+            echo "::error::vercel pull did not produce .vercel/.env.production.local — cannot run migrations"
+            exit 1
+          fi
           cp .vercel/.env.production.local .env
           node scripts/deploy-db.mjs
 

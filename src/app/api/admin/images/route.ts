@@ -15,6 +15,10 @@ const MIME_EXT: Record<string, string> = {
   "image/gif": ".gif",
 };
 const MAX_BYTES = 8 * 1024 * 1024;
+// Postgres error code 42P01 = undefined_table.
+const isMissingTable = (err: unknown) => (err as { code?: string })?.code === "42P01";
+const MISSING_TABLE_MSG =
+  "Database migration needed: the upload_files table does not exist on this database. Run the deploy pipeline (it applies `prisma migrate deploy`), then try again.";
 
 function listDir(relative: string): string[] {
   const dir = path.join(process.cwd(), "public", "images", relative);
@@ -34,13 +38,18 @@ function listDir(relative: string): string[] {
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
-  const [products, hero, logo, stored] = await Promise.all([
-    listDir("products"),
-    listDir("hero"),
-    listDir("logo"),
-    listStoredFiles(),
-  ]);
-  const storedImages = stored.filter((f) => IMAGE_RE.test(f));
+  const [products, hero, logo] = await Promise.all([listDir("products"), listDir("hero"), listDir("logo")]);
+  // DB-backed uploads are the source of truth on serverless (Vercel). If the
+  // upload_files table doesn't exist yet (migrations not applied), fall back to
+  // the disk library so committed images still show in the picker.
+  let storedImages: string[] = [];
+  try {
+    storedImages = (await listStoredFiles()).filter((f) => IMAGE_RE.test(f));
+  } catch (err) {
+    // Missing table (42P01) — disk images still work; uploads will report the issue.
+    // Other DB errors are real failures — surface them.
+    if (!isMissingTable(err)) throw err;
+  }
   const all = Array.from(new Set([...storedImages, ...products]));
   return NextResponse.json({
     products: all,
@@ -86,7 +95,17 @@ export async function POST(req: Request) {
   // On serverless the disk is empty, so also check the DB-backed library.
   let filename = `${base}${ext}`;
   {
-    const existing = new Set([...(await listStoredFiles()), ...listDir("products")].map((f) => f.toLowerCase()));
+    let storedNames: string[] = [];
+    try {
+      storedNames = await listStoredFiles();
+    } catch (err) {
+      if (isMissingTable(err)) {
+        return NextResponse.json({ error: MISSING_TABLE_MSG }, { status: 500 });
+      }
+      console.error("[admin/images] listStoredFiles failed:", err);
+      throw err;
+    }
+    const existing = new Set([...storedNames, ...listDir("products")].map((f) => f.toLowerCase()));
     let n = 1;
     while (existing.has(filename.toLowerCase())) {
       // Use a dash suffix ("file-1.jpg") instead of the classic " (1)" pattern
@@ -107,7 +126,11 @@ export async function POST(req: Request) {
     } catch {
       // Disk write failed (read-only filesystem) — the DB copy is what matters.
     }
-  } catch {
+  } catch (err) {
+    if (isMissingTable(err)) {
+      return NextResponse.json({ error: MISSING_TABLE_MSG }, { status: 500 });
+    }
+    console.error("[admin/images] save failed:", err);
     return NextResponse.json({ error: "Could not save file" }, { status: 500 });
   }
 
