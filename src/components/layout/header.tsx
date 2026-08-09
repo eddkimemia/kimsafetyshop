@@ -60,7 +60,7 @@ export function Header() {
     <>
       <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur-md">
       <div className="mx-auto max-w-shell px-4 lg:px-8">
-        <div className="flex h-[72px] items-center gap-4">
+        <div className="flex h-[72px] items-center gap-2 sm:gap-4">
           <button
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-line text-navy-900 lg:hidden"
             onClick={() => setMobileNav(true)}

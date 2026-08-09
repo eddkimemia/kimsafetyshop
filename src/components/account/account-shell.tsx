@@ -163,12 +163,12 @@ export function AccountShell({ children }: { children: ReactNode }) {
         </div>
 
         <div className="mx-auto max-w-shell px-4 pt-6 lg:px-8">
-          <div className="grid gap-6 md:grid-cols-[13.5rem_minmax(0,1fr)] md:gap-8">
-            {/* Mobile: horizontal tab bar at the top (Returns hidden on mobile) */}
-            <aside className="sticky top-20 z-20 h-fit rounded-2xl border border-line bg-white p-1.5 shadow-card md:hidden">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-[13.5rem_minmax(0,1fr)] md:gap-8">
+            {/* Mobile: horizontal tab bar at the top (Returns & Addresses hidden on mobile) */}
+            <aside className="sticky top-20 z-20 h-fit min-w-0 rounded-2xl border border-line bg-white p-1.5 shadow-card md:hidden">
               <nav className="no-scrollbar flex items-center gap-1 overflow-x-auto" aria-label="Account navigation">
                 {nav
-                  .filter(([href]) => href !== "/account/returns")
+                  .filter(([href]) => href !== "/account/returns" && href !== "/account/addresses")
                   .map(([href, label, Icon]) => {
                     const active = pathname === href;
                     return (
@@ -178,19 +178,21 @@ export function AccountShell({ children }: { children: ReactNode }) {
                         aria-current={active ? "page" : undefined}
                         title={label}
                         className={cn(
-                          "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+                          "group flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-2.5 py-2.5 text-sm font-semibold transition-colors",
                           active ? "bg-navy-900 text-white" : "text-gray-500 hover:bg-surface hover:text-navy-900"
                         )}
                       >
                         <Icon className="h-4.5 w-4.5 shrink-0" />
-                        <span className="hidden sm:inline">{label}</span>
+                        {/* Icon-only on small screens — reveal the name when hovered or active.
+                            Overview stays icon-only on mobile even when active, like Sign Out. */}
+                        <span className={cn("sm:inline", href !== "/account" && "group-hover:inline", (href === "/account" || !active) && "hidden")}>{label}</span>
                       </Link>
                     );
                   })}
                 <button
                   onClick={() => signOut({ callbackUrl: "/" })}
                   title="Sign out"
-                  className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border-l border-line px-3 py-2.5 text-sm font-semibold text-danger transition-colors hover:bg-red-50"
+                  className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border-l border-line px-2.5 py-2.5 text-sm font-semibold text-danger transition-colors hover:bg-red-50"
                 >
                   <LogOut className="h-4.5 w-4.5 shrink-0" />
                   <span className="hidden sm:inline">Sign Out</span>
