@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { listAdminProducts } from "@/lib/db";
+import { getCachedAdminRows } from "@/lib/catalog";
 
 const TTL_MS = 5 * 60 * 1000;
 
@@ -12,7 +12,8 @@ export async function GET() {
   if (!cached || now - cached.at > TTL_MS) {
     const images: Record<string, string> = {};
     const galleries: Record<string, string[]> = {};
-    for (const row of await listAdminProducts()) {
+    const rows = (await getCachedAdminRows()) ?? [];
+    for (const row of rows) {
       const data = JSON.parse(String(row.data)) as { sku?: string; image?: string; gallery?: string[] };
       if (data?.sku) {
         if (typeof data.image === "string" && data.image.startsWith("/")) {

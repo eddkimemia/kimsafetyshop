@@ -163,6 +163,8 @@ export function getDb(): Pool {
       connectionString: url,
       ssl: ssl ? { rejectUnauthorized: false } : false,
       max: 2,
+      connectionTimeoutMillis: 8000,
+      idleTimeoutMillis: 15000,
     });
     pool.on("error", (err: Error) => console.error("[kimsafety] pg pool error", err));
   }

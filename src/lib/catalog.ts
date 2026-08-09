@@ -8,22 +8,33 @@ import type { Product } from "@/lib/types";
 // cold start has to open a fresh TLS connection to the hosted Postgres), which
 // caused product/category pages to error on first load then work on retry.
 const CATALOG_TTL_MS = 20 * 1000;
+const DB_FAIL_TTL_MS = 10 * 1000;
 let cachedAdminRows: { at: number; rows: Awaited<ReturnType<typeof listAdminProducts>> } | null = null;
+let lastDbFailAt = 0;
 
-async function adminRows(): Promise<Awaited<ReturnType<typeof listAdminProducts>>> {
+export async function getCachedAdminRows(): Promise<Awaited<ReturnType<typeof listAdminProducts>> | null> {
   const now = Date.now();
   if (cachedAdminRows && now - cachedAdminRows.at < CATALOG_TTL_MS) return cachedAdminRows.rows;
-  const rows = await listAdminProducts();
-  cachedAdminRows = { at: now, rows };
-  return rows;
+  // After a failure, back off briefly so an overloaded DB is not hammered.
+  if (now - lastDbFailAt < DB_FAIL_TTL_MS) return null;
+  try {
+    const rows = await listAdminProducts();
+    cachedAdminRows = { at: now, rows };
+    return rows;
+  } catch (err) {
+    lastDbFailAt = Date.now();
+    console.error("[catalog] admin rows fetch failed, serving static catalog:", (err as Error).message);
+    return null;
+  }
 }
 
 export function invalidateCatalogCache() {
   cachedAdminRows = null;
+  lastDbFailAt = 0;
 }
 
 async function mergedCatalog(): Promise<Product[]> {
-  const rows = await adminRows();
+  const rows = (await getCachedAdminRows()) ?? [];
   const overrides = new Map<string, Record<string, unknown>>();
   const customs: Record<string, unknown>[] = [];
   for (const row of rows) {

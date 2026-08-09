@@ -1,12 +1,11 @@
 import { products, normalizeDownloads, type Download } from "@/lib/data/products";
-import { listAdminProducts } from "@/lib/db";
-import { invalidateCatalogCache } from "@/lib/catalog";
+import { getCachedAdminRows, invalidateCatalogCache } from "@/lib/catalog";
 
 // Shares the TTL cache from lib/catalog.ts so storefront renders and admin
 // reads reuse the same admin-product rows instead of opening fresh DB
 // connections on every request (important on serverless).
 export async function mergedCatalog(): Promise<Record<string, unknown>[]> {
-  const rows = await listAdminProducts();
+  const rows = (await getCachedAdminRows()) ?? [];
   const overrides = rows.reduce<Record<string, { data: unknown; isStatic: boolean }>>((acc, row) => {
     const data = JSON.parse(String(row.data)) as { sku: string; static?: boolean };
     acc[data.sku] = { data, isStatic: Boolean(data.static) };
