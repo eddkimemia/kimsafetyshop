@@ -5,12 +5,12 @@ import {
   countNewsletterSubscribers,
   getNewsletterSubscriberById,
 } from "@/lib/db";
-import { requireAdmin } from "@/lib/api-helpers";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const denied = await requireAdmin();
+  const denied = await requireSuperAdmin();
   if (denied) return denied;
 
   const { searchParams } = new URL(req.url);
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const denied = await requireAdmin();
+  const denied = await requireSuperAdmin();
   if (denied) return denied;
 
   const { searchParams } = new URL(req.url);

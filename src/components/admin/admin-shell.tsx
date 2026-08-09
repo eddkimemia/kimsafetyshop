@@ -20,7 +20,6 @@ const nav = [
   ["/admin/content", "Knowledge", BookOpen],
   ["/admin/blog", "Blog", Newspaper],
   ["/admin/reviews", "Reviews", Star],
-  ["/admin/newsletter", "Newsletter", Mail],
   ["/admin/marketing", "Marketing", Megaphone],
   ["/admin/tickets", "Tickets", LifeBuoy],
 ] as const;
@@ -123,6 +122,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             >
               <Users className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Users</span>
             </Link>
+            {role === "superadmin" && (
+              <Link
+                href="/admin/newsletter"
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition-colors",
+                  pathname.startsWith("/admin/newsletter")
+                    ? "border-safety-300 bg-safety-50 text-safety-600"
+                    : "border-line text-navy-900 hover:bg-surface"
+                )}
+              >
+                <Mail className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Newsletter</span>
+              </Link>
+            )}
             <Link
               href="/admin/docs"
               className={cn(

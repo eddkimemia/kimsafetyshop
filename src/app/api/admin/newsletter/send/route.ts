@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { listNewsletterSubscribers } from "@/lib/db";
 import { getSmtpConfig, isSmtpConfigured, newsletterHtml, sendNewsletterBroadcast } from "@/lib/mailer";
-import { requireAdmin } from "@/lib/api-helpers";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const denied = await requireAdmin();
+  const denied = await requireSuperAdmin();
   if (denied) return denied;
 
   let body: { subject?: string; body?: string; test?: boolean };

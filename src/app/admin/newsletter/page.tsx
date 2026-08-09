@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import {
   Download,
@@ -30,6 +30,19 @@ const inputCls =
   "w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm outline-none transition-all focus:border-safety-400 focus:bg-white focus:ring-4 focus:ring-safety-500/10";
 
 export default function AdminNewsletterPage() {
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/admin/me")
+      .then((r) => r.json())
+      .then((s) => {
+        if (alive) setIsSuperAdmin(s?.user?.role === "superadmin");
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const { data, loading, refresh } = useFetch<{ subscribers: Subscriber[]; count: number }>("/api/admin/newsletter");
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
@@ -108,15 +121,22 @@ export default function AdminNewsletterPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-extrabold text-navy-900">Newsletter</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Subscribers from the homepage and blog forms. Compose a monthly briefing and send it by email.
-        </p>
-      </div>
+      {!isSuperAdmin && (
+        <AdminCard title="Restricted">
+          <p className="py-6 text-center text-sm text-gray-400">Only the super admin can manage the newsletter.</p>
+        </AdminCard>
+      )}
+      {isSuperAdmin && (
+        <>
+          <div>
+            <h1 className="font-display text-2xl font-extrabold text-navy-900">Newsletter</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Subscribers from the homepage and blog forms. Compose a monthly briefing and send it by email.
+            </p>
+          </div>
 
-      {notice && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{notice}</p>}
-      {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">{error}</p>}
+          {notice && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{notice}</p>}
+          {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">{error}</p>}
 
       <AdminCard
         title="Send a briefing"
@@ -220,6 +240,8 @@ export default function AdminNewsletterPage() {
           </div>
         )}
       </AdminCard>
+        </>
+      )}
     </div>
   );
 }
