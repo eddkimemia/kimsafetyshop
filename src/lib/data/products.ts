@@ -1269,7 +1269,9 @@ export function getBySlug(slug: string) {
 
 export function relatedFor(product: Product, count = 8): Product[] {
   const sameCat = products.filter(
-    (p) => p.category === product.category && p.id !== product.id
+    (p) =>
+      p.id !== product.id &&
+      (p.category === product.category || (product.categories ?? []).includes(p.category))
   );
   const sameBrand = products.filter(
     (p) => p.brand === product.brand && p.id !== product.id && !sameCat.includes(p)

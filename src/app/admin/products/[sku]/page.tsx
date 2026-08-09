@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  Check,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -21,6 +22,8 @@ import { useFetch, AdminCard, adminField } from "@/components/admin/ui";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { ProductArt, productImageFor } from "@/components/product/product-art";
 import { processImageInBrowser } from "@/lib/client-image-process";
+import { categories } from "@/lib/data/catalog";
+import { cn } from "@/lib/utils";
 
 type SpecRow = { label: string; value: string };
 type BulkTier = { qty: string; price: string; savings: string };
@@ -32,6 +35,7 @@ type AdminProduct = {
   brand: string;
   category: string;
   categoryName: string;
+  categories?: string[];
   price: number;
   oldPrice?: number;
   stock: number;
@@ -69,6 +73,7 @@ const empty: AdminProduct = {
   brand: "KimSafety",
   category: "industrial-safety",
   categoryName: "Industrial Safety",
+  categories: ["industrial-safety"],
   price: 0,
   oldPrice: undefined,
   stock: 0,
@@ -142,6 +147,7 @@ export default function AdminProductEditPage() {
       setForm({
         ...empty,
         ...found,
+        categories: found.categories?.length ? found.categories : [found.category],
         tags: found.tags ?? [],
         features: found.features ?? [],
         gallery: found.gallery ?? [],
@@ -343,16 +349,53 @@ export default function AdminProductEditPage() {
         <div className="space-y-6">
           <AdminCard title="Catalog & organisation" subtitle="Where the product sits in the storefront">
             <div className="space-y-3.5">
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                <label className="block">
-                  <span className="mb-1 block text-xs font-bold text-gray-500">Category name</span>
-                  <input className={adminField} value={form.categoryName} onChange={(e) => set({ categoryName: e.target.value })} />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-bold text-gray-500">Category slug</span>
-                  <input className={adminField} value={form.category} onChange={(e) => set({ category: e.target.value })} />
-                </label>
-              </div>
+              <label className="block">
+                <span className="mb-1 block text-xs font-bold text-gray-500">
+                  Categories (a product can be in several)
+                </span>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {categories.map((c) => {
+                    const selected = (form.categories ?? []).includes(c.slug);
+                    return (
+                      <button
+                        key={c.slug}
+                        type="button"
+                        onClick={() => {
+                          const cur = form.categories?.length ? form.categories : [form.category];
+                          const next = selected
+                            ? cur.filter((s) => s !== c.slug)
+                            : [...cur, c.slug];
+                          const primary = next[0] ?? c.slug;
+                          set({
+                            categories: next,
+                            category: primary,
+                            categoryName: categories.find((x) => x.slug === primary)?.name ?? "",
+                          });
+                        }}
+                        className={cn(
+                          "rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition-colors",
+                          selected
+                            ? "border-navy-900 bg-navy-900 text-white"
+                            : "border-line bg-white text-navy-800 hover:border-navy-300"
+                        )}
+                      >
+                        <span className="flex items-center gap-2">
+                          {selected ? <Check className="h-3.5 w-3.5 shrink-0" /> : <span className="h-3.5 w-3.5 shrink-0 rounded-sm border border-line" />}
+                          {c.name}
+                          {c.slug === form.category && (
+                            <span className="ml-auto rounded-full bg-safety-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                              Primary
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-[11px] text-gray-400">
+                  The first selected category is primary — used for the breadcrumb and related products.
+                </p>
+              </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-bold text-gray-500">Tags (comma separated)</span>
                 <input className={adminField} value={form.tags.join(", ")} onChange={(e) => set({ tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })} />

@@ -24,6 +24,8 @@ export type Product = {
   brand: string;
   category: string;
   categoryName: string;
+  /** All categories this product belongs to; `category`/`categoryName` remain the primary. */
+  categories?: string[];
   price: number;
   oldPrice?: number;
   stock: number;

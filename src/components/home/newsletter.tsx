@@ -1,16 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Check, Send } from "lucide-react";
+import { Mail, Check, Send, Loader2, AlertCircle } from "lucide-react";
 
 export function Newsletter() {
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.includes("@")) return;
-    setDone(true);
+    setSending(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, source: "home" }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Could not subscribe — please try again.");
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not subscribe — please try again.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -41,26 +58,35 @@ export function Newsletter() {
                 </p>
               </div>
             ) : (
-              <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row">
-                <label htmlFor="newsletter-email" className="sr-only">
-                  Email address
-                </label>
-                <input
-                  id="newsletter-email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your work email"
-                  className="h-13 flex-1 rounded-xl border border-white/20 bg-white px-4 py-3.5 text-sm text-navy-900 outline-none placeholder:text-gray-400 focus:ring-4 focus:ring-white/30"
-                />
-                <button
-                  type="submit"
-                  className="inline-flex h-13 items-center justify-center gap-2 rounded-xl bg-navy-900 px-7 py-3.5 text-sm font-bold text-white transition-colors hover:bg-navy-800"
-                >
-                  <Send className="h-4 w-4" /> Subscribe
-                </button>
-              </form>
+              <>
+                <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row">
+                  <label htmlFor="newsletter-email" className="sr-only">
+                    Email address
+                  </label>
+                  <input
+                    id="newsletter-email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your work email"
+                    className="h-13 flex-1 rounded-xl border border-white/20 bg-white px-4 py-3.5 text-sm text-navy-900 outline-none placeholder:text-gray-400 focus:ring-4 focus:ring-white/30"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sending}
+                    className="inline-flex h-13 items-center justify-center gap-2 rounded-xl bg-navy-900 px-7 py-3.5 text-sm font-bold text-white transition-colors hover:bg-navy-800 disabled:opacity-70"
+                  >
+                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {sending ? "Subscribing…" : "Subscribe"}
+                  </button>
+                </form>
+                {error && (
+                  <p className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-center text-xs font-semibold text-white sm:justify-start">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {error}
+                  </p>
+                )}
+              </>
             )}
             <p className="mt-3 text-center text-[11px] text-white/60 sm:text-left">
               Join 8,500+ safety officers, procurement leads and facility managers.

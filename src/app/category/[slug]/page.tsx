@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { CatalogView } from "@/components/catalog/catalog-view";
-import { categories } from "@/lib/data/catalog";
+import { categories, productInCategory } from "@/lib/data/catalog";
 import { liveCatalog } from "@/lib/catalog";
 
 export function generateStaticParams() {
@@ -46,7 +46,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
     mainEntity: {
       "@type": "ItemList",
       itemListElement: (await liveCatalog())
-        .filter((p) => p.category === category.slug)
+        .filter((p) => productInCategory(p, category.slug))
         .slice(0, 30)
         .map((p, i) => ({
           "@type": "ListItem",

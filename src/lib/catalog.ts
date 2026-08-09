@@ -1,4 +1,5 @@
 import { products, normalizeDownloads } from "@/lib/data/products";
+import { productInCategory } from "@/lib/data/catalog";
 import { listAdminProducts } from "@/lib/db";
 import { slugify } from "@/lib/utils";
 import type { Product } from "@/lib/types";
@@ -57,6 +58,7 @@ async function mergedCatalog(): Promise<Product[]> {
     brand: String(c.brand ?? "KimSafety"),
     category: String(c.category ?? "industrial-safety"),
     categoryName: String(c.categoryName ?? "Industrial Safety"),
+    categories: Array.isArray(c.categories) ? (c.categories as string[]) : undefined,
     price: Number(c.price ?? 0),
     oldPrice: typeof c.oldPrice === "number" ? c.oldPrice : undefined,
     stock: Number(c.stock ?? 0),
@@ -99,7 +101,9 @@ export async function liveGetBySlug(slug: string): Promise<Product | undefined> 
 
 export async function liveRelatedFor(product: Product, count = 8): Promise<Product[]> {
   const list = await mergedCatalog();
-  const sameCat = list.filter((p) => p.category === product.category && p.id !== product.id);
+  const sameCat = list.filter(
+    (p) => p.id !== product.id && (productInCategory(p, product.category) || (product.categories ?? []).some((c) => productInCategory(p, c)))
+  );
   const sameBrand = list.filter(
     (p) => p.brand === product.brand && p.id !== product.id && !sameCat.includes(p)
   );

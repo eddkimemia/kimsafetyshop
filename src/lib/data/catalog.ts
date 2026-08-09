@@ -1,5 +1,9 @@
-import type { Category, Brand } from "../types";
+import type { Category, Brand, Product } from "../types";
 import { products, matchesQuery } from "./products";
+
+export function productInCategory(p: Pick<Product, "category" | "categories">, slug: string): boolean {
+  return p.categories?.includes(slug) ?? p.category === slug;
+}
 
 export const categories: Category[] = [
   {

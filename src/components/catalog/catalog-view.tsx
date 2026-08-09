@@ -15,7 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { products, matchesQuery } from "@/lib/data/products";
-import { categories, brands } from "@/lib/data/catalog";
+import { categories, brands, productInCategory } from "@/lib/data/catalog";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProductCard } from "@/components/product/product-card";
@@ -83,7 +83,7 @@ export function CatalogView({ title, subtitle, search, category, brand, deals, h
     let list = [...(liveCatalogItems.length ? liveCatalogItems : products)];
     if (deals) list = list.filter((p) => p.oldPrice);
     if (q) list = list.filter((p) => matchesQuery(p, q));
-    if (cat !== "all") list = list.filter((p) => p.category === cat);
+    if (cat !== "all") list = list.filter((p) => productInCategory(p, cat));
     if (br !== "all") list = list.filter((p) => p.brand.toLowerCase() === br.toLowerCase());
     if (availability === "in") list = list.filter((p) => p.stock > 0);
     if (availability === "low") list = list.filter((p) => p.stock > 0 && p.stock <= p.lowStockAt);

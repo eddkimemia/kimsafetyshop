@@ -1288,3 +1288,96 @@ export async function updateReview(id: string, patch: Partial<Pick<DbReview, "ra
 export async function deleteReview(id: string) {
   await qe("DELETE FROM reviews WHERE id = ?", id);
 }
+
+export type DbNewsletterSubscriber = {
+  id: string;
+  email: string;
+  name: string | null;
+  source: string;
+  status: string;
+  unsubscribe_token: string | null;
+  unsubscribed_at: string | null;
+  created_at: string;
+};
+
+export async function subscribeNewsletter(input: {
+  email: string;
+  name?: string | null;
+  source?: string;
+}): Promise<{ subscriber: DbNewsletterSubscriber; duplicate: boolean }> {
+  const email = input.email.trim().toLowerCase();
+  const existing = (await q1(
+    "SELECT * FROM newsletter_subscribers WHERE LOWER(email) = ?",
+    email
+  )) as DbNewsletterSubscriber | undefined;
+
+  if (existing) {
+    if (existing.status !== "subscribed") {
+      // Re-activate: previously unsubscribed — sign up again means resubscribe.
+      const reactivated = {
+        ...existing,
+        status: "subscribed",
+        unsubscribe_token: existing.unsubscribe_token ?? randomUUID(),
+        unsubscribed_at: null,
+      };
+      await qe(
+        "UPDATE newsletter_subscribers SET status = @status, unsubscribe_token = @unsubscribe_token, unsubscribed_at = NULL WHERE id = @id",
+        reactivated
+      );
+      return { subscriber: reactivated, duplicate: true };
+    }
+    return { subscriber: existing, duplicate: true };
+  }
+
+  const subscriber: DbNewsletterSubscriber = {
+    id: randomUUID(),
+    email,
+    name: input.name?.trim() || null,
+    source: input.source ?? "home",
+    status: "subscribed",
+    unsubscribe_token: randomUUID(),
+    unsubscribed_at: null,
+    created_at: new Date().toISOString(),
+  };
+  await qe(
+    "INSERT INTO newsletter_subscribers (id, email, name, source, status, unsubscribe_token, unsubscribed_at, created_at) VALUES (@id, @email, @name, @source, @status, @unsubscribe_token, @unsubscribed_at, @created_at)",
+    subscriber
+  );
+  return { subscriber, duplicate: false };
+}
+
+export async function listNewsletterSubscribers(onlyActive = false): Promise<DbNewsletterSubscriber[]> {
+  return (await qr(
+    onlyActive
+      ? "SELECT * FROM newsletter_subscribers WHERE status = 'subscribed' ORDER BY created_at DESC"
+      : "SELECT * FROM newsletter_subscribers ORDER BY created_at DESC"
+  )) as DbNewsletterSubscriber[];
+}
+
+export async function getNewsletterSubscriberById(id: string): Promise<DbNewsletterSubscriber | undefined> {
+  return (await q1("SELECT * FROM newsletter_subscribers WHERE id = ?", id)) as DbNewsletterSubscriber | undefined;
+}
+
+export async function getNewsletterSubscriberByToken(token: string): Promise<DbNewsletterSubscriber | undefined> {
+  return (await q1("SELECT * FROM newsletter_subscribers WHERE unsubscribe_token = ?", token)) as
+    | DbNewsletterSubscriber
+    | undefined;
+}
+
+export async function unsubscribeNewsletter(token: string) {
+  await qe(
+    "UPDATE newsletter_subscribers SET status = 'unsubscribed', unsubscribed_at = ? WHERE unsubscribe_token = ?",
+    new Date().toISOString(),
+    token
+  );
+}
+
+export async function deleteNewsletterSubscriber(id: string) {
+  await qe("DELETE FROM newsletter_subscribers WHERE id = ?", id);
+}
+
+export async function countNewsletterSubscribers(): Promise<number> {
+  const row = (await q1("SELECT COUNT(*)::int AS n FROM newsletter_subscribers WHERE status = 'subscribed'")) as { n: number };
+  return row?.n ?? 0;
+}
+

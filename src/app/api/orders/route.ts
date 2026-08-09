@@ -3,6 +3,8 @@ import { createOrder, createNotification, getOrderById, ordersForUser } from "@/
 import { getSessionUser } from "@/lib/api-helpers";
 import { liveGetProduct } from "@/lib/catalog";
 import { bulkUnitPrice, formatKES } from "@/lib/utils";
+import { buildInvoicePdf } from "@/lib/invoice-pdf";
+import { sendOrderInvoiceEmail } from "@/lib/mailer";
 
 export async function GET(req: Request) {
   const user = await getSessionUser();
@@ -97,6 +99,14 @@ export async function POST(req: Request) {
       message: `Your order of ${formatKES(total)} is being prepared.`,
       link: "/account/orders",
     });
+  }
+
+  // Email the invoice PDF to the customer. Best-effort: never fail the order
+  // placement when SMTP is unavailable or the mail host rejects the message.
+  if (order.email) {
+    buildInvoicePdf(order)
+      .then((pdf) => sendOrderInvoiceEmail({ to: order.email, orderId: order.id, orderTotal: order.total, pdf }))
+      .catch(() => {});
   }
 
   return NextResponse.json({ order: { ...order, items: JSON.parse(order.items) } }, { status: 201 });

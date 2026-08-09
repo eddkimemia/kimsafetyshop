@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
+import { productInCategory } from "@/lib/data/catalog";
 import { activeBulkTier, bulkUnitPrice, discountPercent, formatKES, cn } from "@/lib/utils";
 import { sanitizePostHtml } from "@/lib/blog";
 import { ProductArt, productImageFor, useAdminImageOverrides, useAdminGalleries } from "@/components/product/product-art";
@@ -535,7 +536,9 @@ function RelatedSections({
   related: Product[];
   recentlyViewedProducts: Product[];
 }) {
-  const frequently = related.filter((r) => r.category === product.category).slice(0, 4);
+  const frequently = related
+    .filter((r) => productInCategory(r, product.category) || (product.categories ?? []).some((c) => productInCategory(r, c)))
+    .slice(0, 4);
   const accessories = related.slice(0, 8);
 
   return (

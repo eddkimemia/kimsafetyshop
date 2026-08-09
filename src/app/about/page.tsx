@@ -120,16 +120,16 @@ export default function AboutPage() {
           <h2 className="text-center font-display text-2xl font-extrabold text-navy-900">What we supply</h2>
           <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {[
-              "Medical Safety", "Industrial Safety", "PPE", "Fire Safety", "Road Safety",
-              "Construction Safety", "Electrical Safety", "Laboratory Equipment", "Cleaning & Hygiene", "Emergency Response",
-              "Marine Safety", "Security Equipment", "Food Safety", "Signs & Labels", "Tools",
-            ].map((c) => (
+              ["Medical Safety", "medical-safety"], ["Industrial Safety", "industrial-safety"], ["PPE", "ppe"], ["Fire Safety", "fire-safety"], ["Road Safety", "road-safety"],
+              ["Construction Safety", "construction-safety"], ["Electrical Safety", "electrical-safety"], ["Laboratory Equipment", "laboratory-equipment"], ["Cleaning & Hygiene", "cleaning-hygiene"], ["Emergency Response", "emergency-response"],
+              ["Marine Safety", "marine-safety"], ["Security Equipment", "security-equipment"], ["Food Safety", "food-safety"], ["Signs & Labels", "signs-labels"], ["Tools", "tools"],
+            ].map(([name, slug]) => (
               <Link
-                key={c}
-                href={`/search?q=${encodeURIComponent(c)}`}
+                key={slug}
+                href={`/category/${slug}`}
                 className="rounded-xl border border-line bg-white px-4 py-3 text-center text-sm font-semibold text-navy-900 transition-colors hover:border-safety-300 hover:bg-safety-50"
               >
-                {c}
+                {name}
               </Link>
             ))}
           </div>

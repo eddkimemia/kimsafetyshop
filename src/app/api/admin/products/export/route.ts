@@ -34,6 +34,7 @@ export async function GET() {
     Brand: p.brand,
     Category: p.categoryName,
     "Category ID": p.category,
+    "All Categories": (p as { categories?: string[] }).categories?.join(", ") ?? p.category,
     "Price (KES)": p.price,
     "Old Price (KES)": p.oldPrice ?? "",
     "Stock Quantity": p.stock,
