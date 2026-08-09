@@ -190,21 +190,44 @@ function normalizeParams(params: unknown[]): unknown[] | Record<string, unknown>
   return params;
 }
 
+function isTransientPgError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string };
+  if (!e) return false;
+  const msg = e.message ?? "";
+  if (e.code === "53300") return true; // too many connections
+  if (e.code === "ECONNRESET" || e.code === "ECONNREFUSED" || e.code === "ETIMEDOUT" || e.code === "EPIPE") return true;
+  if (/too many connections|connection terminated|write socket closed|read ECONNRESET|timeout exceeded/i.test(msg)) return true;
+  return false;
+}
+
+async function runQuery<T>(text: string, values: unknown[], retries = 2): Promise<T> {
+  try {
+    const res = await getDb().query(text, values);
+    return res as T;
+  } catch (err) {
+    if (retries > 0 && isTransientPgError(err)) {
+      await new Promise((r) => setTimeout(r, 300));
+      return runQuery<T>(text, values, retries - 1);
+    }
+    throw err;
+  }
+}
+
 export async function q1<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T | undefined> {
   const { text, values } = toPgParams(sql, normalizeParams(params));
-  const res = await getDb().query(text, values);
+  const res = await runQuery<{ rows: T[] }>(text, values);
   return res.rows[0] as T | undefined;
 }
 
 export async function qr<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T[]> {
   const { text, values } = toPgParams(sql, normalizeParams(params));
-  const res = await getDb().query(text, values);
+  const res = await runQuery<{ rows: T[] }>(text, values);
   return res.rows as T[];
 }
 
-export async function qe(sql: string, ...params: unknown[]): Promise<Promise<number>> {
+export async function qe(sql: string, ...params: unknown[]): Promise<number> {
   const { text, values } = toPgParams(sql, normalizeParams(params));
-  const res = await getDb().query(text, values);
+  const res = await runQuery<{ rowCount: number }>(text, values);
   return res.rowCount ?? 0;
 }
 
@@ -541,15 +564,27 @@ export async function getSetting(key: string): Promise<string> {  const row = (a
   return row?.value ?? DEFAULT_SETTINGS[key] ?? "";
 }
 
-export async function getAllSettings(): Promise<Record<string, string>> {  const rows = (await qr("SELECT key, value FROM settings")) as { key: string; value: string }[];
+export async function getAllSettings(): Promise<Record<string, string>> {
+  const now = Date.now();
+  if (settingsCache && now - settingsCache.at < SETTINGS_TTL_MS) return settingsCache.data;
+  const rows = (await qr("SELECT key, value FROM settings")) as { key: string; value: string }[];
   const out: Record<string, string> = { ...DEFAULT_SETTINGS };
   for (const r of rows) out[r.key] = r.value;
+  settingsCache = { at: now, data: out };
   return out;
+}
+
+const SETTINGS_TTL_MS = 60 * 1000;
+let settingsCache: { at: number; data: Record<string, string> } | null = null;
+
+export function invalidateSettingsCache() {
+  settingsCache = null;
 }
 
 export async function setSetting(key: string, value: string) {
   const now = new Date().toISOString();
   await qe("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", key, value, now);
+  invalidateSettingsCache();
 }
 
 // ---- Letters ----
@@ -947,17 +982,25 @@ export async function upsertBanner(
   };
   if (input.id) {
     await qe("UPDATE marketing_banners SET title = @title, subtitle = @subtitle, kicker = @kicker, cta = @cta, cta_href = @cta_href, cta2 = @cta2, image = @image, card_kicker = @card_kicker, card_title = @card_title, card_subtitle = @card_subtitle, stat1_label = @stat1_label, stat1_value = @stat1_value, stat2_label = @stat2_label, stat2_value = @stat2_value, sort = @sort, active = @active, updated_at = @updated_at WHERE id = @id", { ...row, id: input.id });
+    invalidateMarketingCache();
     return (await getBannerById(input.id))!;
   }
   const inserted = await q1<{ id: number }>("INSERT INTO marketing_banners (title, subtitle, kicker, cta, cta_href, cta2, image, card_kicker, card_title, card_subtitle, stat1_label, stat1_value, stat2_label, stat2_value, sort, active, created_at, updated_at) VALUES (@title, @subtitle, @kicker, @cta, @cta_href, @cta2, @image, @card_kicker, @card_title, @card_subtitle, @stat1_label, @stat1_value, @stat2_label, @stat2_value, @sort, @active, @created_at, @updated_at) RETURNING id", { ...row, created_at: now });
+  invalidateMarketingCache();
   return (await getBannerById(inserted!.id))!;
 }
 
 export async function deleteBanner(id: number) {
   await qe("DELETE FROM marketing_banners WHERE id = ?", id);
+  invalidateMarketingCache();
 }
 
-export async function getActiveBanners(): Promise<MarketingBanner[]> {  return (await qr("SELECT * FROM marketing_banners WHERE active = 1 ORDER BY sort ASC, id ASC")) as MarketingBanner[];
+export async function getActiveBanners(): Promise<MarketingBanner[]> {
+  const now = Date.now();
+  if (bannersCache && now - bannersCache.at < MARKETING_TTL_MS) return bannersCache.data;
+  const rows = (await qr("SELECT * FROM marketing_banners WHERE active = 1 ORDER BY sort ASC, id ASC")) as MarketingBanner[];
+  bannersCache = { at: now, data: rows };
+  return rows;
 }
 
 export async function listCampaigns(): Promise<MarketingCampaign[]> {  return (await qr("SELECT * FROM marketing_campaigns ORDER BY COALESCE(end_date, '9999-12-31') DESC, id DESC")) as MarketingCampaign[];
@@ -976,18 +1019,34 @@ export async function upsertCampaign(
   };
   if (input.id) {
     await qe("UPDATE marketing_campaigns SET name = @name, slug = @slug, description = @description, discount_label = @discount_label, image = @image, cta_href = @cta_href, start_date = @start_date, end_date = @end_date, active = @active, updated_at = @updated_at WHERE id = @id", { ...row, id: input.id });
+    invalidateMarketingCache();
     return (await getCampaignBySlug(input.slug))!;
   }
   await qe("INSERT INTO marketing_campaigns (name, slug, description, discount_label, image, cta_href, start_date, end_date, active, created_at, updated_at) VALUES (@name, @slug, @description, @discount_label, @image, @cta_href, @start_date, @end_date, @active, @created_at, @updated_at)", { ...row, created_at: now });
+  invalidateMarketingCache();
   return (await getCampaignBySlug(input.slug))!;
 }
 
 export async function deleteCampaign(id: number) {
   await qe("DELETE FROM marketing_campaigns WHERE id = ?", id);
+  invalidateMarketingCache();
 }
 
 export async function getActiveCampaigns(): Promise<MarketingCampaign[]> {  const today = new Date().toISOString().slice(0, 10);
-  return (await qr("SELECT * FROM marketing_campaigns WHERE active = 1 AND (start_date IS NULL OR start_date <= ?) AND (end_date IS NULL OR end_date >= ?) ORDER BY COALESCE(end_date, '9999-12-31') ASC, id ASC", today, today)) as MarketingCampaign[];
+  const now = Date.now();
+  if (campaignsCache && now - campaignsCache.at < MARKETING_TTL_MS) return campaignsCache.data;
+  const rows = (await qr("SELECT * FROM marketing_campaigns WHERE active = 1 AND (start_date IS NULL OR start_date <= ?) AND (end_date IS NULL OR end_date >= ?) ORDER BY COALESCE(end_date, '9999-12-31') ASC, id ASC", today, today)) as MarketingCampaign[];
+  campaignsCache = { at: now, data: rows };
+  return rows;
+}
+
+const MARKETING_TTL_MS = 60 * 1000;
+let bannersCache: { at: number; data: MarketingBanner[] } | null = null;
+let campaignsCache: { at: number; data: MarketingCampaign[] } | null = null;
+
+export function invalidateMarketingCache() {
+  bannersCache = null;
+  campaignsCache = null;
 }
 
 // ---- Addresses ----
