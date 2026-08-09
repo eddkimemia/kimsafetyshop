@@ -138,7 +138,7 @@ export function ProductDetail({
                 )}
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-3">
               {galleryVariants.map((image, i) => (
                 <button
                   key={i}
