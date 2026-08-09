@@ -62,11 +62,12 @@ type Stats = {
   session: { user?: { name?: string; email?: string } } | null;
   orders: AccountOrder[];
   quotes: AccountQuote[];
+  tickets: { id: string; status: string }[];
   unread: number;
   loading: boolean;
 };
 
-const StatsContext = createContext<Stats>({ session: null, orders: [], quotes: [], unread: 0, loading: true });
+const StatsContext = createContext<Stats>({ session: null, orders: [], quotes: [], tickets: [], unread: 0, loading: true });
 export const useAccountStats = () => useContext(StatsContext);
 
 const nav = [
@@ -85,20 +86,22 @@ const nav = [
 export function AccountShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { wishlist, liveProduct } = useStore();
-  const [stats, setStats] = useState<Stats>({ session: null, orders: [], quotes: [], unread: 0, loading: true });
+  const [stats, setStats] = useState<Stats>({ session: null, orders: [], quotes: [], tickets: [], unread: 0, loading: true });
 
   useEffect(() => {
     Promise.all([
       fetch("/api/auth/session").then((r) => r.json()),
       fetch("/api/orders").then((r) => (r.ok ? r.json() : { orders: [] })),
       fetch("/api/quotes").then((r) => (r.ok ? r.json() : { quotes: [] })),
+      fetch("/api/tickets").then((r) => (r.ok ? r.json() : { tickets: [] })),
       fetch("/api/notifications").then((r) => (r.ok ? r.json() : { unread: 0 })),
     ])
-      .then(([s, o, q, n]) => {
+      .then(([s, o, q, t, n]) => {
         setStats({
           session: s,
           orders: o.orders ?? [],
           quotes: q.quotes ?? [],
+          tickets: t.tickets ?? [],
           unread: n.unread ?? 0,
           loading: false,
         });
@@ -137,7 +140,7 @@ export function AccountShell({ children }: { children: ReactNode }) {
                 <h1 className="font-display text-2xl font-extrabold">Hello, {user?.name ?? "there"}</h1>
                 <p className="text-sm text-white/60">{user?.email ?? "Your KimSafety account"}</p>
               </div>
-              <div className="ml-auto flex gap-6 text-center">
+              <div className="ml-auto grid grid-cols-2 gap-x-8 gap-y-3 text-center sm:flex sm:items-center sm:gap-6">
                 <div>
                   <p className="font-display text-xl font-extrabold">{stats.loading ? "…" : stats.orders.length}</p>
                   <p className="text-[11px] text-white/60">Orders</p>
@@ -149,6 +152,10 @@ export function AccountShell({ children }: { children: ReactNode }) {
                 <div>
                   <p className="font-display text-xl font-extrabold">{stats.quotes.length}</p>
                   <p className="text-[11px] text-white/60">Quotes</p>
+                </div>
+                <div>
+                  <p className="font-display text-xl font-extrabold">{stats.loading ? "…" : stats.tickets.length}</p>
+                  <p className="text-[11px] text-white/60">Tickets</p>
                 </div>
               </div>
             </div>

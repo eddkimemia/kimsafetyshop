@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Package, ClipboardList, Bell } from "lucide-react";
+import { Package, ClipboardList, Bell, LifeBuoy } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { formatKES } from "@/lib/utils";
 import { ProductArt } from "@/components/product/product-art";
@@ -18,16 +18,17 @@ export default function AccountPage() {
 
 function Overview() {
   const { wishlist, liveProduct } = useStore();
-  const { orders, quotes, unread, loading } = useAccountStats();
+  const { orders, quotes, tickets, unread, loading } = useAccountStats();
   const wishlistItems = wishlist.map((id) => liveProduct(id)).filter(Boolean);
 
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {([
           [Package, "Active orders", String(orders.filter((o) => ["Processing", "In transit"].includes(o.status)).length), "Track deliveries", "/account/orders"],
           [ClipboardList, "Pending quotes", String(quotes.filter((q) => q.status === "Pending").length), "Awaiting response", "/account/quotes"],
           [Bell, "Notifications", String(unread), "Unread updates", "/account/notifications"],
+          [LifeBuoy, "Open tickets", String(tickets.filter((t) => t.status !== "Closed").length), "Get support", "/account/tickets"],
         ] as const).map(([Icon, label, value, sub, href]) => (
           <Link
             key={label}
