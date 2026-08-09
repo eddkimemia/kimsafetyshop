@@ -3,8 +3,9 @@ import { liveCatalog } from "@/lib/catalog";
 import { categories, brands } from "@/lib/data/catalog";
 import { guides } from "@/lib/data/content";
 import { listPosts } from "@/lib/db";
+import { siteUrl } from "@/lib/site";
 
-const base = "https://kimsafety.co.ke";
+const base = siteUrl;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = [

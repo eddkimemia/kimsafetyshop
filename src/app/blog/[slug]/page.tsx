@@ -10,6 +10,7 @@ import type { Product } from "@/lib/types";
 import { ProductArt } from "@/components/product/product-art";
 import { ProductCard } from "@/components/product/product-card";
 import { BlogNewsletter } from "@/components/blog/blog-newsletter";
+import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -79,14 +80,14 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
     "@type": "BlogPosting",
     headline: post.title,
     description: post.excerpt,
-    image: post.cover ?? `${"https://kimsafety.co.ke"}/og-image.jpg`,
+    image: post.cover ?? `${siteUrl}/og-image.jpg`,
     datePublished: post.created_at,
     dateModified: post.updated_at ?? post.created_at,
     author: { "@type": "Organization", name: post.author || "KimSafety" },
-    publisher: { "@type": "Organization", name: "KimSafety", url: "https://kimsafety.co.ke" },
+    publisher: { "@type": "Organization", name: "KimSafety", url: siteUrl },
     mainEntityOfPage: {
       "@type": "WebPage",
-      "@id": `https://kimsafety.co.ke/blog/${post.slug}`,
+      "@id": `${siteUrl}/blog/${post.slug}`,
     },
     inLanguage: "en-KE",
   };

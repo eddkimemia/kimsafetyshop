@@ -3,7 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { products } from "@/lib/data/products";
+import { productImages } from "@/lib/data/product-images";
 import { liveGetBySlug, liveRelatedFor } from "@/lib/catalog";
+import { siteUrl } from "@/lib/site";
 import { ProductDetail } from "@/components/product/product-detail";
 
 export const dynamic = "force-dynamic";
@@ -16,9 +18,12 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const product = await liveGetBySlug(params.slug);
   if (!product) return { title: "Product not found" };
   const meta = product.description.replace(/<[^>]+>/g, " ").trim().slice(0, 160);
-  const images = product.gallery?.[0]
-    ? [{ url: product.gallery[0], alt: product.name }]
-    : [{ url: "/og-image.jpg", width: 1200, height: 630, alt: product.name }];
+  // Main image: admin override -> committed product photo -> SKU fallback.
+  const mainImage =
+    product.image ??
+    productImages[product.sku] ??
+    `/images/products/${product.sku}.jpg`;
+  const images = [{ url: mainImage, alt: product.name }];
   return {
     title: `${product.name} — ${product.brand}`,
     description: meta,
@@ -44,13 +49,17 @@ export default async function ProductPage({ params }: { params: { slug: string }
   if (!product) return notFound();
 
   const related = await liveRelatedFor(product);
+  const mainImage =
+    product.image ??
+    productImages[product.sku] ??
+    `/images/products/${product.sku}.jpg`;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
     sku: product.sku,
-    image: product.gallery?.[0] ? [product.gallery?.[0]] : undefined,
-    url: `/product/${product.slug}`,
+    image: mainImage,
+    url: `${siteUrl}/product/${product.slug}`,
     brand: { "@type": "Brand", name: product.brand },
     description: product.description.replace(/<[^>]+>/g, " ").trim(),
     category: product.categoryName,

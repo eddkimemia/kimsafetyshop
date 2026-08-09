@@ -4,6 +4,7 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import { StorefrontChrome } from "@/components/layout/storefront-chrome";
+import { siteUrl } from "@/lib/site";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -16,8 +17,6 @@ const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
   display: "swap",
 });
-
-const siteUrl = "https://kimsafety.co.ke";
 
 const organizationJsonLd = {
   "@context": "https://schema.org",

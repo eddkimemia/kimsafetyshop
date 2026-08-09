@@ -8,6 +8,7 @@ import { guides } from "@/lib/data/content";
 import { mergedGuides, sanitizeGuideHtml } from "@/lib/knowledge";
 import { liveCatalog } from "@/lib/catalog";
 import { ProductCard } from "@/components/product/product-card";
+import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -52,13 +53,13 @@ export default async function GuidePage({ params }: { params: { slug: string } }
     "@type": "Article",
     headline: guide.title,
     description: guide.excerpt,
-    image: guide.image ?? `${"https://kimsafety.co.ke"}/og-image.jpg`,
+    image: guide.image ?? `${siteUrl}/og-image.jpg`,
     dateModified: new Date().toISOString(),
     author: { "@type": "Organization", name: "KimSafety HSE Team" },
-    publisher: { "@type": "Organization", name: "KimSafety", url: "https://kimsafety.co.ke" },
+    publisher: { "@type": "Organization", name: "KimSafety", url: siteUrl },
     mainEntityOfPage: {
       "@type": "WebPage",
-      "@id": `https://kimsafety.co.ke/knowledge/${guide.slug}`,
+      "@id": `${siteUrl}/knowledge/${guide.slug}`,
     },
     inLanguage: "en-KE",
   };
