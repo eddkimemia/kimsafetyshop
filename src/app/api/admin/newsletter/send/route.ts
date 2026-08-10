@@ -42,11 +42,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No active subscribers yet" }, { status: 400 });
   }
 
+  const emailHtml = await newsletterHtml({ title: subject, body: html });
+
   if (body.test) {
     const recipient = to[0];
     const { sent, failed } = await sendNewsletterBroadcast({
       subject,
-      html: newsletterHtml({ title: subject, body: html }),
+      html: emailHtml,
       to: [recipient],
       cfg,
     });
@@ -56,7 +58,7 @@ export async function POST(req: Request) {
   try {
     const { sent, failed } = await sendNewsletterBroadcast({
       subject,
-      html: newsletterHtml({ title: subject, body: html }),
+      html: emailHtml,
       to,
       cfg,
     });

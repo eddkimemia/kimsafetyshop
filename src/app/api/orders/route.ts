@@ -106,7 +106,23 @@ export async function POST(req: Request) {
   // placement when SMTP is unavailable or the mail host rejects the message.
   if (order.email) {
     buildInvoicePdf(order)
-      .then((pdf) => sendOrderInvoiceEmail({ to: order.email, orderId: order.id, orderTotal: order.total, pdf }))
+      .then((pdf) =>
+        sendOrderInvoiceEmail({
+          to: order.email,
+          orderId: order.id,
+          orderTotal: order.total,
+          pdf,
+          name: order.name,
+          phone: order.phone,
+          address: order.address,
+          company: order.company,
+          items: order.items,
+          payment: order.payment,
+          paid: order.paid,
+          status: order.status,
+          created_at: order.created_at,
+        })
+      )
       .catch(() => {});
   }
 
