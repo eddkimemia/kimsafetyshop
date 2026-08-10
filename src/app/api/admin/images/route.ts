@@ -134,7 +134,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Could not save file" }, { status: 500 });
   }
 
-  // Auto-process: white background + KimSafety logo/contact branding.
+  // Auto-process: background-removed product on the KimSafety product template.
   // When the client already processed the image in the browser (processed=1),
   // skip the Python pipeline entirely — it cannot run on serverless anyway.
   const clientProcessed = form.get("processed") === "1";

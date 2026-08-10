@@ -31,9 +31,10 @@ export function CoverImagePicker({
     setUploading(true);
     setError(null);
     try {
-      // Process in the browser (white background + KimSafety branding) so the
-      // result is identical on Vercel, where the Python pipeline can't run,
-      // and stays under Vercel's 4.5MB serverless body limit.
+      // Process in the browser (background-removed product on the KimSafety
+      // product template) so the result is identical on Vercel, where the
+      // Python pipeline can't run, and stays under Vercel's 4.5MB
+      // serverless body limit.
       const finalFile = await processImageInBrowser(file);
       const fd = new FormData();
       fd.append("file", finalFile);
