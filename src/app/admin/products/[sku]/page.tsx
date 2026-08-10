@@ -12,6 +12,7 @@ import {
   ImagePlus,
   Loader2,
   Plus,
+  RefreshCw,
   Save,
   Search,
   Trash2,
@@ -164,6 +165,20 @@ export default function AdminProductEditPage() {
 
   const set = (patch: Partial<AdminProduct>) => setForm((f) => ({ ...f, ...patch }));
 
+  // Changing the price should move the standard 5%/9%/13% bulk tiers with it —
+  // but only when the tiers were auto-generated (i.e. still match what the old
+  // price produced). Manually edited tiers are left untouched.
+  const setPrice = (value: number) => {
+    setForm((f) => {
+      const autoForOld = buildBulk({ ...f, price: f.price });
+      const isAuto = JSON.stringify(f.bulk ?? []) === JSON.stringify(autoForOld);
+      if (!isAuto) return { ...f, price: value };
+      return { ...f, price: value, bulk: buildBulk({ ...f, price: value }) };
+    });
+  };
+
+  const syncBulkToPrice = () => setForm((f) => ({ ...f, bulk: buildBulk(f) }));
+
   const save = async () => {
     if (!form.name || !form.price) {
       setError("Name and price are required.");
@@ -268,7 +283,7 @@ export default function AdminProductEditPage() {
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-xs font-bold text-gray-500">Price (KES) *</span>
-                  <input type="number" className={adminField} value={form.price} onChange={(e) => set({ price: Number(e.target.value) })} />
+                  <input type="number" className={adminField} value={form.price} onChange={(e) => setPrice(Number(e.target.value))} />
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-xs font-bold text-gray-500">Old price (KES, optional)</span>
@@ -465,12 +480,20 @@ export default function AdminProductEditPage() {
             title="Bulk pricing"
             subtitle="Tiered prices shown on the product page — generated from the price when left blank"
             action={
-              <button
-                onClick={() => set({ bulk: [...(form.bulk ?? []), { qty: "", price: "", savings: "" }] })}
-                className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-[11px] font-bold text-navy-900 hover:bg-surface"
-              >
-                <Plus className="h-3.5 w-3.5" /> Add tier
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={syncBulkToPrice}
+                  className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-[11px] font-bold text-navy-900 hover:bg-surface"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" /> Sync to price
+                </button>
+                <button
+                  onClick={() => set({ bulk: [...(form.bulk ?? []), { qty: "", price: "", savings: "" }] })}
+                  className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-[11px] font-bold text-navy-900 hover:bg-surface"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add tier
+                </button>
+              </div>
             }
           >
             <div className="space-y-2.5">

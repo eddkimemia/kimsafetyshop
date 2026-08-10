@@ -4,14 +4,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, Lock, Truck, ArrowRight, Package, Loader2, Download, FileUp, CircleAlert } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { formatKES, cn } from "@/lib/utils";
+import { formatKES, bulkUnitPrice, cn } from "@/lib/utils";
 import { ProductArt } from "@/components/product/product-art";
 import { PageHeader } from "@/components/layout/page-header";
 
 const steps = ["Contact", "Delivery", "Payment", "Review"];
 
 export default function CheckoutPage() {
-  const { cart, cartTotal, cartOldTotal, clearCart, liveProduct } = useStore();
+  const { cart, cartTotal, cartOldTotal, clearCart, liveProduct, refreshCatalog } = useStore();
+
+  // Re-sync with the live catalog on mount so the amounts shown (and sent to
+  // the payment prompt) match the server-side prices charged at order creation.
+  useEffect(() => {
+    refreshCatalog().catch(() => {});
+  }, [refreshCatalog]);
   const [step, setStep] = useState(0);
   const [placed, setPlaced] = useState(false);
   const [payment, setPayment] = useState("mpesa");
@@ -519,7 +525,7 @@ export default function CheckoutPage() {
                       <p className="truncate text-sm font-semibold text-navy-900">{product!.name}</p>
                       <p className="text-[11px] text-gray-400">Qty {qty}</p>
                     </div>
-                    <span className="text-sm font-bold text-navy-900">{formatKES(product!.price * qty)}</span>
+                    <span className="text-sm font-bold text-navy-900">{formatKES(bulkUnitPrice(product!, qty) * qty)}</span>
                   </li>
                 ))}
               </ul>
@@ -572,7 +578,7 @@ export default function CheckoutPage() {
                   {product!.name}
                   <span className="block text-[10px] font-normal text-gray-400">× {qty}</span>
                 </p>
-                <span className="text-xs font-bold text-navy-900">{formatKES(product!.price * qty)}</span>
+                <span className="text-xs font-bold text-navy-900">{formatKES(bulkUnitPrice(product!, qty) * qty)}</span>
               </li>
             ))}
           </ul>

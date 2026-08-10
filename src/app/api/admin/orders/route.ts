@@ -4,6 +4,7 @@ import { createNotification, getOrderById, listOrders, setOrderPaid, setOrderSta
 import { liveGetProduct } from "@/lib/catalog";
 import { productImages } from "@/lib/data/product-images";
 import { bulkUnitPrice } from "@/lib/utils";
+import { sendPaidInvoiceEmail } from "@/lib/mailer";
 
 const VALID = ["Processing", "In transit", "Delivered", "Cancelled"];
 
@@ -57,6 +58,13 @@ export async function PATCH(req: Request) {
 
   if (body.paid !== undefined) {
     await setOrderPaid(body.id, body.paid ? 1 : 0);
+    if (order.paid !== 1 && body.paid) {
+      // Only email on the unpaid → paid transition (re-marking a paid order
+      // must not spam the customer with another invoice).
+      sendPaidInvoiceEmail(order).catch((err) =>
+        console.error(`[admin] paid invoice email failed for ${order.id}:`, (err as Error).message)
+      );
+    }
     if (order.user_id && body.paid) {
       await createNotification({
         user_id: order.user_id,

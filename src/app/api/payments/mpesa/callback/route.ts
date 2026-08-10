@@ -1,4 +1,5 @@
 import { getOrderByMpesaCheckout, setOrderPaid } from "@/lib/db";
+import { sendPaidInvoiceEmail } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,13 @@ export async function POST(req: Request) {
       const order = await getOrderByMpesaCheckout(cb.CheckoutRequestID);
       if (order) {
         if (cb.ResultCode === 0) {
-          await setOrderPaid(order.id, 1);
+          if (order.paid !== 1) {
+            await setOrderPaid(order.id, 1);
+            // Fire-and-forget so Safaricom gets its "0" reply instantly.
+            sendPaidInvoiceEmail(order).catch((err) =>
+              console.error(`[mpesa] paid invoice email failed for ${order.id}:`, (err as Error).message)
+            );
+          }
         } else {
           console.warn(`[mpesa] STK push for ${order.id} failed: ${cb.ResultDesc}`);
         }

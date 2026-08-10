@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -19,10 +20,16 @@ import { ProductArt } from "@/components/product/product-art";
 import { PageHeader } from "@/components/layout/page-header";
 
 export default function CartPage() {
-  const { cart, setQty, removeFromCart, clearCart, cartTotal, cartOldTotal, liveProduct } = useStore();
+  const { cart, setQty, removeFromCart, clearCart, cartTotal, cartOldTotal, liveProduct, refreshCatalog } = useStore();
   const savings = cartOldTotal - cartTotal;
   const freeDelivery = cartTotal >= 10000;
   const shipping = cart.length === 0 ? 0 : freeDelivery ? 0 : 350;
+
+  // Always re-sync prices with the live catalog when the cart is opened, so
+  // admin price changes are reflected even if this page was open before the change.
+  useEffect(() => {
+    refreshCatalog().catch(() => {});
+  }, [refreshCatalog]);
 
   if (cart.length === 0) {
     return (

@@ -31,6 +31,7 @@ type Store = {
   liveBySlug: (slug: string) => Product | undefined;
   recentlyViewed: string[];
   noteRecentlyViewed: (productId: string) => void;
+  refreshCatalog: () => Promise<void>;
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -68,6 +69,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (Array.isArray(data?.products)) setCatalog(data.products);
       })
       .catch(() => setCatalog([]));
+  }, []);
+
+  // Re-fetches the live catalog so cart/checkout prices reflect admin price
+  // changes made after this page was loaded. Cart and checkout call this on
+  // mount — prices are never a snapshot taken at add-to-cart time.
+  const refreshCatalog = useCallback(async () => {
+    try {
+      const res = await fetch("/api/catalog");
+      const data = await res.json();
+      if (Array.isArray(data?.products)) setCatalog(data.products);
+    } catch {
+      /* keep the current catalog on failure */
+    }
   }, []);
 
   useEffect(() => {
@@ -182,6 +196,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       liveBySlug,
       recentlyViewed,
       noteRecentlyViewed,
+      refreshCatalog,
     }),
     [
       cart,
@@ -201,6 +216,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       liveBySlug,
       recentlyViewed,
       noteRecentlyViewed,
+      refreshCatalog,
     ]
   );
 

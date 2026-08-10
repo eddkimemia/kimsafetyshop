@@ -4,6 +4,7 @@ import { siteUrl } from "@/lib/site";
 import { getAllSettings } from "@/lib/db";
 import { liveGetProduct } from "@/lib/catalog";
 import { bulkUnitPrice } from "@/lib/utils";
+import { buildInvoicePdf } from "@/lib/invoice-pdf";
 
 export type SmtpConfig = {
   host: string;
@@ -452,6 +453,97 @@ export async function sendOrderInvoiceEmail(input: {
       <p style="font-size:13px;line-height:1.7;color:#374151;margin:0 0 14px 0;text-align:center;">Track your order anytime from your <a href="${siteUrl}/account/orders" style="color:${SAFETY};font-weight:bold;">order history</a> — your invoice PDF is attached to this email.</p>
       ${btn(`${siteUrl}/account/orders`, "View your order")}
       ${deliveredNote}
+      `
+    ),
+    attachments: [{ filename: `kimsafety-invoice-${orderId}.pdf`, content: pdf, contentType: "application/pdf" }],
+  });
+  return true;
+}
+
+/**
+ * "Payment received" email sent when an order flips from unpaid to paid — the
+ * M-Pesa callback, Paystack webhook/verify and the admin "Mark as paid" action
+ * all call this with the stored order row. The attached PDF is rebuilt with the
+ * PAID banner. Best-effort: failures are swallowed by the callers.
+ */
+export async function sendPaidInvoiceEmail(input: {
+  id: string;
+  email: string;
+  name: string;
+  phone: string;
+  address: string;
+  company?: string | null;
+  items: string;
+  total: number;
+  subtotal: number;
+  discount: number;
+  shipping: number;
+  payment: string;
+  paid: number;
+  status: string;
+  created_at: string;
+}): Promise<boolean> {
+  const cfg: SmtpConfig | null = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+
+  const { id: orderId, email, name, phone, address, company, items, payment, status } = input;
+  const pdf = await buildInvoicePdf({ ...input, paid: 1 });
+  const transporter = createTransporter(cfg);
+
+  const paymentLabel: Record<string, string> = {
+    mpesa: "M-Pesa",
+    card: "Card (Paystack)",
+    po: "Purchase Order (30-day terms)",
+  };
+  const rows = await resolveItems(items);
+  const itemRows = rows
+    .map(
+      (r) => `
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
+          <p style="font-size:13px;font-weight:bold;color:${NAVY};margin:0 0 2px 0;">${esc(r.name)}</p>
+          <p style="font-size:11px;color:${GRAY};margin:0;">${r.qty} × ${money(r.price)}</p>
+        </td>
+        <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:13px;font-weight:bold;color:#374151;text-align:right;white-space:nowrap;">${money(r.price * r.qty)}</td>
+      </tr>`
+    )
+    .join("");
+
+  await transporter.sendMail({
+    from: cfg.from,
+    to: email,
+    subject: `Payment received — ${orderId} · KES ${Math.round(input.total).toLocaleString("en-KE")}`,
+    text: `Hi ${name},\n\nWe've received your payment of KES ${Math.round(input.total).toLocaleString("en-KE")} for order ${orderId}. Thank you!\n\nTrack it anytime at ${siteUrl}/account/orders\n\nYour paid invoice is attached to this email.\n\n— KimSafety Team`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Payment received")}
+      <h1 style="font-size:24px;color:${NAVY};margin:0 0 8px 0;">Payment received — thank you!</h1>
+      <p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 22px 0;">We've received your payment of ${money(input.total)} for order ${orderId}. Your paid invoice is attached below — keep it for your records.</p>
+      ${summaryCard([
+        { label: "Order number", value: esc(orderId) },
+        { label: "Order total", value: money(input.total), highlight: true },
+        { label: "Payment", value: esc(paymentLabel[payment] ?? payment) },
+        { label: "Status", value: "Paid ✓" },
+      ])}
+      ${sectionTitle("Delivery details")}
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px 0;">
+        <tr>
+          <td style="background:#fafafa;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;">
+            <p style="font-size:14px;font-weight:bold;color:${NAVY};margin:0 0 6px 0;">${esc(name)}${company ? ` · ${esc(company)}` : ""}</p>
+            <p style="font-size:13px;line-height:1.7;color:#374151;margin:0;">${esc(address)}</p>
+            <p style="font-size:13px;color:${GRAY};margin:4px 0 0 0;">${esc(phone)}</p>
+          </td>
+        </tr>
+      </table>
+      ${sectionTitle("Items ordered")}
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px 0;">
+        ${itemRows}
+      </table>
+      <p style="font-size:13px;line-height:1.7;color:#374151;margin:0 0 14px 0;text-align:center;">Track your order anytime from your <a href="${siteUrl}/account/orders" style="color:${SAFETY};font-weight:bold;">order history</a> — your paid invoice PDF is attached to this email.</p>
+      ${btn(`${siteUrl}/account/orders`, "View your order")}
+      <p style="font-size:12px;color:${GRAY};margin:12px 0 0 0;text-align:center;">Status: ${esc(status)}</p>
       `
     ),
     attachments: [{ filename: `kimsafety-invoice-${orderId}.pdf`, content: pdf, contentType: "application/pdf" }],

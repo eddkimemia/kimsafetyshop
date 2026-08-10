@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOrderById, setOrderPaid } from "@/lib/db";
 import { paystackVerify } from "@/lib/payments/paystack";
+import { sendPaidInvoiceEmail } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,12 @@ export async function POST(req: Request) {
 
   try {
     const { paid } = await paystackVerify(body.reference);
-    if (paid && order.paid !== 1) await setOrderPaid(order.id, 1);
+    if (paid && order.paid !== 1) {
+      await setOrderPaid(order.id, 1);
+      sendPaidInvoiceEmail(order).catch((err) =>
+        console.error(`[paystack] paid invoice email failed for ${order.id}:`, (err as Error).message)
+      );
+    }
     return NextResponse.json({ paid, orderId: order.id });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Verification failed";

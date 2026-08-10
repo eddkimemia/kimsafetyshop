@@ -8,7 +8,8 @@ import type { Product } from "@/lib/types";
 // TTL cuts the repeated remote-DB round trips per page render (each serverless
 // cold start has to open a fresh TLS connection to the hosted Postgres), which
 // caused product/category pages to error on first load then work on retry.
-const CATALOG_TTL_MS = 20 * 1000;
+// 5s keeps price changes visible in checkout almost immediately.
+const CATALOG_TTL_MS = 5 * 1000;
 const DB_FAIL_TTL_MS = 10 * 1000;
 let cachedAdminRows: { at: number; rows: Awaited<ReturnType<typeof listAdminProducts>> } | null = null;
 let lastDbFailAt = 0;

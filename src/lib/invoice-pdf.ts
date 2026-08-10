@@ -192,8 +192,11 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
     .fillColor(paid ? EMERALD : "#DC2626")
     .text(`  ${paid ? "Paid in full" : "Payment due"}`, 390, metaY, { width: 70 });
   if (!paid) {
+    // 30-day terms only apply to corporate purchase orders — everyone else pays
+    // on receipt (M-Pesa/card are collected before dispatch).
+    const isCorporate = order.payment === "po";
     const due = new Date(order.created_at);
-    due.setDate(due.getDate() + 30);
+    if (isCorporate) due.setDate(due.getDate() + 30);
     doc
       .font("Helvetica-Bold")
       .fontSize(8.5)
@@ -299,7 +302,9 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
     .text(
       paid
         ? "This invoice has been settled in full. Thank you for choosing KimSafety."
-        : "Payment is due within 30 days of the invoice date. Approved corporate accounts only.",
+        : order.payment === "po"
+          ? "Payment is due within 30 days of the invoice date. Approved corporate accounts only."
+          : "Payment is due on receipt of this invoice. Orders are dispatched once payment is confirmed.",
       totalX,
       ty,
       { width: totalW }
