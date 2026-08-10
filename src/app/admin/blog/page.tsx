@@ -66,7 +66,7 @@ export default function AdminBlogPage() {
                     <span className="h-11 w-16 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-navy-700 to-navy-900">
                       {p.cover ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.cover} alt="" className="h-full w-full object-cover" />
+                        <img src={p.cover} alt={p.title} className="h-full w-full object-cover" />
                       ) : (
                         <span className="flex h-full w-full items-center justify-center text-[10px] font-bold text-white/50">
                           {p.category.slice(0, 3).toUpperCase()}
@@ -135,7 +135,7 @@ export default function AdminBlogPage() {
                           <span className="h-11 w-16 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-navy-700 to-navy-900">
                             {p.cover ? (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={p.cover} alt="" className="h-full w-full object-cover" />
+                              <img src={p.cover} alt={p.title} className="h-full w-full object-cover" />
                             ) : (
                               <span className="flex h-full w-full items-center justify-center text-[10px] font-bold text-white/50">
                                 {p.category.slice(0, 3).toUpperCase()}

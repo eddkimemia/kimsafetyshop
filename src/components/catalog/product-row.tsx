@@ -22,7 +22,7 @@ export function ProductRow({ productId }: { productId: string }) {
         href={`/product/${product.slug}`}
         className="relative block h-40 w-full shrink-0 overflow-hidden rounded-xl sm:h-44 sm:w-44"
       >
-        <ProductArt tags={product.tags} categoryName={product.categoryName} brand={product.brand} sku={product.sku} className="h-full w-full" />
+        <ProductArt tags={product.tags} categoryName={product.categoryName} brand={product.brand} sku={product.sku} name={product.name} className="h-full w-full" />
         {off && (
           <span className="absolute left-2 top-2 rounded-full bg-danger px-2 py-0.5 text-[10px] font-bold text-white">
             -{off}%

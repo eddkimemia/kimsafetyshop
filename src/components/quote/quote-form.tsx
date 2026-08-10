@@ -177,6 +177,7 @@ export function QuoteForm() {
                   categoryName={product.categoryName}
                   brand={product.brand}
                   sku={product.sku}
+                  name={product.name}
                   className="h-full w-full"
                 />
               </div>

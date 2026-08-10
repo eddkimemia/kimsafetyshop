@@ -89,7 +89,7 @@ export function SmartSearch({ className }: { className?: string }) {
                       className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface"
                     >
                       <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg">
-                        <ProductArt tags={p.tags} categoryName={p.categoryName} brand={p.brand} sku={p.sku} className="h-full w-full" />
+                        <ProductArt tags={p.tags} categoryName={p.categoryName} brand={p.brand} sku={p.sku} name={p.name} className="h-full w-full" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-navy-900">{p.name}</p>

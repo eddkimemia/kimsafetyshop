@@ -50,6 +50,7 @@ export function ProductCard({
           categoryName={product.categoryName}
           brand={product.brand}
           sku={product.sku}
+          name={product.name}
           className="transition-transform duration-500 group-hover:scale-[1.04]"
         />
         <div className="absolute left-3 top-3 flex flex-col gap-1.5">

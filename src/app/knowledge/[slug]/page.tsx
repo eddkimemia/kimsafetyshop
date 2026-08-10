@@ -202,7 +202,7 @@ export default async function GuidePage({ params }: { params: { slug: string } }
                     {g.image ? (
                       <Image
                         src={g.image}
-                        alt=""
+                        alt={g.title}
                         fill
                         sizes="80px"
                         className="object-cover transition-transform duration-300 group-hover:scale-[1.05]"

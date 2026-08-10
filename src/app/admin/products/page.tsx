@@ -221,7 +221,7 @@ export default function AdminProductsPage() {
                     className="flex w-full items-center gap-3 text-left"
                   >
                     <span className="h-11 w-11 shrink-0 overflow-hidden rounded-lg">
-                      <ProductArt tags={p.tags} categoryName={p.categoryName} brand={p.brand} sku={p.sku} className="h-full w-full" />
+                            <ProductArt tags={p.tags} categoryName={p.categoryName} brand={p.brand} sku={p.sku} name={p.name} className="h-full w-full" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold text-navy-900">{p.name}</span>
@@ -295,7 +295,7 @@ export default function AdminProductsPage() {
                           className="flex w-full items-center gap-3 text-left"
                         >
                           <span className="h-11 w-11 shrink-0 overflow-hidden rounded-lg">
-                            <ProductArt tags={p.tags} categoryName={p.categoryName} brand={p.brand} sku={p.sku} className="h-full w-full" />
+                      <ProductArt tags={p.tags} categoryName={p.categoryName} brand={p.brand} sku={p.sku} name={p.name} className="h-full w-full" />
                           </span>
                           <span className="min-w-0">
                             <span className="block truncate font-semibold text-navy-900 group-hover:text-safety-600">{p.name}</span>

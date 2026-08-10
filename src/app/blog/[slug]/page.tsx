@@ -187,7 +187,7 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
                   >
                     <span className="relative h-20 w-24 shrink-0 overflow-hidden rounded-xl border border-line bg-navy-900">
                       {p.cover ? (
-                        <Image src={p.cover} alt="" fill sizes="96px" className="object-cover transition-transform duration-300 group-hover:scale-[1.05]" />
+                        <Image src={p.cover} alt={p.title} fill sizes="96px" className="object-cover transition-transform duration-300 group-hover:scale-[1.05]" />
                       ) : (
                         <span className="absolute inset-0 flex items-center justify-center font-display text-xl font-black text-white/40">K</span>
                       )}
@@ -223,6 +223,7 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
                         categoryName={p.categoryName}
                         brand={p.brand}
                         sku={p.sku}
+                        name={p.name}
                         className="h-full w-full"
                       />
                     </span>

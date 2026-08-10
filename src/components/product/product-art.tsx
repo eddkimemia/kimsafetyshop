@@ -140,6 +140,7 @@ export function ProductArt({
   categoryName = "",
   brand = "",
   sku = "",
+  name = "",
   className,
   icon,
   src,
@@ -149,6 +150,7 @@ export function ProductArt({
   categoryName?: string;
   brand?: string;
   sku?: string;
+  name?: string;
   className?: string;
   icon?: LucideIcon;
   src?: string;
@@ -159,6 +161,9 @@ export function ProductArt({
   const Icon = icon ?? artIconFor(tags, categoryName);
   const theme = themes[hashStr(sku + brand + categoryName) % themes.length];
   const imageSrc = src ?? (sku && overrides !== null ? productImageFor(sku) : undefined);
+  const defaultAlt = name
+    ? `${name} — KimSafety`
+    : categoryName || brand || "KimSafety product";
 
   useEffect(() => {
     setFailed(false);
@@ -175,7 +180,7 @@ export function ProductArt({
       {imageSrc && !failed ? (
         <Image
           src={imageSrc}
-          alt={alt ?? (categoryName || brand || "KimSafety product")}
+          alt={alt ?? defaultAlt}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-cover"

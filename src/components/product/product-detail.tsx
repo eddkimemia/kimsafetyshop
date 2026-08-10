@@ -124,6 +124,7 @@ export function ProductDetail({
                   categoryName={product.categoryName}
                   brand={product.brand}
                   sku={product.sku}
+                  name={product.name}
                   src={overrides === null ? undefined : galleryVariants[view]}
                   className="aspect-square"
                 />
@@ -155,6 +156,7 @@ export function ProductDetail({
                     categoryName={product.categoryName}
                     brand={product.brand}
                     sku={product.sku}
+                    name={product.name}
                     src={overrides === null ? undefined : image}
                     className="aspect-square"
                   />
