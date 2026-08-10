@@ -3,6 +3,8 @@ import { createQuote, quotesForUser } from "@/lib/db";
 import { getSessionUser } from "@/lib/api-helpers";
 import { liveGetProduct } from "@/lib/catalog";
 import { bulkUnitPrice } from "@/lib/utils";
+import { sendQuoteConfirmationEmail, sendNewQuoteAlert } from "@/lib/mailer";
+import { getSetting } from "@/lib/db";
 
 export async function GET() {
   const user = await getSessionUser();
@@ -48,6 +50,30 @@ export async function POST(req: Request) {
     total: Math.round(total),
     attachment: body.attachment ?? null,
   });
+
+  // Best-effort confirmation email to the requester.
+  if (quote.email) {
+    sendQuoteConfirmationEmail({
+      to: quote.email,
+      name: quote.name,
+      quoteId: quote.id,
+      total: quote.total,
+    }).catch((err) => console.error("[quotes] confirmation email failed:", err));
+  }
+
+  // Notify staff of the new quote request.
+  getSetting("email")
+    .then((email) => {
+      if (!email) return;
+      sendNewQuoteAlert({
+        to: email,
+        quoteId: quote.id,
+        total: quote.total,
+        customer: quote.name,
+        company: quote.company,
+      }).catch(() => {});
+    })
+    .catch(() => {});
 
   return NextResponse.json({ quote: { ...quote, items: JSON.parse(quote.items) } }, { status: 201 });
 }

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Crown, KeyRound, ShieldPlus, User, UserPlus } from "lucide-react";
-import { useFetch, AdminCard } from "@/components/admin/ui";
+import { BadgeCheck, Crown, Download, KeyRound, Pencil, ShieldPlus, Trash2, User, UserPlus } from "lucide-react";
+import { useFetch, AdminCard, Modal, adminField } from "@/components/admin/ui";
 
 type AdminUser = {
   id: string;
@@ -47,6 +47,9 @@ export default function AdminUsersPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<(typeof sorts)[number]["value"]>("newest");
+  const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "", company: "" });
+  const [saving, setSaving] = useState(false);
   const users = useMemo(() => data?.users ?? [], [data]);
 
   useEffect(() => {
@@ -129,6 +132,47 @@ export default function AdminUsersPage() {
     );
   };
 
+  const openEdit = (u: AdminUser) => {
+    setEditForm({ name: u.name, email: u.email, phone: u.phone ?? "", company: u.company ?? "" });
+    setEditing(u);
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    setSaving(true);
+    setError(null);
+    const res = await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editing.id, ...editForm }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) {
+      setError(json.error ?? "Update failed");
+      return;
+    }
+    setNotice(`${editing.name} updated`);
+    setEditing(null);
+    refresh();
+  };
+
+  const removeUser = (u: AdminUser) => {
+    if (u.id === me?.id) {
+      setNotice("You cannot delete your own account.");
+      return;
+    }
+    if (!confirm(`Delete ${u.name} (${u.email})? This cannot be undone. Their orders and quotes are kept on file.`)) return;
+    call(
+      () =>
+        fetch(`/api/admin/users?id=${encodeURIComponent(u.id)}`, { method: "DELETE" }).then(async (r) => ({
+          ok: r.ok,
+          error: (await r.json().catch(() => ({}))).error,
+        })),
+      `${u.name} deleted`
+    );
+  };
+
   const unverifiedCount = customers.filter((c) => !c.verified).length;
 
   return (
@@ -150,6 +194,14 @@ export default function AdminUsersPage() {
               ))}
             </select>
           </label>
+          {isSuper && (
+            <a
+              href="/api/admin/users/export"
+              className="flex items-center gap-2 rounded-xl border border-safety-300 bg-safety-50 px-4 py-2.5 text-xs font-bold text-safety-700 hover:bg-safety-100"
+            >
+              <Download className="h-4 w-4" /> Export customers
+            </a>
+          )}
           {isSuper && (
             <Link
               href="/admin/users/new"
@@ -221,18 +273,34 @@ export default function AdminUsersPage() {
                           >
                             Make user
                           </button>
-                          <button
-                            onClick={() => resetPassword(u)}
-                            className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-safety-600 hover:bg-safety-50"
-                          >
-                            <KeyRound className="h-3 w-3" /> Reset password
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => openEdit(u)}
+                              disabled={u.id === me?.id}
+                              className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface disabled:opacity-40"
+                            >
+                              <Pencil className="h-3 w-3" /> Edit
+                            </button>
+                            <button
+                              onClick={() => resetPassword(u)}
+                              className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-safety-600 hover:bg-safety-50"
+                            >
+                              <KeyRound className="h-3 w-3" /> Reset
+                            </button>
+                            <button
+                              onClick={() => removeUser(u)}
+                              disabled={u.id === me?.id}
+                              className="flex items-center gap-1 rounded-lg border border-danger/30 px-2.5 py-1.5 text-[11px] font-bold text-danger hover:bg-red-50 disabled:opacity-40"
+                            >
+                              <Trash2 className="h-3 w-3" /> Delete
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                   <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full min-w-[680px] text-sm">
+                    <table className="w-full min-w-[720px] text-sm">
                       <thead>
                         <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                           <th className="pb-3">User</th>
@@ -289,10 +357,24 @@ export default function AdminUsersPage() {
                                   Make user
                                 </button>
                                 <button
+                                  onClick={() => openEdit(u)}
+                                  disabled={u.id === me?.id}
+                                  className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface disabled:opacity-40"
+                                >
+                                  <Pencil className="h-3 w-3" /> Edit
+                                </button>
+                                <button
                                   onClick={() => resetPassword(u)}
                                   className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-safety-600 hover:bg-safety-50"
                                 >
-                                  <KeyRound className="h-3 w-3" /> Reset password
+                                  <KeyRound className="h-3 w-3" /> Reset
+                                </button>
+                                <button
+                                  onClick={() => removeUser(u)}
+                                  disabled={u.id === me?.id}
+                                  className="flex items-center gap-1 rounded-lg border border-danger/30 px-2.5 py-1.5 text-[11px] font-bold text-danger hover:bg-red-50 disabled:opacity-40"
+                                >
+                                  <Trash2 className="h-3 w-3" /> Delete
                                 </button>
                               </div>
                             </td>
@@ -309,6 +391,16 @@ export default function AdminUsersPage() {
           <AdminCard
             title="Customers"
             subtitle={`${customers.length} account${customers.length === 1 ? "" : "s"} · verify new signups to mark them approved`}
+            action={
+              isSuper ? (
+                <a
+                  href="/api/admin/users/export"
+                  className="flex items-center gap-1.5 rounded-lg border border-safety-300 bg-safety-50 px-3 py-2 text-xs font-bold text-safety-700 hover:bg-safety-100"
+                >
+                  <Download className="h-3.5 w-3.5" /> Export Excel
+                </a>
+              ) : undefined
+            }
           >
             {customers.length === 0 ? (
               <p className="py-6 text-center text-sm text-gray-400">No customer accounts yet.</p>
@@ -354,18 +446,34 @@ export default function AdminUsersPage() {
                             <ShieldPlus className="h-3.5 w-3.5" /> Make staff
                           </button>
                         )}
+                        {isSuper && (
+                          <button
+                            onClick={() => openEdit(u)}
+                            className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface"
+                          >
+                            <Pencil className="h-3.5 w-3.5" /> Edit
+                          </button>
+                        )}
                         <button
                           onClick={() => resetPassword(u)}
                           className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-safety-600 hover:bg-safety-50"
                         >
                           <KeyRound className="h-3.5 w-3.5" /> Reset password
                         </button>
+                        {isSuper && (
+                          <button
+                            onClick={() => removeUser(u)}
+                            className="flex items-center gap-1 rounded-lg border border-danger/30 px-3 py-1.5 text-xs font-bold text-danger hover:bg-red-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[640px] text-sm">
+                  <table className="w-full min-w-[700px] text-sm">
                     <thead>
                       <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                         <th className="pb-3">User</th>
@@ -417,12 +525,28 @@ export default function AdminUsersPage() {
                                   <ShieldPlus className="h-3.5 w-3.5" /> Make staff
                                 </button>
                               )}
+                              {isSuper && (
+                                <button
+                                  onClick={() => openEdit(u)}
+                                  className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" /> Edit
+                                </button>
+                              )}
                               <button
                                 onClick={() => resetPassword(u)}
                                 className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-safety-600 hover:bg-safety-50"
                               >
-                                <KeyRound className="h-3.5 w-3.5" /> Reset password
+                                <KeyRound className="h-3.5 w-3.5" /> Reset
                               </button>
+                              {isSuper && (
+                                <button
+                                  onClick={() => removeUser(u)}
+                                  className="flex items-center gap-1 rounded-lg border border-danger/30 px-3 py-1.5 text-xs font-bold text-danger hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" /> Delete
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -435,6 +559,36 @@ export default function AdminUsersPage() {
           </AdminCard>
         </>
       )}
+
+      <Modal open={!!editing} onClose={() => setEditing(null)} title={editing ? `Edit ${editing.name}` : "Edit user"}>
+        <div className="space-y-3.5">
+          <label className="block">
+            <span className="mb-1 block text-xs font-bold text-gray-500">Full name *</span>
+            <input className={adminField} value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-bold text-gray-500">Email *</span>
+            <input type="email" className={adminField} value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
+          </label>
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-bold text-gray-500">Phone</span>
+              <input className={adminField} value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} placeholder="+254 7…" />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-bold text-gray-500">{editing && editing.role !== "user" ? "Department" : "Company"}</span>
+              <input className={adminField} value={editForm.company} onChange={(e) => setEditForm((f) => ({ ...f, company: e.target.value }))} placeholder="e.g. Sales" />
+            </label>
+          </div>
+          <button
+            onClick={saveEdit}
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-6 py-3 text-sm font-bold text-white hover:bg-safety-500 disabled:opacity-60"
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

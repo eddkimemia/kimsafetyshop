@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createUser, getUserByEmail } from "@/lib/db";
+import { sendWelcomeEmail } from "@/lib/mailer";
 
 export async function POST(req: Request) {
   let body: { name?: string; email?: string; password?: string; company?: string; phone?: string };
@@ -35,6 +36,9 @@ export async function POST(req: Request) {
     phone,
     verified: 0,
   });
+
+  // Best-effort welcome email — never blocks registration when SMTP is unset.
+  sendWelcomeEmail({ to: email, name }).catch((err) => console.error("[register] welcome email failed:", err));
 
   return NextResponse.json(
     { user: { id: user.id, name: user.name, email: user.email, role: user.role } },

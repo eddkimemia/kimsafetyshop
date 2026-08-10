@@ -4,7 +4,8 @@ import { getSessionUser } from "@/lib/api-helpers";
 import { liveGetProduct } from "@/lib/catalog";
 import { bulkUnitPrice, formatKES } from "@/lib/utils";
 import { buildInvoicePdf } from "@/lib/invoice-pdf";
-import { sendOrderInvoiceEmail } from "@/lib/mailer";
+import { sendOrderInvoiceEmail, sendNewOrderAlert } from "@/lib/mailer";
+import { getSetting } from "@/lib/db";
 
 export async function GET(req: Request) {
   const user = await getSessionUser();
@@ -108,6 +109,16 @@ export async function POST(req: Request) {
       .then((pdf) => sendOrderInvoiceEmail({ to: order.email, orderId: order.id, orderTotal: order.total, pdf }))
       .catch(() => {});
   }
+
+  // Notify staff of the new order (sends to the "email" and "purchases_email"
+  // settings; silently skipped when SMTP is not configured).
+  Promise.all([getSetting("email"), getSetting("purchases_email")])
+    .then(([email, purchasesEmail]) => {
+      const alert = { orderId: order.id, orderTotal: order.total, customer: order.name, company: order.company, payment: order.payment };
+      const targets = [email, purchasesEmail].filter(Boolean);
+      for (const t of targets) sendNewOrderAlert({ to: t as string, ...alert }).catch(() => {});
+    })
+    .catch(() => {});
 
   return NextResponse.json({ order: { ...order, items: JSON.parse(order.items) } }, { status: 201 });
 }

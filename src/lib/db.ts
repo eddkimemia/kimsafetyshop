@@ -468,6 +468,58 @@ export async function setUserPassword(id: string, password: string) {
   await qe("UPDATE users SET password_hash = ? WHERE id = ?", hashPassword(password), id);
 }
 
+export async function updateUserProfile(id: string, input: { name?: string; email?: string; phone?: string | null; company?: string | null }) {
+  const existing = await getUserById(id);
+  if (!existing) return undefined;
+  const updated = {
+    ...existing,
+    name: input.name ?? existing.name,
+    email: (input.email ?? existing.email).toLowerCase(),
+    phone: input.phone === undefined ? existing.phone : input.phone,
+    company: input.company === undefined ? existing.company : input.company,
+  };
+  await qe("UPDATE users SET name = @name, email = @email, phone = @phone, company = @company WHERE id = @id", updated);
+  return updated;
+}
+
+export async function deleteUser(id: string) {
+  await qe("DELETE FROM users WHERE id = ?", id);
+}
+
+function randomTempPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let out = "";
+  for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+/**
+ * Ensures a login exists for the given email. If an account already exists the
+ * existing user is linked; otherwise a verified customer login is created with
+ * a temporary password (returned to the caller so it can be shared securely).
+ */
+export async function provisionUserLogin(input: {
+  name: string;
+  email: string;
+  phone?: string | null;
+  company?: string | null;
+  password?: string;
+}): Promise<{ user_id: string; createdLogin: boolean; tempPassword?: string }> {
+  const existing = await getUserByEmail(input.email.toLowerCase());
+  if (existing) return { user_id: existing.id, createdLogin: false };
+  const tempPassword = input.password ?? randomTempPassword();
+  const user = await createUser({
+    name: input.name,
+    email: input.email,
+    password: tempPassword,
+    phone: input.phone ?? undefined,
+    company: input.company ?? undefined,
+    role: "user",
+    verified: 1,
+  });
+  return { user_id: user.id, createdLogin: true, tempPassword };
+}
+
 // ---- Orders ----
 
 export async function createOrder(input: { user_id?: string | null; name: string; email: string; phone: string; address: string; items: string; total: number; subtotal?: number; discount?: number; shipping?: number; payment: string; po_ref?: string; company?: string; po_file?: string }): Promise<DbOrder> {  const order: DbOrder = {
@@ -589,6 +641,58 @@ export async function setSetting(key: string, value: string) {
   const now = new Date().toISOString();
   await qe("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", key, value, now);
   invalidateSettingsCache();
+}
+
+// ---- Featured categories (homepage "Featured Categories" grid) ----
+
+export type FeaturedCategory = {
+  name: string;
+  caption: string;
+  image: string;
+  category: string;
+  sort: number;
+};
+
+const DEFAULT_FEATURED_CATEGORIES: FeaturedCategory[] = [
+  { name: "Helmets", caption: "Construction Helmets", image: "/images/products/Construction%20Helmets.jpg", category: "construction-safety", sort: 0 },
+  { name: "Gloves", caption: "Assorted Industrial Gloves", image: "/images/products/Assorted%20Industrial%20Gloves.jpg", category: "ppe", sort: 1 },
+  { name: "Safety Boots", caption: "Hiview Safety Boot", image: "/images/products/HIVIEW%20SAFETY%20BOOT%20HTS4101.jpeg", category: "industrial-safety", sort: 2 },
+  { name: "Reflective Jackets", caption: "Reflector Jackets", image: "/images/products/Reflector%20Jackets.png", category: "road-safety", sort: 3 },
+  { name: "Respirators", caption: "Double Respirator Mask", image: "/images/products/Double%20Respirator%20Mask%20(NP306).jpg", category: "ppe", sort: 4 },
+  { name: "First Aid Kits", caption: "Medium First Aid Kit", image: "/images/products/Medium%20Clear%20First%20Aid%20Kit.jpg", category: "emergency-response", sort: 5 },
+  { name: "Fire Extinguishers", caption: "6kg Dry Powder Extinguisher", image: "/images/products/6KG%20DRY%20POWDER%20FIRE%20EXTINGUISHER.jpg", category: "fire-safety", sort: 6 },
+  { name: "Ladders", caption: "Multipurpose Aluminium Ladder", image: "/images/products/12%20STEP%20RED%20EDITION%20MULTIPURPOSE%20ALUMINIUM%20LADDER%203.7M.jpg", category: "tools", sort: 7 },
+  { name: "Medical Gloves", caption: "Medical Exam Gloves", image: "/images/products/Latex%20Powdered%20Medical%20Examination%20Gloves.jpg", category: "medical-safety", sort: 8 },
+  { name: "Stretchers", caption: "Folding Canvas Stretcher", image: "/images/products/Folding%20Canvas%20Stretcher.jpg", category: "emergency-response", sort: 9 },
+  { name: "Safety Goggles", caption: "Protecta Safety Goggles", image: "/images/products/PROTECTA%20CHEMICAL%20SAFETY%20GOGGLES.jpg", category: "industrial-safety", sort: 10 },
+  { name: "Ear Protection", caption: "Krickwood Ear Muffs", image: "/images/products/KRICKWOOD%20EAR%20MUFFS.jpg", category: "ppe", sort: 11 },
+];
+
+export async function getFeaturedCategories(): Promise<FeaturedCategory[]> {
+  const raw = await getSetting("featured_categories");
+  if (!raw) return DEFAULT_FEATURED_CATEGORIES;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return DEFAULT_FEATURED_CATEGORIES;
+    return parsed
+      .filter((i): i is Record<string, unknown> => !!i && typeof i === "object")
+      .map((i, idx) => ({
+        name: typeof i.name === "string" && i.name.trim() ? i.name : `Category ${idx + 1}`,
+        caption: typeof i.caption === "string" ? i.caption : "",
+        image: typeof i.image === "string" ? i.image : "",
+        category: typeof i.category === "string" ? i.category : "",
+        sort: typeof i.sort === "number" ? i.sort : idx,
+      }));
+  } catch {
+    return DEFAULT_FEATURED_CATEGORIES;
+  }
+}
+
+export async function saveFeaturedCategories(items: FeaturedCategory[]) {
+  await setSetting(
+    "featured_categories",
+    JSON.stringify(items.map((i, idx) => ({ name: i.name, caption: i.caption, image: i.image, category: i.category, sort: idx })))
+  );
 }
 
 // ---- Letters ----
@@ -734,6 +838,118 @@ export async function listCorporateApplications(): Promise<DbCorporateApplicatio
 
 export async function setCorporateApplicationStatus(id: string, status: string) {
   await qe("UPDATE corporate_applications SET status = ? WHERE id = ?", status, id);
+}
+
+// ---- Corporate accounts (configured by the superadmin) ----
+
+export type DbCorporateAccount = {
+  id: string;
+  user_id: string | null;
+  application_id: string | null;
+  company: string;
+  kra_pin: string | null;
+  industry: string | null;
+  contact_name: string | null;
+  phone: string | null;
+  email: string | null;
+  discount_rate: number;
+  credit_terms: string;
+  account_manager: string | null;
+  notes: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function createCorporateAccount(input: {
+  user_id?: string | null;
+  application_id?: string | null;
+  company: string;
+  kra_pin?: string | null;
+  industry?: string | null;
+  contact_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  discount_rate?: number;
+  credit_terms?: string;
+  account_manager?: string | null;
+  notes?: string | null;
+  status?: string;
+}): Promise<DbCorporateAccount> {  const now = new Date().toISOString();
+  const account: DbCorporateAccount = {
+    id: `ACC-${Math.floor(1000 + Math.random() * 9000)}`,
+    user_id: input.user_id ?? null,
+    application_id: input.application_id ?? null,
+    company: input.company,
+    kra_pin: input.kra_pin ?? null,
+    industry: input.industry ?? null,
+    contact_name: input.contact_name ?? null,
+    phone: input.phone ?? null,
+    email: input.email ?? null,
+    discount_rate: Math.max(0, Math.min(100, Math.round(input.discount_rate ?? 0))),
+    credit_terms: input.credit_terms ?? "30 days",
+    account_manager: input.account_manager ?? null,
+    notes: input.notes ?? null,
+    status: input.status ?? "Active",
+    created_at: now,
+    updated_at: now,
+  };
+  await qe("INSERT INTO corporate_accounts (id, user_id, application_id, company, kra_pin, industry, contact_name, phone, email, discount_rate, credit_terms, account_manager, notes, status, created_at, updated_at) VALUES (@id, @user_id, @application_id, @company, @kra_pin, @industry, @contact_name, @phone, @email, @discount_rate, @credit_terms, @account_manager, @notes, @status, @created_at, @updated_at)", account);
+  return account;
+}
+
+export async function listCorporateAccounts(): Promise<DbCorporateAccount[]> {  return (await qr("SELECT * FROM corporate_accounts ORDER BY created_at DESC")) as DbCorporateAccount[];
+}
+
+export async function getCorporateAccountById(id: string): Promise<DbCorporateAccount | undefined> {  return (await q1("SELECT * FROM corporate_accounts WHERE id = ?", id)) as DbCorporateAccount | undefined;
+}
+
+export async function getCorporateAccountByApplicationId(applicationId: string): Promise<DbCorporateAccount | undefined> {  return (await q1("SELECT * FROM corporate_accounts WHERE application_id = ?", applicationId)) as DbCorporateAccount | undefined;
+}
+
+export async function getCorporateAccountByUserId(userId: string): Promise<DbCorporateAccount | undefined> {  return (await q1("SELECT * FROM corporate_accounts WHERE user_id = ?", userId)) as DbCorporateAccount | undefined;
+}
+
+export async function updateCorporateAccount(
+  id: string,
+  input: Partial<{
+    company: string;
+    kra_pin: string | null;
+    industry: string | null;
+    contact_name: string | null;
+    phone: string | null;
+    email: string | null;
+    discount_rate: number;
+    credit_terms: string;
+    account_manager: string | null;
+    notes: string | null;
+    status: string;
+    user_id: string | null;
+  }>
+): Promise<DbCorporateAccount | undefined> {  const existing = await getCorporateAccountById(id);
+  if (!existing) return undefined;
+  const updated: DbCorporateAccount = {
+    ...existing,
+    company: input.company ?? existing.company,
+    kra_pin: input.kra_pin === undefined ? existing.kra_pin : input.kra_pin,
+    industry: input.industry === undefined ? existing.industry : input.industry,
+    contact_name: input.contact_name === undefined ? existing.contact_name : input.contact_name,
+    phone: input.phone === undefined ? existing.phone : input.phone,
+    email: input.email === undefined ? existing.email : input.email,
+    discount_rate: input.discount_rate === undefined ? existing.discount_rate : Math.max(0, Math.min(100, Math.round(input.discount_rate))),
+    credit_terms: input.credit_terms ?? existing.credit_terms,
+    account_manager: input.account_manager === undefined ? existing.account_manager : input.account_manager,
+    notes: input.notes === undefined ? existing.notes : input.notes,
+    status: input.status ?? existing.status,
+    user_id: input.user_id === undefined ? existing.user_id : input.user_id,
+    updated_at: new Date().toISOString(),
+  };
+  await qe("UPDATE corporate_accounts SET user_id=@user_id, company=@company, kra_pin=@kra_pin, industry=@industry, contact_name=@contact_name, phone=@phone, email=@email, discount_rate=@discount_rate, credit_terms=@credit_terms, account_manager=@account_manager, notes=@notes, status=@status, updated_at=@updated_at WHERE id=@id", updated);
+  return updated;
+}
+
+export async function deleteCorporateAccount(id: string) {
+  await qe("DELETE FROM corporate_accounts WHERE id = ?", id);
 }
 
 // ---- Purchase orders ----

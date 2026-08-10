@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, requireSuperAdmin, getSessionUser } from "@/lib/api-helpers";
-import { createUser, listUsers, setUserRole, setUserVerified, getUserById, getUserByEmail } from "@/lib/db";
+import { createUser, deleteUser, listUsers, setUserRole, setUserVerified, getUserById, getUserByEmail, updateUserProfile } from "@/lib/db";
 
 export async function GET() {
   const denied = await requireAdmin();
@@ -69,7 +69,7 @@ export async function PATCH(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
 
-  let body: { id?: string; role?: string; verified?: boolean };
+  let body: { id?: string; role?: string; verified?: boolean; name?: string; email?: string; phone?: string | null; company?: string | null };
   try {
     body = await req.json();
   } catch {
@@ -96,5 +96,55 @@ export async function PATCH(req: Request) {
     await setUserVerified(target.id, body.verified ? 1 : 0);
   }
 
+  // Editing profile fields. Staff accounts are superadmin-only; regular
+  // customers may be edited by any staff member.
+  if (body.name !== undefined || body.email !== undefined || body.phone !== undefined || body.company !== undefined) {
+    const me = await getSessionUser();
+    const isStaffTarget = target.role !== "user";
+    if (isStaffTarget && me?.role !== "superadmin") {
+      return NextResponse.json({ error: "Only the superadmin can edit staff accounts" }, { status: 403 });
+    }
+    const email = body.email?.trim().toLowerCase();
+    if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "Enter a valid email address" }, { status: 400 });
+    }
+    if (email && email !== target.email) {
+      const other = await getUserByEmail(email);
+      if (other && other.id !== target.id) {
+        return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
+      }
+    }
+    const name = body.name?.trim();
+    if (name !== undefined && !name) {
+      return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 });
+    }
+    await updateUserProfile(target.id, {
+      name: name ?? undefined,
+      email: email ?? undefined,
+      phone: body.phone === undefined ? undefined : body.phone?.trim() || null,
+      company: body.company === undefined ? undefined : body.company?.trim() || null,
+    });
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(req: Request) {
+  const denied = await requireSuperAdmin();
+  if (denied) return denied;
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing user id" }, { status: 400 });
+
+  const target = await getUserById(id);
+  if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  const me = await getSessionUser();
+  if (target.id === me?.id) {
+    return NextResponse.json({ error: "You cannot delete your own account" }, { status: 400 });
+  }
+
+  await deleteUser(id);
   return NextResponse.json({ ok: true });
 }
