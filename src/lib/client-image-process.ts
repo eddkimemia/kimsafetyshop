@@ -1,8 +1,11 @@
 // Browser-side mirror of public/images/products/process_images.py
-// (flood-fill cutout fallback + crop/center + KimSafety branding).
+// (flood-fill cutout fallback + crop/center + KIM SAFETY ad layout).
 // Runs before upload so the same look is produced on Vercel, where the
 // Python pipeline cannot run, and so the payload stays under Vercel's
 // 4.5MB serverless request-body limit.
+//
+// The ad layout enhances PRESENTATION only — the physical product is never
+// filtered or recoloured, only cropped/resized to fit the composition.
 
 const SIZE = 1200;
 const FILL_RATIO = 0.95;
@@ -10,20 +13,67 @@ const QUALITY = 0.92;
 const MAX_WORKING = 2000;
 
 export const CLIENT_WEBSITE = "www.kimsafety.co.ke";
-export const CLIENT_CONTACT = "sales@kimsafety.co.ke · +254 715 135 141";
+export const CLIENT_EMAIL = "sales@kimsafety.co.ke";
+export const CLIENT_PHONE = "+254 715 135 141";
+export const CLIENT_CONTACT = `${CLIENT_EMAIL} · ${CLIENT_PHONE}`;
 
-const NAVY = "rgb(15, 40, 71)";
-const INK = "rgb(51, 65, 85)";
-const PANEL_LINE = "rgb(226, 232, 240)";
-
-const FONT_BOLD = 'bold 30px "Segoe UI", system-ui, -apple-system, sans-serif';
-const FONT_REG = '21px "Segoe UI", system-ui, -apple-system, sans-serif';
+// Brand palette (matches tailwind.config.ts + process_images.py)
+const NAVY = "#0F2847"; // deep/royal blue — primary
+const ORANGE = "#F57C00"; // orange — secondary
+const RED = "#EF4444"; // red — limited accent
+const LIGHT_BLUE = "#E0EAF6"; // subtle blue graphic tint
+const HAIRLINE = "#E1E9F4";
+const FOOTER_BLUE = "#9FB3CF";
+const FOOTER_LINE = "#1F3C61";
 
 export interface ClientProcessOptions {
   size?: number;
   quality?: number;
   logoUrl?: string;
   brand?: boolean;
+  title?: string;
+  website?: string;
+  email?: string;
+  phone?: string;
+}
+
+function cleanTitle(name: string): string {
+  return name.replace(/\.[^.]+$/, "").replace(/\s*\(\d+\)\s*$/, "").trim().toUpperCase();
+}
+
+function wrapTitle(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let cur = "";
+  for (const word of words) {
+    const test = cur ? `${cur} ${word}` : word;
+    if (ctx.measureText(test).width <= maxWidth) {
+      cur = test;
+    } else {
+      if (cur) lines.push(cur);
+      cur = word;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [text];
+}
+
+function roundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  radius: number
+) {
+  const r0 = Math.min(radius, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r0, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r0);
+  ctx.arcTo(x + w, y + h, x, y + h, r0);
+  ctx.arcTo(x, y + h, x, y, r0);
+  ctx.arcTo(x, y, x + w, y, r0);
+  ctx.closePath();
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
@@ -126,7 +176,7 @@ function cutoutCanvas(original: HTMLCanvasElement): HTMLCanvasElement {
   return out;
 }
 
-function cropAndCenter(cutout: HTMLCanvasElement, size: number): HTMLCanvasElement {
+function productBBox(cutout: HTMLCanvasElement): { left: number; top: number; width: number; height: number } {
   const w = cutout.width;
   const h = cutout.height;
   const ctx = cutout.getContext("2d")!;
@@ -156,10 +206,28 @@ function cropAndCenter(cutout: HTMLCanvasElement, size: number): HTMLCanvasEleme
   const padY = Math.max(1, Math.round((maxY - minY) * 0.04));
   const left = Math.max(0, minX - padX);
   const top = Math.max(0, minY - padY);
-  const right = Math.min(w, maxX + padX + 1);
-  const bottom = Math.min(h, maxY + padY + 1);
-  const cropW = right - left;
-  const cropH = bottom - top;
+  return {
+    left,
+    top,
+    width: Math.min(w, maxX + padX + 1) - left,
+    height: Math.min(h, maxY + padY + 1) - top,
+  };
+}
+
+function cropProduct(cutout: HTMLCanvasElement): HTMLCanvasElement {
+  // Crop to the product bounding box — does NOT paste onto a white canvas,
+  // so the ad layout keeps the product's natural aspect ratio.
+  const { left, top, width, height } = productBBox(cutout);
+  const out = document.createElement("canvas");
+  out.width = width;
+  out.height = height;
+  out.getContext("2d")!.drawImage(cutout, left, top, width, height, 0, 0, width, height);
+  return out;
+}
+
+function cropAndCenter(cutout: HTMLCanvasElement, size: number): HTMLCanvasElement {
+  // Plain white-square fallback (used when branding is disabled).
+  const { left, top, width: cropW, height: cropH } = productBBox(cutout);
 
   const target = Math.round(size * FILL_RATIO);
   const scale = Math.min(1, target / Math.max(cropW, cropH));
@@ -176,23 +244,6 @@ function cropAndCenter(cutout: HTMLCanvasElement, size: number): HTMLCanvasEleme
   return canvas;
 }
 
-function roundedRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
 async function loadLogo(url: string): Promise<HTMLImageElement | null> {
   try {
     const img = new Image();
@@ -207,70 +258,197 @@ async function loadLogo(url: string): Promise<HTMLImageElement | null> {
   }
 }
 
-async function brandImage(
+async function composeAdLayout(
   img: HTMLCanvasElement,
+  size: number,
   logoUrl: string,
   website: string,
-  contact: string
+  email: string,
+  phone: string,
+  title: string
 ): Promise<HTMLCanvasElement> {
-  const w = img.width;
-  const h = img.height;
-  const ctx = img.getContext("2d")!;
-  const margin = Math.round(w * 0.02);
-  const panelH = Math.round(w * 0.083);
-  const radius = Math.round(w * 0.014);
-  const panelY = h - margin - panelH;
+  const S = size;
+  const canvas = document.createElement("canvas");
+  canvas.width = S;
+  canvas.height = S;
+  const ctx = canvas.getContext("2d")!;
+  const r = (n: number) => Math.round(S * n);
 
-  // Bottom-left: logo badge.
+  // ---- White canvas ----
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, S, S);
+
+  // ---- Main area: only two subtle graphic accents (minimal on purpose) ----
+  // Light-blue ring, top-right.
+  ctx.lineWidth = Math.max(6, r(0.0092));
+  ctx.strokeStyle = LIGHT_BLUE;
+  ctx.beginPath();
+  ctx.arc(r(0.8667), r(0.275), r(0.0733), 0, Math.PI * 2);
+  ctx.stroke();
+  // Orange dot, bottom-left.
+  ctx.fillStyle = ORANGE;
+  ctx.beginPath();
+  ctx.arc(r(0.1375), r(0.7333), r(0.0125), 0, Math.PI * 2);
+  ctx.fill();
+
+  // ---- Product: LARGE and dominant (presentation only, never filtered) ----
+  const zoneTop = r(0.225);
+  const zoneBottom = S - r(0.2167);
+  const zoneCy = Math.round((zoneTop + zoneBottom) / 2);
+  const pw = img.width;
+  const ph = img.height;
+  const maxW = r(0.6);
+  const maxH = r(0.5333);
+  const scale = Math.min(maxW / Math.max(pw, 1), maxH / Math.max(ph, 1));
+  const dw = Math.max(1, Math.round(pw * scale));
+  const dh = Math.max(1, Math.round(ph * scale));
+  const px = Math.round((S - dw) / 2);
+  const py = Math.round(zoneCy - dh / 2);
+  ctx.save();
+  ctx.shadowColor = "rgba(15,40,71,0.24)";
+  ctx.shadowBlur = Math.max(6, r(0.016));
+  ctx.shadowOffsetY = r(0.0108);
+  ctx.drawImage(img, px, py, dw, dh);
+  ctx.restore();
+
+  // ---- Top header: centered KIM SAFETY SOLUTIONS logo ----
+  const headerH = r(0.105);
   const logo = await loadLogo(logoUrl);
   if (logo) {
-    const maxLogoH = panelH - Math.round(w * 0.014);
-    const maxLogoW = Math.round(w * 0.24);
-    const ratio = logo.naturalHeight / Math.max(1, logo.naturalWidth);
-    const logoH = Math.min(maxLogoH, Math.round(maxLogoW * ratio));
-    const logoW = Math.max(1, Math.round(logoH / ratio));
-    const panelW = logoW + Math.round(w * 0.04);
-    ctx.save();
-    roundedRect(ctx, margin, panelY, panelW, panelH, radius);
-    ctx.fillStyle = "rgba(255,255,255,0.98)";
-    ctx.fill();
-    ctx.lineWidth = Math.max(1, w * 0.0016);
-    ctx.strokeStyle = PANEL_LINE;
-    ctx.stroke();
-    ctx.drawImage(logo, margin + Math.round(w * 0.02), panelY + (panelH - logoH) / 2, logoW, logoH);
-    ctx.restore();
+    let logoW = r(0.2667);
+    let logoH = Math.max(1, Math.round((logoW * logo.naturalHeight) / Math.max(logo.naturalWidth, 1)));
+    if (logoH > headerH - r(0.012)) {
+      logoH = headerH - r(0.012);
+      logoW = Math.max(1, Math.round((logoH * logo.naturalWidth) / Math.max(logo.naturalHeight, 1)));
+    }
+    ctx.drawImage(logo, Math.round((S - logoW) / 2), Math.round((headerH - logoH) / 2), logoW, logoH);
+  }
+  // Divider rule: full-width hairline + centered orange segment + red dots
+  const dividerY = r(0.1);
+  ctx.strokeStyle = HAIRLINE;
+  ctx.lineWidth = Math.max(2, r(0.002));
+  ctx.beginPath();
+  ctx.moveTo(0, dividerY);
+  ctx.lineTo(S, dividerY);
+  ctx.stroke();
+  const segW = r(0.09);
+  const segH = Math.max(3, r(0.0042));
+  const segX0 = Math.round((S - segW) / 2);
+  ctx.fillStyle = ORANGE;
+  ctx.fillRect(segX0, dividerY - segH, segW, segH);
+  const dotR = Math.max(3, r(0.0035));
+  const dotY = dividerY - Math.floor(segH / 2);
+  ctx.fillStyle = RED;
+  ctx.beginPath();
+  ctx.arc(segX0, dotY, dotR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(segX0 + segW, dotY, dotR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ---- Title band: bold navy product name + orange underline ----
+  ctx.textBaseline = "top";
+  const font = (weight: string, px: number) =>
+    `${weight} ${px}px "Segoe UI", system-ui, -apple-system, sans-serif`;
+  const titleX = r(0.0667);
+  const maxTitleW = r(0.62);
+  if (title) {
+    ctx.font = font("bold", r(0.035));
+    let lines = wrapTitle(ctx, title, maxTitleW);
+    let titlePx = r(0.035);
+    if (lines.length > 2) {
+      titlePx = r(0.03);
+      ctx.font = font("bold", titlePx);
+      lines = wrapTitle(ctx, title, maxTitleW);
+    }
+    if (lines.length > 2) {
+      lines = lines.slice(0, 2);
+    }
+    // Ellipsis-truncate any line that still exceeds the max width
+    // (e.g. a single overlong word with no spaces).
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+      if (ctx.measureText(line).width > maxTitleW) {
+        while (line.length > 1 && ctx.measureText(line + "…").width > maxTitleW) {
+          line = line.slice(0, -1);
+        }
+        lines[i] = line + "…";
+      }
+    }
+    ctx.fillStyle = NAVY;
+    let y = r(0.14);
+    for (const line of lines) {
+      ctx.fillText(line, titleX, y);
+      y += titlePx + r(0.004);
+    }
+    ctx.fillStyle = ORANGE;
+    ctx.fillRect(titleX, y + r(0.008), r(0.07), r(0.0042));
   }
 
-  // Bottom-right: website + contact text panel.
-  ctx.save();
-  ctx.font = FONT_BOLD;
-  const line1W = ctx.measureText(website).width;
-  ctx.font = FONT_REG;
-  const line2W = ctx.measureText(contact).width;
-  const padX = Math.round(w * 0.02);
-  const lineGap = Math.round(w * 0.007);
-  const textW = Math.max(line1W, line2W);
-  const panelW = Math.ceil(textW + padX * 2);
-  const panelX = w - margin - panelW;
-  roundedRect(ctx, panelX, panelY, panelW, panelH, radius);
-  ctx.fillStyle = "rgba(255,255,255,0.98)";
-  ctx.fill();
-  ctx.lineWidth = Math.max(1, w * 0.0016);
-  ctx.strokeStyle = PANEL_LINE;
-  ctx.stroke();
-  ctx.font = FONT_BOLD;
-  ctx.textBaseline = "top";
+  // ---- Bottom footer: deep navy with orange accent lines ----
+  const footerY = S - r(0.2167);
   ctx.fillStyle = NAVY;
-  ctx.fillText(website, panelX + padX, panelY + Math.round(w * 0.018));
-  ctx.font = FONT_REG;
-  ctx.fillStyle = INK;
-  ctx.fillText(
-    contact,
-    panelX + padX,
-    panelY + Math.round(w * 0.018) + 30 + lineGap
-  );
-  ctx.restore();
-  return img;
+  ctx.fillRect(0, footerY, S, S - footerY);
+  ctx.fillStyle = ORANGE;
+  ctx.fillRect(0, footerY, S, r(0.005));
+  ctx.fillStyle = FOOTER_LINE;
+  ctx.fillRect(0, footerY + r(0.005), S, r(0.0025));
+
+  // Left block: brand identity
+  const leftX = r(0.0667);
+  const companyY = footerY + r(0.0533);
+  ctx.font = font("bold", r(0.025));
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("KIM SAFETY SOLUTIONS", leftX, companyY);
+  const underlineY = companyY + r(0.025) + r(0.005);
+  ctx.fillStyle = ORANGE;
+  ctx.fillRect(leftX, underlineY, r(0.06), r(0.0042));
+  const tagY = underlineY + r(0.014);
+  const tagSize = Math.max(6, r(0.0075));
+  ctx.fillStyle = RED;
+  ctx.fillRect(leftX, tagY + r(0.002), tagSize, tagSize);
+  ctx.fillStyle = FOOTER_BLUE;
+  ctx.font = font("400", r(0.015));
+  // Slight letter-spacing, mirroring the Python pipeline's tracked text.
+  const spaced = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+  spaced.letterSpacing = `${Math.max(1, r(0.0017))}px`;
+  ctx.fillText("PPE · WORKWEAR · SAFETY EQUIPMENT", leftX + tagSize + r(0.01), tagY);
+  spaced.letterSpacing = "0px";
+
+  // Vertical divider between left brand block and right CTA block
+  const dvX = r(0.4833);
+  ctx.strokeStyle = "rgba(255,255,255,0.16)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(dvX, footerY + r(0.055));
+  ctx.lineTo(dvX, footerY + r(0.19));
+  ctx.stroke();
+
+  // Right block: ORDER NOW CTA button (orange) with the phone inside
+  const btnW = r(0.3);
+  const btnH = r(0.1);
+  const btnX0 = S - r(0.05) - btnW;
+  const btnY0 = footerY + r(0.05);
+  ctx.fillStyle = ORANGE;
+  roundedRect(ctx, btnX0, btnY0, btnW, btnH, r(0.012));
+  ctx.fill();
+  ctx.textAlign = "center";
+  const btnCx = btnX0 + btnW / 2;
+  ctx.fillStyle = "#ffffff";
+  ctx.font = font("bold", r(0.0267));
+  ctx.fillText("ORDER NOW", btnCx, btnY0 + r(0.0225));
+  ctx.font = font("bold", r(0.02));
+  ctx.fillText(phone, btnCx, btnY0 + r(0.0625));
+  ctx.textAlign = "left";
+
+  // website · email, right-aligned beneath the CTA
+  ctx.fillStyle = FOOTER_BLUE;
+  ctx.font = font("400", r(0.0133));
+  ctx.textAlign = "right";
+  ctx.fillText(`${website}  ·  ${email}`, btnX0 + btnW, btnY0 + btnH + r(0.015));
+  ctx.textAlign = "left";
+
+  return canvas;
 }
 
 export async function processImageInBrowser(
@@ -281,6 +459,9 @@ export async function processImageInBrowser(
   const quality = opts.quality ?? QUALITY;
   const logoUrl = opts.logoUrl ?? "/images/logo/logoy.jpg";
   const brand = opts.brand ?? true;
+  const website = opts.website ?? CLIENT_WEBSITE;
+  const email = opts.email ?? CLIENT_EMAIL;
+  const phone = opts.phone ?? CLIENT_PHONE;
 
   const ext = (file.name.match(/\.[^.]+$/) ?? [""])[0].toLowerCase();
   if (ext === ".gif" || (!file.type.startsWith("image/") && !ext)) {
@@ -289,8 +470,13 @@ export async function processImageInBrowser(
 
   const original = await loadImage(file);
   const cutout = cutoutCanvas(original);
-  let result = cropAndCenter(cutout, size);
-  if (brand) result = await brandImage(result, logoUrl, CLIENT_WEBSITE, CLIENT_CONTACT);
+  let result: HTMLCanvasElement;
+  if (brand) {
+    const title = opts.title ?? cleanTitle(file.name);
+    result = await composeAdLayout(cropProduct(cutout), size, logoUrl, website, email, phone, title);
+  } else {
+    result = cropAndCenter(cutout, size);
+  }
 
   const isPng = ext === ".png";
   const mime = isPng ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";

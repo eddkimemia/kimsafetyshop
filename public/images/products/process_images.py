@@ -1,33 +1,42 @@
 """Product image processing service.
 
-Automatically processes every product image:
-  1. Remove background -> pure white (#FFFFFF) background
-  2. Crop to the product and center it
-  3. Resize to 1200x1200 pixels
-  4. Brand it: small KimSafety logo badge (bottom-left) +
-     website / contact / email text (bottom-right)
-  5. Compress to high-quality WebP + JPEG
-  6. Save both the original and the processed image
+Automatically processes every product image into a premium PPE / workwear
+catalogue advertisement:
+  1. Remove background -> transparent cutout (presentation only)
+  2. Crop to the product and center it in the main visual area
+  3. Compose a 1200x1200 branded commercial advertisement:
+       Top    -> KIM SAFETY SOLUTIONS logo + subtle orange/blue divider
+       Middle -> the product, VERY LARGE and dominant, untouched, with a
+                 soft drop shadow and minimal blue/orange accents
+       Bottom -> compact deep navy footer with ORDER NOW + phone/WhatsApp
+                 + website
+  4. Compress to high-quality WebP + JPEG
+  5. Save both the original and the processed image
 
-Original colors are preserved — no brightness/contrast/sharpness
-filters are applied.
+The physical product is never altered: original colors are preserved, no
+brightness/contrast/sharpness filters are applied, and the product pixels
+are only cropped/resized to fit the layout.
 
 Usage:
     python process_images.py [--input images] [--output output] [--size 1200]
                              [--workers 4] [--formats webp,jpeg] [--dry-run]
-                             [--in-place] [--no-branding] [--logo ../logo/logoy.jpg]
+                              [--in-place] [--no-branding] [--logo ../logo/logoy.jpg]
+                              [--template product_template.jpg] [--title 'PRODUCT NAME']  # legacy, not displayed
+                             [--website www.kimsafety.co.ke]
+                             [--email sales@kimsafety.co.ke] [--phone '+254 715 135 141']
 """
 
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 from rembg import new_session, remove
 
 try:
@@ -36,14 +45,15 @@ except AttributeError:
     pass
 
 WHITE = (255, 255, 255, 255)
-NAVY = (15, 40, 71)
-INK = (51, 65, 85)
-PANEL_LINE = (226, 232, 240)
+NAVY = (15, 40, 71)            # deep KIM SAFETY blue (#0F2847)
+ORANGE = (245, 124, 0)         # brand orange (#F57C00)
+RED = (239, 68, 68)            # limited accent (#EF4444)
 INPUT_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
 MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
 
 WEBSITE = "www.kimsafety.co.ke"
-CONTACT = "sales@kimsafety.co.ke · +254 715 135 141"
+EMAIL = "sales@kimsafety.co.ke"
+PHONE = "+254 715 135 141"
 
 _session = None
 _session_lock = Lock()
@@ -188,82 +198,311 @@ def find_font(bold: bool = False, px: int = 30) -> ImageFont.FreeTypeFont | None
     return None
 
 
-def brand_image(
-    img: Image.Image,
-    logo_path: str | None,
-    website: str = WEBSITE,
-    contact: str = CONTACT,
-) -> Image.Image:
-    """Overlay a KimSafety logo badge (bottom-left) and website + contact
-    lines (bottom-right). Both sit on white rounded panels so they stay
-    legible over any product."""
-    img = img.convert("RGBA")
-    w, h = img.size
-    margin = int(w * 0.02)          # 24 px @ 1200
-    panel_h = int(w * 0.083)        # ~100 px @ 1200
-    radius = int(w * 0.014)         # ~17 px @ 1200
-    panel_y = h - margin - panel_h
-
-    overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(overlay)
-
-    # ---- Bottom-left: logo badge ----
-    if logo_path and os.path.exists(logo_path):
-        logo_w = int(w * 0.24)      # ~288 px @ 1200
-        logo_h = int(logo_w / 3.34)
-        panel_w = logo_w + int(w * 0.04)
-        panel_x = margin
-        d.rounded_rectangle(
-            (panel_x, panel_y, panel_x + panel_w, panel_y + panel_h),
-            radius=radius,
-            fill=(255, 255, 255, 250),
-            outline=PANEL_LINE,
-            width=max(1, int(w * 0.0016)),
+def crop_product(cutout: Image.Image) -> Image.Image:
+    """Crop a cutout to its product bounding box (with a small padding).
+    Unlike ``crop_and_center`` this does NOT paste it onto a canvas, so the
+    ad layout can place the product with its natural aspect ratio."""
+    bbox = cutout.getchannel("A").getbbox()
+    if bbox is None:
+        return cutout
+    left, top, right, bottom = bbox
+    pad_x = max(1, int((right - left) * 0.04))
+    pad_y = max(1, int((bottom - top) * 0.04))
+    return cutout.crop(
+        (
+            max(0, left - pad_x),
+            max(0, top - pad_y),
+            min(cutout.width, right + pad_x),
+            min(cutout.height, bottom + pad_y),
         )
+    )
+
+
+def _draw_tracked_text(
+    d: ImageDraw.ImageDraw,
+    xy: tuple[int, int],
+    text: str,
+    font: ImageFont.FreeTypeFont,
+    fill: tuple[int, int, int, int],
+    tracking: int = 0,
+) -> None:
+    """Draw text with manual letter-spacing (PIL has no built-in tracking)."""
+    x, y = xy
+    for ch in text:
+        d.text((x, y), ch, font=font, fill=fill)
+        x += int(d.textlength(ch, font=font)) + tracking
+
+
+def _soft_shadow(product: Image.Image, blur: int, alpha: float = 0.22) -> Image.Image:
+    """Build a blurred navy drop-shadow from the product's alpha silhouette."""
+    shadow = Image.new("RGBA", product.size, NAVY + (0,))
+    shadow.putalpha(product.getchannel("A").point(lambda a: int(a * alpha)))
+    return shadow.filter(ImageFilter.GaussianBlur(blur))
+
+
+def clean_title(stem: str) -> str:
+    """Derive an ad title from a filename stem (drop gallery ' (2)' suffixes)."""
+    s = re.sub(r"\s*\(\d+\)\s*$", "", stem)
+    return " ".join(s.split()).upper()
+
+
+def _wrap_text(d: ImageDraw.ImageDraw, text: str, font, max_width: int) -> list[str]:
+    """Greedy word-wrap to fit `max_width` pixels."""
+    lines: list[str] = []
+    cur = ""
+    for word in text.split():
+        test = f"{cur} {word}".strip()
+        if d.textlength(test, font=font) <= max_width:
+            cur = test
+        else:
+            if cur:
+                lines.append(cur)
+            cur = word
+    if cur:
+        lines.append(cur)
+    return lines or [text]
+
+
+def template_layout(
+    img: Image.Image,
+    template_path: str | None,
+    size: int = 1200,
+) -> Image.Image | None:
+    """Place the product cutout on the product_template.jpg background.
+
+    The template fills the whole canvas (no drawn header/footer/CTA); the
+    product keeps its natural aspect ratio, is centered and gets a soft
+    shadow. Returns None if the template cannot be loaded/used, in which
+    case the caller falls back to the normal ad layout.
+    """
+    if not template_path or not os.path.exists(template_path):
+        return None
+    S = int(size)
+    try:
+        with Image.open(template_path) as tpl:
+            tpl = ImageOps.exif_transpose(tpl).convert("RGBA")
+        canvas = tpl.resize((S, S), Image.LANCZOS)
+    except Exception:
+        return None
+
+    img = img.convert("RGBA")
+    pw, ph = img.size
+
+    max_w = int(S * 0.80)
+    max_h = int(S * 0.66)
+    scale = min(max_w / max(pw, 1), max_h / max(ph, 1))
+
+    nw = max(1, int(pw * scale))
+    nh = max(1, int(ph * scale))
+    product = img.resize((nw, nh), Image.LANCZOS)
+
+    px = (S - nw) // 2
+    py = (S - nh) // 2
+
+    shadow = _soft_shadow(
+        product,
+        blur=max(6, int(S * 0.014)),
+        alpha=0.16,
+    )
+    canvas.alpha_composite(shadow, (px, py + int(S * 0.012)))
+    canvas.alpha_composite(product, (px, py))
+    return canvas.convert("RGBA")
+
+
+def ad_layout(
+    img: Image.Image,
+    size: int = 1200,
+    logo_path: str | None = None,
+    website: str = WEBSITE,
+    email: str = EMAIL,
+    phone: str = PHONE,
+    title: str = "",
+) -> Image.Image:
+    """Create a clean 1:1 KIM SAFETY product advertisement.
+
+    Design rules:
+      * White/light background
+      * KIM SAFETY logo at the top
+      * Product is the hero and occupies most of the canvas
+      * No product title, feature lists, or paragraphs
+      * Minimal blue/orange accents
+      * Bottom CTA: ORDER NOW + phone/WhatsApp + website
+      * The product pixels are never color/brightness/contrast filtered
+    """
+    S = int(size)
+    img = img.convert("RGBA")
+
+    canvas = Image.new("RGBA", (S, S), WHITE)
+    d = ImageDraw.Draw(canvas)
+
+    # ---- Layout zones ----
+    header_h = int(S * 0.14)
+    footer_y = int(S * 0.84)
+    footer_h = S - footer_y
+
+    # ================= HEADER / LOGO =================
+    if logo_path and os.path.exists(logo_path):
         try:
-            with Image.open(logo_path) as logo:
-                logo = ImageOps.exif_transpose(logo).convert("RGBA")
+            with Image.open(logo_path) as logo_src:
+                logo = ImageOps.exif_transpose(logo_src).convert("RGBA")
+
+            # Keep the logo compact and centered.
+            max_logo_w = int(S * 0.30)
+            max_logo_h = int(S * 0.105)
+            scale = min(
+                max_logo_w / max(logo.width, 1),
+                max_logo_h / max(logo.height, 1),
+            )
+            logo_w = max(1, int(logo.width * scale))
+            logo_h = max(1, int(logo.height * scale))
             logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
-            overlay.paste(
+
+            canvas.alpha_composite(
                 logo,
-                (panel_x + int(w * 0.02), panel_y + (panel_h - logo_h) // 2),
-                logo,
+                ((S - logo_w) // 2, int((header_h - logo_h) * 0.42)),
             )
         except Exception:
             pass
 
-    # ---- Bottom-right: website + contact/email ----
-    font_bold = find_font(True, int(w * 0.025))   # 30 px @ 1200
-    font_reg = find_font(False, int(w * 0.0175))  # 21 px @ 1200
-    if font_bold and font_reg:
-        pad_x = int(w * 0.02)
-        line_gap = int(w * 0.007)
-        line1_w = d.textlength(website, font=font_bold)
-        line2_w = d.textlength(contact, font=font_reg)
-        text_w = max(line1_w, line2_w)
-        panel_w = text_w + pad_x * 2
-        panel_x = w - margin - panel_w
-        d.rounded_rectangle(
-            (panel_x, panel_y, panel_x + panel_w, panel_y + panel_h),
-            radius=radius,
-            fill=(255, 255, 255, 250),
-            outline=PANEL_LINE,
-            width=max(1, int(w * 0.0016)),
-        )
+    # Minimal brand divider: thin blue line with a short orange center.
+    divider_y = int(S * 0.125)
+    d.line(
+        [(int(S * 0.07), divider_y), (int(S * 0.93), divider_y)],
+        fill=(222, 230, 239, 255),
+        width=max(2, int(S * 0.0018)),
+    )
+    accent_w = int(S * 0.11)
+    accent_h = max(3, int(S * 0.004))
+    accent_x = (S - accent_w) // 2
+    d.rectangle(
+        [accent_x, divider_y - accent_h // 2,
+         accent_x + accent_w, divider_y + accent_h // 2],
+        fill=ORANGE,
+    )
+
+    # ================= SUBTLE BACKGROUND GRAPHICS =================
+    # Very faint safety/technical ring. Decorative only; never competes with product.
+    ring_box = [
+        int(S * 0.12), int(S * 0.22),
+        int(S * 0.88), int(S * 0.84),
+    ]
+    d.ellipse(
+        ring_box,
+        outline=(232, 239, 247, 210),
+        width=max(3, int(S * 0.006)),
+    )
+
+    # Small orange/blue accent strokes.
+    d.arc(
+        [int(S * 0.12), int(S * 0.34), int(S * 0.30), int(S * 0.52)],
+        150, 235,
+        fill=ORANGE,
+        width=max(4, int(S * 0.006)),
+    )
+    d.ellipse(
+        [int(S * 0.75), int(S * 0.20), int(S * 0.80), int(S * 0.25)],
+        fill=(222, 232, 244, 210),
+    )
+
+    # ================= PRODUCT HERO =================
+    # Product is intentionally much larger than the old template.
+    # Different aspect ratios are handled automatically.
+    pw, ph = img.size
+
+    available_top = int(S * 0.155)
+    available_bottom = footer_y - int(S * 0.015)
+    available_h = available_bottom - available_top
+
+    # Wide products (boots, masks, kits) can use more width.
+    # Tall products (coveralls, coats) use more height.
+    max_w = int(S * 0.80)
+    max_h = int(S * 0.66)
+
+    scale = min(
+        max_w / max(pw, 1),
+        max_h / max(ph, 1),
+    )
+
+    nw = max(1, int(pw * scale))
+    nh = max(1, int(ph * scale))
+    product = img.resize((nw, nh), Image.LANCZOS)
+
+    px = (S - nw) // 2
+    py = available_top + max(0, (available_h - nh) // 2)
+
+    # Soft neutral/navy grounding shadow, deliberately subtle.
+    shadow = _soft_shadow(
+        product,
+        blur=max(6, int(S * 0.014)),
+        alpha=0.16,
+    )
+    canvas.alpha_composite(
+        shadow,
+        (px, py + int(S * 0.012)),
+    )
+    canvas.alpha_composite(product, (px, py))
+
+    # ================= SALES FOOTER =================
+    # Compact footer leaves more space for the product.
+    d.rectangle(
+        [0, footer_y, S, S],
+        fill=NAVY,
+    )
+
+    # Orange top edge.
+    d.rectangle(
+        [0, footer_y, S, footer_y + int(S * 0.006)],
+        fill=ORANGE,
+    )
+
+    # CTA button.
+    btn_x = int(S * 0.065)
+    btn_y = footer_y + int(S * 0.045)
+    btn_w = int(S * 0.34)
+    btn_h = int(S * 0.075)
+
+    d.rounded_rectangle(
+        [btn_x, btn_y, btn_x + btn_w, btn_y + btn_h],
+        radius=max(8, int(S * 0.012)),
+        fill=ORANGE,
+    )
+
+    font_cta = find_font(True, int(S * 0.026))
+    if font_cta:
         d.text(
-            (panel_x + pad_x, panel_y + int(w * 0.018)),
-            website,
-            font=font_bold,
-            fill=NAVY,
-        )
-        d.text(
-            (panel_x + pad_x, panel_y + int(w * 0.018) + font_bold.size + line_gap),
-            contact,
-            font=font_reg,
-            fill=INK,
+            (btn_x + btn_w / 2, btn_y + btn_h / 2),
+            "ORDER NOW",
+            font=font_cta,
+            fill=WHITE,
+            anchor="mm",
         )
 
-    return Image.alpha_composite(img, overlay)
+    # Contact block — deliberately large and easy to read.
+    contact_x = int(S * 0.46)
+    contact_center_y = footer_y + int(S * 0.073)
+
+    font_phone = find_font(True, int(S * 0.022))
+    font_meta = find_font(False, int(S * 0.014))
+
+    if font_phone:
+        d.text(
+            (contact_x, contact_center_y - int(S * 0.018)),
+            f"CALL / WHATSAPP  {phone}",
+            font=font_phone,
+            fill=WHITE,
+            anchor="lm",
+        )
+
+    if font_meta:
+        d.text(
+            (contact_x, contact_center_y + int(S * 0.026)),
+            website,
+            font=font_meta,
+            fill=(190, 207, 226, 255),
+            anchor="lm",
+        )
+
+    return canvas.convert("RGBA")
 
 
 def save_outputs(img: Image.Image, stem: str, out_dir: str, formats: list[str], quality: int) -> dict:
@@ -295,10 +534,23 @@ def process_one(args: dict) -> dict:
     try:
         original = load_image(src)
         cutout = remove_background(original)
-        processed = crop_and_center(cutout, size)
 
-        if not args.get("no_branding"):
-            processed = brand_image(processed, args.get("logo"))
+        if args.get("no_branding"):
+            processed = crop_and_center(cutout, size)
+        else:
+            processed = template_layout(
+                crop_product(cutout),
+                args.get("template"),
+                size,
+            ) or ad_layout(
+                crop_product(cutout),
+                size,
+                args.get("logo"),
+                website=args.get("website") or WEBSITE,
+                email=args.get("email") or EMAIL,
+                phone=args.get("phone") or PHONE,
+                title="",  # intentionally no product-title block in the clean sales layout
+            )
 
         if args.get("in_place"):
             # Keep a safety copy of the original, then write the processed
@@ -362,11 +614,24 @@ def main() -> None:
     ap.add_argument("--dry-run", action="store_true", help="list files without processing")
     ap.add_argument("--files", nargs="*", help="process only these filenames")
     ap.add_argument("--in-place", action="store_true", help="write processed images back over the source files (originals backed up to <output>/original)")
-    ap.add_argument("--no-branding", action="store_true", help="skip logo badge and contact text")
+    ap.add_argument("--no-branding", action="store_true", help="skip the ad layout (plain white square image only)")
     ap.add_argument("--logo", default="../logo/logoy.jpg", help="path to the KimSafety logo (relative to this script)")
-    ap.add_argument("--website", default=WEBSITE, help="website text shown on branded images")
-    ap.add_argument("--contact", default=CONTACT, help="contact/email text shown on branded images")
+    ap.add_argument("--template", default="product_template.jpg", help="background template image used in place of the drawn ad layout (relative to this script)")
+    ap.add_argument("--title", default=None, help="legacy option; title is intentionally not displayed in the clean ad")
+    ap.add_argument("--website", default=WEBSITE, help="website text shown in the ad footer")
+    ap.add_argument("--email", default=EMAIL, help="email shown in the ad footer")
+    ap.add_argument("--phone", default=PHONE, help="phone shown in the ad footer")
+    ap.add_argument("--contact", default=None, help="legacy combined 'email · phone' line; overrides --email/--phone when given")
     args = ap.parse_args()
+
+    # Legacy --contact support: split 'email · phone' into separate fields.
+    email, phone = args.email, args.phone
+    if args.contact:
+        parts = [p.strip() for p in args.contact.split("·")]
+        if parts and parts[0]:
+            email = parts[0]
+        if len(parts) > 1 and parts[1]:
+            phone = parts[1]
 
     formats = [f.strip().lower() for f in args.formats.split(",") if f.strip()]
     for fmt in formats:
@@ -374,6 +639,9 @@ def main() -> None:
             ap.error(f"unsupported format: {fmt}")
 
     logo_path = resolve_script_path(args.logo) if not args.no_branding else None
+    template_path = resolve_script_path(args.template) if not args.no_branding else None
+    if template_path and not os.path.exists(template_path):
+        template_path = None
 
     images = collect_images(args.input)
     if args.files:
@@ -405,6 +673,11 @@ def main() -> None:
             "in_place": args.in_place,
             "no_branding": args.no_branding,
             "logo": logo_path,
+            "template": template_path,
+            "title": args.title,
+            "website": args.website,
+            "email": email,
+            "phone": phone,
         }
         for p in images
     ]

@@ -1,0 +1,3876 @@
+{
+  "config": {
+    "input": ".",
+    "output": "output",
+    "size": 1200,
+    "quality": 92,
+    "formats": [
+      "webp",
+      "jpeg"
+    ]
+  },
+  "total": 322,
+  "ok": 321,
+  "failed": 1,
+  "elapsed_seconds": 586.49,
+  "results": [
+    {
+      "source": "2 Stripes Reflective Vest AA12.jpg",
+      "status": "ok",
+      "seconds": 7.01,
+      "original_size": 296103,
+      "processed_bytes": {
+        "in_place": 296103
+      },
+      "outputs": [
+        "2 Stripes Reflective Vest AA12.jpg"
+      ]
+    },
+    {
+      "source": "12 STEP RED EDITION MULTIPURPOSE ALUMINIUM LADDER 3.7M.jpg",
+      "status": "ok",
+      "seconds": 7.1,
+      "original_size": 281456,
+      "processed_bytes": {
+        "in_place": 281456
+      },
+      "outputs": [
+        "12 STEP RED EDITION MULTIPURPOSE ALUMINIUM LADDER 3.7M.jpg"
+      ]
+    },
+    {
+      "source": "2Kg CO2 Fire Extinguisher.jpg",
+      "status": "ok",
+      "seconds": 7.2,
+      "original_size": 251282,
+      "processed_bytes": {
+        "in_place": 251282
+      },
+      "outputs": [
+        "2Kg CO2 Fire Extinguisher.jpg"
+      ]
+    },
+    {
+      "source": "3-Ply Face Masks (2).jpg",
+      "status": "ok",
+      "seconds": 7.47,
+      "original_size": 293196,
+      "processed_bytes": {
+        "in_place": 293196
+      },
+      "outputs": [
+        "3-Ply Face Masks (2).jpg"
+      ]
+    },
+    {
+      "source": "3-Ply Face Masks.jpg",
+      "status": "ok",
+      "seconds": 6.32,
+      "original_size": 342588,
+      "processed_bytes": {
+        "in_place": 342588
+      },
+      "outputs": [
+        "3-Ply Face Masks.jpg"
+      ]
+    },
+    {
+      "source": "3ply Washable and Reusable Face Mask with KEBS Approval.jpg",
+      "status": "ok",
+      "seconds": 6.44,
+      "original_size": 259955,
+      "processed_bytes": {
+        "in_place": 259955
+      },
+      "outputs": [
+        "3ply Washable and Reusable Face Mask with KEBS Approval.jpg"
+      ]
+    },
+    {
+      "source": "4 Stripped Orange Reflective Vest.jpg",
+      "status": "ok",
+      "seconds": 6.77,
+      "original_size": 267543,
+      "processed_bytes": {
+        "in_place": 267543
+      },
+      "outputs": [
+        "4 Stripped Orange Reflective Vest.jpg"
+      ]
+    },
+    {
+      "source": "4Kg Dry powder Fire Extinguisher.png",
+      "status": "ok",
+      "seconds": 9.25,
+      "original_size": 929548,
+      "processed_bytes": {
+        "in_place": 929548
+      },
+      "outputs": [
+        "4Kg Dry powder Fire Extinguisher.png"
+      ]
+    },
+    {
+      "source": "5Kg Carbon Dioxide Fire Extinguisher.jpg",
+      "status": "ok",
+      "seconds": 5.06,
+      "original_size": 259867,
+      "processed_bytes": {
+        "in_place": 259867
+      },
+      "outputs": [
+        "5Kg Carbon Dioxide Fire Extinguisher.jpg"
+      ]
+    },
+    {
+      "source": "6KG DRY POWDER FIRE EXTINGUISHER.jpg",
+      "status": "ok",
+      "seconds": 5.17,
+      "original_size": 295476,
+      "processed_bytes": {
+        "in_place": 295476
+      },
+      "outputs": [
+        "6KG DRY POWDER FIRE EXTINGUISHER.jpg"
+      ]
+    },
+    {
+      "source": "9 kg dry powder extinguisher.jpg",
+      "status": "ok",
+      "seconds": 5.13,
+      "original_size": 285746,
+      "processed_bytes": {
+        "in_place": 285746
+      },
+      "outputs": [
+        "9 kg dry powder extinguisher.jpg"
+      ]
+    },
+    {
+      "source": "A2 Size Construction In Progress.jpg",
+      "status": "ok",
+      "seconds": 5.63,
+      "original_size": 352156,
+      "processed_bytes": {
+        "in_place": 352156
+      },
+      "outputs": [
+        "A2 Size Construction In Progress.jpg"
+      ]
+    },
+    {
+      "source": "A2 Size Deep Excavation Signage.jpg",
+      "status": "ok",
+      "seconds": 5.95,
+      "original_size": 269519,
+      "processed_bytes": {
+        "in_place": 269519
+      },
+      "outputs": [
+        "A2 Size Deep Excavation Signage.jpg"
+      ]
+    },
+    {
+      "source": "A4 Label Papers (2).jpeg",
+      "status": "ok",
+      "seconds": 6.3,
+      "original_size": 314043,
+      "processed_bytes": {
+        "in_place": 314043
+      },
+      "outputs": [
+        "A4 Label Papers (2).jpeg"
+      ]
+    },
+    {
+      "source": "A4 Label Papers.jpeg",
+      "status": "ok",
+      "seconds": 6.01,
+      "original_size": 340555,
+      "processed_bytes": {
+        "in_place": 340555
+      },
+      "outputs": [
+        "A4 Label Papers.jpeg"
+      ]
+    },
+    {
+      "source": "Air Fresheners (2).jpg",
+      "status": "ok",
+      "seconds": 6.08,
+      "original_size": 344023,
+      "processed_bytes": {
+        "in_place": 344023
+      },
+      "outputs": [
+        "Air Fresheners (2).jpg"
+      ]
+    },
+    {
+      "source": "Air Fresheners.jpg",
+      "status": "ok",
+      "seconds": 6.05,
+      "original_size": 347139,
+      "processed_bytes": {
+        "in_place": 347139
+      },
+      "outputs": [
+        "Air Fresheners.jpg"
+      ]
+    },
+    {
+      "source": "American Poly carbonate Industrial Glass.jpg",
+      "status": "ok",
+      "seconds": 6.29,
+      "original_size": 249924,
+      "processed_bytes": {
+        "in_place": 249924
+      },
+      "outputs": [
+        "American Poly carbonate Industrial Glass.jpg"
+      ]
+    },
+    {
+      "source": "Anti-Cut Gloves (TraffiGlove) (2).webp",
+      "status": "ok",
+      "seconds": 8.71,
+      "original_size": 105318,
+      "processed_bytes": {
+        "in_place": 105318
+      },
+      "outputs": [
+        "Anti-Cut Gloves (TraffiGlove) (2).webp"
+      ]
+    },
+    {
+      "source": "Anti-Cut Gloves (TraffiGlove) (3).jpg",
+      "status": "ok",
+      "seconds": 6.38,
+      "original_size": 334475,
+      "processed_bytes": {
+        "in_place": 334475
+      },
+      "outputs": [
+        "Anti-Cut Gloves (TraffiGlove) (3).jpg"
+      ]
+    },
+    {
+      "source": "Anti-Fatigue Floor Mats (2).jpg",
+      "status": "ok",
+      "seconds": 6.32,
+      "original_size": 384392,
+      "processed_bytes": {
+        "in_place": 384392
+      },
+      "outputs": [
+        "Anti-Fatigue Floor Mats (2).jpg"
+      ]
+    },
+    {
+      "source": "Anti-Cut Gloves (TraffiGlove).webp",
+      "status": "ok",
+      "seconds": 8.19,
+      "original_size": 113196,
+      "processed_bytes": {
+        "in_place": 113196
+      },
+      "outputs": [
+        "Anti-Cut Gloves (TraffiGlove).webp"
+      ]
+    },
+    {
+      "source": "Anti-Fatigue Floor Mats.jpeg",
+      "status": "ok",
+      "seconds": 5.25,
+      "original_size": 352786,
+      "processed_bytes": {
+        "in_place": 352786
+      },
+      "outputs": [
+        "Anti-Fatigue Floor Mats.jpeg"
+      ]
+    },
+    {
+      "source": "Askari Baton.jpg",
+      "status": "ok",
+      "seconds": 5.46,
+      "original_size": 245159,
+      "processed_bytes": {
+        "in_place": 245159
+      },
+      "outputs": [
+        "Askari Baton.jpg"
+      ]
+    },
+    {
+      "source": "Assorted Industrial Gloves.jpg",
+      "status": "ok",
+      "seconds": 5.61,
+      "original_size": 321730,
+      "processed_bytes": {
+        "in_place": 321730
+      },
+      "outputs": [
+        "Assorted Industrial Gloves.jpg"
+      ]
+    },
+    {
+      "source": "BARRIER TAPE_ SAFETY TAPE_ BARRICADE TAPE.jpg",
+      "status": "ok",
+      "seconds": 5.78,
+      "original_size": 278720,
+      "processed_bytes": {
+        "in_place": 278720
+      },
+      "outputs": [
+        "BARRIER TAPE_ SAFETY TAPE_ BARRICADE TAPE.jpg"
+      ]
+    },
+    {
+      "source": "BRANDED FIRE MARSHAL REFLECTIVE VEST.jpg",
+      "status": "ok",
+      "seconds": 6.54,
+      "original_size": 254637,
+      "processed_bytes": {
+        "in_place": 254637
+      },
+      "outputs": [
+        "BRANDED FIRE MARSHAL REFLECTIVE VEST.jpg"
+      ]
+    },
+    {
+      "source": "Barber Spirit Spray Bottles (2).jpg",
+      "status": "ok",
+      "seconds": 6.75,
+      "original_size": 261565,
+      "processed_bytes": {
+        "in_place": 261565
+      },
+      "outputs": [
+        "Barber Spirit Spray Bottles (2).jpg"
+      ]
+    },
+    {
+      "source": "Barber Spirit Spray Bottles.jpg",
+      "status": "ok",
+      "seconds": 7.5,
+      "original_size": 301956,
+      "processed_bytes": {
+        "in_place": 301956
+      },
+      "outputs": [
+        "Barber Spirit Spray Bottles.jpg"
+      ]
+    },
+    {
+      "source": "Barber Wrap Capes (2).jpg",
+      "status": "ok",
+      "seconds": 9.07,
+      "original_size": 394041,
+      "processed_bytes": {
+        "in_place": 394041
+      },
+      "outputs": [
+        "Barber Wrap Capes (2).jpg"
+      ]
+    },
+    {
+      "source": "Barber Wrap Capes (3).jpg",
+      "status": "ok",
+      "seconds": 8.87,
+      "original_size": 338564,
+      "processed_bytes": {
+        "in_place": 338564
+      },
+      "outputs": [
+        "Barber Wrap Capes (3).jpg"
+      ]
+    },
+    {
+      "source": "Barber Wrap Capes (4).jpg",
+      "status": "ok",
+      "seconds": 8.72,
+      "original_size": 313655,
+      "processed_bytes": {
+        "in_place": 313655
+      },
+      "outputs": [
+        "Barber Wrap Capes (4).jpg"
+      ]
+    },
+    {
+      "source": "Barber Wrap Capes.jpg",
+      "status": "ok",
+      "seconds": 9.67,
+      "original_size": 316462,
+      "processed_bytes": {
+        "in_place": 316462
+      },
+      "outputs": [
+        "Barber Wrap Capes.jpg"
+      ]
+    },
+    {
+      "source": "Barricade_Caution Tapes 2\u2033 Yellow_Black.jpeg",
+      "status": "ok",
+      "seconds": 8.7,
+      "original_size": 280234,
+      "processed_bytes": {
+        "in_place": 280234
+      },
+      "outputs": [
+        "Barricade_Caution Tapes 2\u2033 Yellow_Black.jpeg"
+      ]
+    },
+    {
+      "source": "Beard Covers.jpeg",
+      "status": "ok",
+      "seconds": 8.94,
+      "original_size": 284766,
+      "processed_bytes": {
+        "in_place": 284766
+      },
+      "outputs": [
+        "Beard Covers.jpeg"
+      ]
+    },
+    {
+      "source": "Black Multi-Use Gloves (3).jpeg",
+      "status": "ok",
+      "seconds": 7.14,
+      "original_size": 248703,
+      "processed_bytes": {
+        "in_place": 248703
+      },
+      "outputs": [
+        "Black Multi-Use Gloves (3).jpeg"
+      ]
+    },
+    {
+      "source": "Black Multi-Use Gloves (2).png",
+      "status": "ok",
+      "seconds": 12.09,
+      "original_size": 854885,
+      "processed_bytes": {
+        "in_place": 854885
+      },
+      "outputs": [
+        "Black Multi-Use Gloves (2).png"
+      ]
+    },
+    {
+      "source": "Blue Medic Face Shield.jpg",
+      "status": "ok",
+      "seconds": 6.42,
+      "original_size": 263070,
+      "processed_bytes": {
+        "in_place": 263070
+      },
+      "outputs": [
+        "Blue Medic Face Shield.jpg"
+      ]
+    },
+    {
+      "source": "Black Multi-Use Gloves.png",
+      "status": "ok",
+      "seconds": 9.46,
+      "original_size": 854885,
+      "processed_bytes": {
+        "in_place": 854885
+      },
+      "outputs": [
+        "Black Multi-Use Gloves.png"
+      ]
+    },
+    {
+      "source": "Bubble Wrap (100m Roll) (2).jpg",
+      "status": "ok",
+      "seconds": 5.94,
+      "original_size": 268163,
+      "processed_bytes": {
+        "in_place": 268163
+      },
+      "outputs": [
+        "Bubble Wrap (100m Roll) (2).jpg"
+      ]
+    },
+    {
+      "source": "Bubble Wrap (100m Roll).jpg",
+      "status": "ok",
+      "seconds": 5.55,
+      "original_size": 260510,
+      "processed_bytes": {
+        "in_place": 260510
+      },
+      "outputs": [
+        "Bubble Wrap (100m Roll).jpg"
+      ]
+    },
+    {
+      "source": "Blue Reusable Nitrile Gloves.png",
+      "status": "ok",
+      "seconds": 8.13,
+      "original_size": 877805,
+      "processed_bytes": {
+        "in_place": 877805
+      },
+      "outputs": [
+        "Blue Reusable Nitrile Gloves.png"
+      ]
+    },
+    {
+      "source": "Bump Cap Black Hivis Orange.jpg",
+      "status": "ok",
+      "seconds": 6.24,
+      "original_size": 271976,
+      "processed_bytes": {
+        "in_place": 271976
+      },
+      "outputs": [
+        "Bump Cap Black Hivis Orange.jpg"
+      ]
+    },
+    {
+      "source": "Cargo Overalls With Reflectors.jpg",
+      "status": "ok",
+      "seconds": 6.4,
+      "original_size": 294544,
+      "processed_bytes": {
+        "in_place": 294544
+      },
+      "outputs": [
+        "Cargo Overalls With Reflectors.jpg"
+      ]
+    },
+    {
+      "source": "Caution _ Barrier Tape.jpg",
+      "status": "ok",
+      "seconds": 6.35,
+      "original_size": 291290,
+      "processed_bytes": {
+        "in_place": 291290
+      },
+      "outputs": [
+        "Caution _ Barrier Tape.jpg"
+      ]
+    },
+    {
+      "source": "Cellotape (2).jpg",
+      "status": "ok",
+      "seconds": 5.5,
+      "original_size": 339485,
+      "processed_bytes": {
+        "in_place": 339485
+      },
+      "outputs": [
+        "Cellotape (2).jpg"
+      ]
+    },
+    {
+      "source": "CCTV Camera HD.png",
+      "status": "ok",
+      "seconds": 9.62,
+      "original_size": 1092792,
+      "processed_bytes": {
+        "in_place": 1092792
+      },
+      "outputs": [
+        "CCTV Camera HD.png"
+      ]
+    },
+    {
+      "source": "Cellotape (3).jpg",
+      "status": "ok",
+      "seconds": 5.74,
+      "original_size": 286352,
+      "processed_bytes": {
+        "in_place": 286352
+      },
+      "outputs": [
+        "Cellotape (3).jpg"
+      ]
+    },
+    {
+      "source": "Cellotape Dispenser (2).jpg",
+      "status": "ok",
+      "seconds": 5.76,
+      "original_size": 289576,
+      "processed_bytes": {
+        "in_place": 289576
+      },
+      "outputs": [
+        "Cellotape Dispenser (2).jpg"
+      ]
+    },
+    {
+      "source": "Cellotape Dispenser.jpg",
+      "status": "ok",
+      "seconds": 6.56,
+      "original_size": 275600,
+      "processed_bytes": {
+        "in_place": 275600
+      },
+      "outputs": [
+        "Cellotape Dispenser.jpg"
+      ]
+    },
+    {
+      "source": "Cellotape Dispenser (3).jpg",
+      "status": "ok",
+      "seconds": 6.92,
+      "original_size": 299550,
+      "processed_bytes": {
+        "in_place": 299550
+      },
+      "outputs": [
+        "Cellotape Dispenser (3).jpg"
+      ]
+    },
+    {
+      "source": "Cellotape.jpg",
+      "status": "ok",
+      "seconds": 6.22,
+      "original_size": 270124,
+      "processed_bytes": {
+        "in_place": 270124
+      },
+      "outputs": [
+        "Cellotape.jpg"
+      ]
+    },
+    {
+      "source": "Chemical Spill Kit 28L Bag.jpg",
+      "status": "ok",
+      "seconds": 6.07,
+      "original_size": 261082,
+      "processed_bytes": {
+        "in_place": 261082
+      },
+      "outputs": [
+        "Chemical Spill Kit 28L Bag.jpg"
+      ]
+    },
+    {
+      "source": "Construction Helmets (2).jpg",
+      "status": "ok",
+      "seconds": 5.66,
+      "original_size": 305526,
+      "processed_bytes": {
+        "in_place": 305526
+      },
+      "outputs": [
+        "Construction Helmets (2).jpg"
+      ]
+    },
+    {
+      "source": "Construction Helmets.jpg",
+      "status": "ok",
+      "seconds": 5.66,
+      "original_size": 265439,
+      "processed_bytes": {
+        "in_place": 265439
+      },
+      "outputs": [
+        "Construction Helmets.jpg"
+      ]
+    },
+    {
+      "source": "Construction Rigger Leather Gloves.jpg",
+      "status": "ok",
+      "seconds": 5.63,
+      "original_size": 326521,
+      "processed_bytes": {
+        "in_place": 326521
+      },
+      "outputs": [
+        "Construction Rigger Leather Gloves.jpg"
+      ]
+    },
+    {
+      "source": "Cotton Aprons (2).jpg",
+      "status": "ok",
+      "seconds": 5.72,
+      "original_size": 272291,
+      "processed_bytes": {
+        "in_place": 272291
+      },
+      "outputs": [
+        "Cotton Aprons (2).jpg"
+      ]
+    },
+    {
+      "source": "Cotton Aprons.jpg",
+      "status": "ok",
+      "seconds": 6.11,
+      "original_size": 265913,
+      "processed_bytes": {
+        "in_place": 265913
+      },
+      "outputs": [
+        "Cotton Aprons.jpg"
+      ]
+    },
+    {
+      "source": "Cotton Sewing Yarn (3).jpg",
+      "status": "ok",
+      "seconds": 5.69,
+      "original_size": 294718,
+      "processed_bytes": {
+        "in_place": 294718
+      },
+      "outputs": [
+        "Cotton Sewing Yarn (3).jpg"
+      ]
+    },
+    {
+      "source": "Cotton Sewing Yarn (2).png",
+      "status": "ok",
+      "seconds": 9.69,
+      "original_size": 1089968,
+      "processed_bytes": {
+        "in_place": 1089968
+      },
+      "outputs": [
+        "Cotton Sewing Yarn (2).png"
+      ]
+    },
+    {
+      "source": "Cowhide TIG Leather Gloves 14_ (2).jpg",
+      "status": "ok",
+      "seconds": 5.94,
+      "original_size": 284135,
+      "processed_bytes": {
+        "in_place": 284135
+      },
+      "outputs": [
+        "Cowhide TIG Leather Gloves 14_ (2).jpg"
+      ]
+    },
+    {
+      "source": "Cotton Sewing Yarn.png",
+      "status": "ok",
+      "seconds": 9.17,
+      "original_size": 1403769,
+      "processed_bytes": {
+        "in_place": 1403769
+      },
+      "outputs": [
+        "Cotton Sewing Yarn.png"
+      ]
+    },
+    {
+      "source": "Cowhide TIG Leather Gloves 14_ (3).jpg",
+      "status": "ok",
+      "seconds": 6.35,
+      "original_size": 274183,
+      "processed_bytes": {
+        "in_place": 274183
+      },
+      "outputs": [
+        "Cowhide TIG Leather Gloves 14_ (3).jpg"
+      ]
+    },
+    {
+      "source": "Cowhide TIG Leather Gloves 14_.jpg",
+      "status": "ok",
+      "seconds": 6.86,
+      "original_size": 290132,
+      "processed_bytes": {
+        "in_place": 290132
+      },
+      "outputs": [
+        "Cowhide TIG Leather Gloves 14_.jpg"
+      ]
+    },
+    {
+      "source": "Designer Orange Reflector Jackets.jpg",
+      "status": "ok",
+      "seconds": 6.7,
+      "original_size": 237301,
+      "processed_bytes": {
+        "in_place": 237301
+      },
+      "outputs": [
+        "Designer Orange Reflector Jackets.jpg"
+      ]
+    },
+    {
+      "source": "Designer Orange_Black Reflective Vest.jpg",
+      "status": "ok",
+      "seconds": 6.71,
+      "original_size": 300346,
+      "processed_bytes": {
+        "in_place": 300346
+      },
+      "outputs": [
+        "Designer Orange_Black Reflective Vest.jpg"
+      ]
+    },
+    {
+      "source": "Deep Excavation Sign.png",
+      "status": "ok",
+      "seconds": 10.67,
+      "original_size": 779786,
+      "processed_bytes": {
+        "in_place": 779786
+      },
+      "outputs": [
+        "Deep Excavation Sign.png"
+      ]
+    },
+    {
+      "source": "Diamond Grip Gloves (2).jpg",
+      "status": "ok",
+      "seconds": 6.82,
+      "original_size": 449190,
+      "processed_bytes": {
+        "in_place": 449190
+      },
+      "outputs": [
+        "Diamond Grip Gloves (2).jpg"
+      ]
+    },
+    {
+      "source": "Diamond Grip Gloves (3).jpg",
+      "status": "ok",
+      "seconds": 6.65,
+      "original_size": 323981,
+      "processed_bytes": {
+        "in_place": 323981
+      },
+      "outputs": [
+        "Diamond Grip Gloves (3).jpg"
+      ]
+    },
+    {
+      "source": "Diamond Grip Gloves.jpg",
+      "status": "ok",
+      "seconds": 6.67,
+      "original_size": 364932,
+      "processed_bytes": {
+        "in_place": 364932
+      },
+      "outputs": [
+        "Diamond Grip Gloves.jpg"
+      ]
+    },
+    {
+      "source": "Diamond Grip industrial Gloves.jpg",
+      "status": "ok",
+      "seconds": 7.07,
+      "original_size": 345489,
+      "processed_bytes": {
+        "in_place": 345489
+      },
+      "outputs": [
+        "Diamond Grip industrial Gloves.jpg"
+      ]
+    },
+    {
+      "source": "Digital Wall Clock (2).jpg",
+      "status": "ok",
+      "seconds": 6.76,
+      "original_size": 310726,
+      "processed_bytes": {
+        "in_place": 310726
+      },
+      "outputs": [
+        "Digital Wall Clock (2).jpg"
+      ]
+    },
+    {
+      "source": "Digital Wall Clock.jpg",
+      "status": "ok",
+      "seconds": 6.53,
+      "original_size": 331342,
+      "processed_bytes": {
+        "in_place": 331342
+      },
+      "outputs": [
+        "Digital Wall Clock.jpg"
+      ]
+    },
+    {
+      "source": "Disposable Chef Caps (2).jpg",
+      "status": "ok",
+      "seconds": 6.41,
+      "original_size": 272291,
+      "processed_bytes": {
+        "in_place": 272291
+      },
+      "outputs": [
+        "Disposable Chef Caps (2).jpg"
+      ]
+    },
+    {
+      "source": "Disposable Chef Caps (3).jpg",
+      "status": "ok",
+      "seconds": 6.65,
+      "original_size": 240336,
+      "processed_bytes": {
+        "in_place": 240336
+      },
+      "outputs": [
+        "Disposable Chef Caps (3).jpg"
+      ]
+    },
+    {
+      "source": "Disposable Chef Caps (4).jpg",
+      "status": "ok",
+      "seconds": 6.14,
+      "original_size": 240461,
+      "processed_bytes": {
+        "in_place": 240461
+      },
+      "outputs": [
+        "Disposable Chef Caps (4).jpg"
+      ]
+    },
+    {
+      "source": "Disposable Chef Caps.jpg",
+      "status": "ok",
+      "seconds": 7.22,
+      "original_size": 257551,
+      "processed_bytes": {
+        "in_place": 257551
+      },
+      "outputs": [
+        "Disposable Chef Caps.jpg"
+      ]
+    },
+    {
+      "source": "Double Hook Work Man Full Body Safety Harness.jpg",
+      "status": "ok",
+      "seconds": 8.98,
+      "original_size": 289745,
+      "processed_bytes": {
+        "in_place": 289745
+      },
+      "outputs": [
+        "Double Hook Work Man Full Body Safety Harness.jpg"
+      ]
+    },
+    {
+      "source": "Double Respirator Mask (NP306) (2).jpg",
+      "status": "ok",
+      "seconds": 9.19,
+      "original_size": 314421,
+      "processed_bytes": {
+        "in_place": 314421
+      },
+      "outputs": [
+        "Double Respirator Mask (NP306) (2).jpg"
+      ]
+    },
+    {
+      "source": "Double Respirator Mask (NP306).jpg",
+      "status": "ok",
+      "seconds": 9.62,
+      "original_size": 280888,
+      "processed_bytes": {
+        "in_place": 280888
+      },
+      "outputs": [
+        "Double Respirator Mask (NP306).jpg"
+      ]
+    },
+    {
+      "source": "Ear Muffs (2).jpg",
+      "status": "ok",
+      "seconds": 7.41,
+      "original_size": 278907,
+      "processed_bytes": {
+        "in_place": 278907
+      },
+      "outputs": [
+        "Ear Muffs (2).jpg"
+      ]
+    },
+    {
+      "source": "Dust Coat.png",
+      "status": "ok",
+      "seconds": 12.55,
+      "original_size": 897805,
+      "processed_bytes": {
+        "in_place": 897805
+      },
+      "outputs": [
+        "Dust Coat.png"
+      ]
+    },
+    {
+      "source": "Ear Muffs (3).jpg",
+      "status": "ok",
+      "seconds": 7.65,
+      "original_size": 284542,
+      "processed_bytes": {
+        "in_place": 284542
+      },
+      "outputs": [
+        "Ear Muffs (3).jpg"
+      ]
+    },
+    {
+      "source": "Ear Muffs.jpg",
+      "status": "ok",
+      "seconds": 7.5,
+      "original_size": 271487,
+      "processed_bytes": {
+        "in_place": 271487
+      },
+      "outputs": [
+        "Ear Muffs.jpg"
+      ]
+    },
+    {
+      "source": "Ear Plugs.jpg",
+      "status": "ok",
+      "seconds": 8.14,
+      "original_size": 267003,
+      "processed_bytes": {
+        "in_place": 267003
+      },
+      "outputs": [
+        "Ear Plugs.jpg"
+      ]
+    },
+    {
+      "source": "Filter Mask.jpg",
+      "status": "ok",
+      "seconds": 7.56,
+      "original_size": 293311,
+      "processed_bytes": {
+        "in_place": 293311
+      },
+      "outputs": [
+        "Filter Mask.jpg"
+      ]
+    },
+    {
+      "source": "Electric Fence.jpg",
+      "status": "ok",
+      "seconds": 8.31,
+      "original_size": 298715,
+      "processed_bytes": {
+        "in_place": 298715
+      },
+      "outputs": [
+        "Electric Fence.jpg"
+      ]
+    },
+    {
+      "source": "Ear Plugs (2).png",
+      "status": "ok",
+      "seconds": 10.6,
+      "original_size": 962235,
+      "processed_bytes": {
+        "in_place": 962235
+      },
+      "outputs": [
+        "Ear Plugs (2).png"
+      ]
+    },
+    {
+      "source": "Fire Action Plan.jpg",
+      "status": "ok",
+      "seconds": 5.3,
+      "original_size": 350502,
+      "processed_bytes": {
+        "in_place": 350502
+      },
+      "outputs": [
+        "Fire Action Plan.jpg"
+      ]
+    },
+    {
+      "source": "Fire Point Sign.jpg",
+      "status": "ok",
+      "seconds": 5.78,
+      "original_size": 273140,
+      "processed_bytes": {
+        "in_place": 273140
+      },
+      "outputs": [
+        "Fire Point Sign.jpg"
+      ]
+    },
+    {
+      "source": "First Aid Kit Stock, Supplies, Refill & Restocking Items.jpg",
+      "status": "ok",
+      "seconds": 5.5,
+      "original_size": 269238,
+      "processed_bytes": {
+        "in_place": 269238
+      },
+      "outputs": [
+        "First Aid Kit Stock, Supplies, Refill & Restocking Items.jpg"
+      ]
+    },
+    {
+      "source": "Fire Hose pipe.png",
+      "status": "ok",
+      "seconds": 8.71,
+      "original_size": 945762,
+      "processed_bytes": {
+        "in_place": 945762
+      },
+      "outputs": [
+        "Fire Hose pipe.png"
+      ]
+    },
+    {
+      "source": "Floor Marking Tape.jpg",
+      "status": "ok",
+      "seconds": 5.04,
+      "original_size": 269442,
+      "processed_bytes": {
+        "in_place": 269442
+      },
+      "outputs": [
+        "Floor Marking Tape.jpg"
+      ]
+    },
+    {
+      "source": "Floor Safety Signages (2).jpg",
+      "status": "ok",
+      "seconds": 5.87,
+      "original_size": 279913,
+      "processed_bytes": {
+        "in_place": 279913
+      },
+      "outputs": [
+        "Floor Safety Signages (2).jpg"
+      ]
+    },
+    {
+      "source": "Floor Safety Signages.jpg",
+      "status": "ok",
+      "seconds": 6.95,
+      "original_size": 327889,
+      "processed_bytes": {
+        "in_place": 327889
+      },
+      "outputs": [
+        "Floor Safety Signages.jpg"
+      ]
+    },
+    {
+      "source": "Folding Canvas Stretcher.jpg",
+      "status": "ok",
+      "seconds": 6.84,
+      "original_size": 240361,
+      "processed_bytes": {
+        "in_place": 240361
+      },
+      "outputs": [
+        "Folding Canvas Stretcher.jpg"
+      ]
+    },
+    {
+      "source": "Food & Medical Grade Hairnets in Kenya \u2013 Disposable Surgical & Catering Hair Caps.jpg",
+      "status": "ok",
+      "seconds": 6.83,
+      "original_size": 329817,
+      "processed_bytes": {
+        "in_place": 329817
+      },
+      "outputs": [
+        "Food & Medical Grade Hairnets in Kenya \u2013 Disposable Surgical & Catering Hair Caps.jpg"
+      ]
+    },
+    {
+      "source": "Folded Wheel Chair.png",
+      "status": "ok",
+      "seconds": 10.37,
+      "original_size": 1030039,
+      "processed_bytes": {
+        "in_place": 1030039
+      },
+      "outputs": [
+        "Folded Wheel Chair.png"
+      ]
+    },
+    {
+      "source": "Food Industry Dustcoats (2).png",
+      "status": "ok",
+      "seconds": 10.77,
+      "original_size": 966788,
+      "processed_bytes": {
+        "in_place": 966788
+      },
+      "outputs": [
+        "Food Industry Dustcoats (2).png"
+      ]
+    },
+    {
+      "source": "Food Industry Dustcoats.png",
+      "status": "ok",
+      "seconds": 11.15,
+      "original_size": 883473,
+      "processed_bytes": {
+        "in_place": 883473
+      },
+      "outputs": [
+        "Food Industry Dustcoats.png"
+      ]
+    },
+    {
+      "source": "Food-Grade Mops & Brushes (3).jpg",
+      "status": "ok",
+      "seconds": 5.44,
+      "original_size": 328458,
+      "processed_bytes": {
+        "in_place": 328458
+      },
+      "outputs": [
+        "Food-Grade Mops & Brushes (3).jpg"
+      ]
+    },
+    {
+      "source": "Food-Grade Mops & Brushes (2).png",
+      "status": "ok",
+      "seconds": 11.07,
+      "original_size": 1196236,
+      "processed_bytes": {
+        "in_place": 1196236
+      },
+      "outputs": [
+        "Food-Grade Mops & Brushes (2).png"
+      ]
+    },
+    {
+      "source": "Food-Grade Biodegradable Garbage Bags.png",
+      "status": "ok",
+      "seconds": 12.29,
+      "original_size": 1308089,
+      "processed_bytes": {
+        "in_place": 1308089
+      },
+      "outputs": [
+        "Food-Grade Biodegradable Garbage Bags.png"
+      ]
+    },
+    {
+      "source": "Food-Grade Mops & Brushes.jpg",
+      "status": "ok",
+      "seconds": 6.98,
+      "original_size": 351514,
+      "processed_bytes": {
+        "in_place": 351514
+      },
+      "outputs": [
+        "Food-Grade Mops & Brushes.jpg"
+      ]
+    },
+    {
+      "source": "GE 1548 King Safety Helmet.jpeg",
+      "status": "ok",
+      "seconds": 7.64,
+      "original_size": 263600,
+      "processed_bytes": {
+        "in_place": 263600
+      },
+      "outputs": [
+        "GE 1548 King Safety Helmet.jpeg"
+      ]
+    },
+    {
+      "source": "GREEN GENERAL PURPOSE INDUSTRIAL SAFETY GUMBOOT.jpg",
+      "status": "ok",
+      "seconds": 7.75,
+      "original_size": 286443,
+      "processed_bytes": {
+        "in_place": 286443
+      },
+      "outputs": [
+        "GREEN GENERAL PURPOSE INDUSTRIAL SAFETY GUMBOOT.jpg"
+      ]
+    },
+    {
+      "source": "Garrett Metal Detector.jpg",
+      "status": "ok",
+      "seconds": 7.73,
+      "original_size": 275177,
+      "processed_bytes": {
+        "in_place": 275177
+      },
+      "outputs": [
+        "Garrett Metal Detector.jpg"
+      ]
+    },
+    {
+      "source": "General Purpose Face Shield.jpg",
+      "status": "ok",
+      "seconds": 7.21,
+      "original_size": 271053,
+      "processed_bytes": {
+        "in_place": 271053
+      },
+      "outputs": [
+        "General Purpose Face Shield.jpg"
+      ]
+    },
+    {
+      "source": "Grease-Proof Packaging Paper (2).jpg",
+      "status": "ok",
+      "seconds": 7.02,
+      "original_size": 278589,
+      "processed_bytes": {
+        "in_place": 278589
+      },
+      "outputs": [
+        "Grease-Proof Packaging Paper (2).jpg"
+      ]
+    },
+    {
+      "source": "Grease-Proof Packaging Paper.jpg",
+      "status": "ok",
+      "seconds": 7.65,
+      "original_size": 262465,
+      "processed_bytes": {
+        "in_place": 262465
+      },
+      "outputs": [
+        "Grease-Proof Packaging Paper.jpg"
+      ]
+    },
+    {
+      "source": "Grease-Proof Packaging Paper (3).png",
+      "status": "ok",
+      "seconds": 11.43,
+      "original_size": 1048208,
+      "processed_bytes": {
+        "in_place": 1048208
+      },
+      "outputs": [
+        "Grease-Proof Packaging Paper (3).png"
+      ]
+    },
+    {
+      "source": "Green Nitrile Gloves.jpg",
+      "status": "ok",
+      "seconds": 6.91,
+      "original_size": 278469,
+      "processed_bytes": {
+        "in_place": 278469
+      },
+      "outputs": [
+        "Green Nitrile Gloves.jpg"
+      ]
+    },
+    {
+      "source": "Green Nitrile Gloves (2).png",
+      "status": "ok",
+      "seconds": 10.49,
+      "original_size": 890066,
+      "processed_bytes": {
+        "in_place": 890066
+      },
+      "outputs": [
+        "Green Nitrile Gloves (2).png"
+      ]
+    },
+    {
+      "source": "HIGH-QUALITY REFLECTIVE WINDBREAKER.jpg",
+      "status": "ok",
+      "seconds": 6.87,
+      "original_size": 311277,
+      "processed_bytes": {
+        "in_place": 311277
+      },
+      "outputs": [
+        "HIGH-QUALITY REFLECTIVE WINDBREAKER.jpg"
+      ]
+    },
+    {
+      "source": "HIVIEW SAFETY BOOT HTS4101.jpeg",
+      "status": "ok",
+      "seconds": 6.97,
+      "original_size": 323975,
+      "processed_bytes": {
+        "in_place": 323975
+      },
+      "outputs": [
+        "HIVIEW SAFETY BOOT HTS4101.jpeg"
+      ]
+    },
+    {
+      "source": "HIVIEW SAFETY BOOT HTSO1.jpeg",
+      "status": "ok",
+      "seconds": 6.93,
+      "original_size": 332429,
+      "processed_bytes": {
+        "in_place": 332429
+      },
+      "outputs": [
+        "HIVIEW SAFETY BOOT HTSO1.jpeg"
+      ]
+    },
+    {
+      "source": "Hair Nets (Bouffant) (2).jpg",
+      "status": "ok",
+      "seconds": 6.77,
+      "original_size": 413656,
+      "processed_bytes": {
+        "in_place": 413656
+      },
+      "outputs": [
+        "Hair Nets (Bouffant) (2).jpg"
+      ]
+    },
+    {
+      "source": "Hair Nets (Bouffant) (3).jpg",
+      "status": "ok",
+      "seconds": 7.12,
+      "original_size": 289339,
+      "processed_bytes": {
+        "in_place": 289339
+      },
+      "outputs": [
+        "Hair Nets (Bouffant) (3).jpg"
+      ]
+    },
+    {
+      "source": "Hair Nets (Bouffant).jpg",
+      "status": "ok",
+      "seconds": 5.98,
+      "original_size": 357594,
+      "processed_bytes": {
+        "in_place": 357594
+      },
+      "outputs": [
+        "Hair Nets (Bouffant).jpg"
+      ]
+    },
+    {
+      "source": "Handheld Inkjet Coding Printer (2).jpg",
+      "status": "ok",
+      "seconds": 5.58,
+      "original_size": 279758,
+      "processed_bytes": {
+        "in_place": 279758
+      },
+      "outputs": [
+        "Handheld Inkjet Coding Printer (2).jpg"
+      ]
+    },
+    {
+      "source": "Hair Nets (Bouffant) (4).png",
+      "status": "ok",
+      "seconds": 9.65,
+      "original_size": 996794,
+      "processed_bytes": {
+        "in_place": 996794
+      },
+      "outputs": [
+        "Hair Nets (Bouffant) (4).png"
+      ]
+    },
+    {
+      "source": "Handheld Inkjet Coding Printer.jpg",
+      "status": "ok",
+      "seconds": 5.97,
+      "original_size": 288355,
+      "processed_bytes": {
+        "in_place": 288355
+      },
+      "outputs": [
+        "Handheld Inkjet Coding Printer.jpg"
+      ]
+    },
+    {
+      "source": "Harness Double Hook With Shock Absorber.jpg",
+      "status": "ok",
+      "seconds": 5.17,
+      "original_size": 266540,
+      "processed_bytes": {
+        "in_place": 266540
+      },
+      "outputs": [
+        "Harness Double Hook With Shock Absorber.jpg"
+      ]
+    },
+    {
+      "source": "Heat Detector.jpg",
+      "status": "ok",
+      "seconds": 5.6,
+      "original_size": 249790,
+      "processed_bytes": {
+        "in_place": 249790
+      },
+      "outputs": [
+        "Heat Detector.jpg"
+      ]
+    },
+    {
+      "source": "Heavy Duty Chemical Resistant 22 Inch Rubber Gloves.jpg",
+      "status": "ok",
+      "seconds": 5.79,
+      "original_size": 253150,
+      "processed_bytes": {
+        "in_place": 253150
+      },
+      "outputs": [
+        "Heavy Duty Chemical Resistant 22 Inch Rubber Gloves.jpg"
+      ]
+    },
+    {
+      "source": "Heavy Duty Chemical Resistant gloves.jpg",
+      "status": "ok",
+      "seconds": 5.83,
+      "original_size": 263033,
+      "processed_bytes": {
+        "in_place": 263033
+      },
+      "outputs": [
+        "Heavy Duty Chemical Resistant gloves.jpg"
+      ]
+    },
+    {
+      "source": "Heavy Duty Industrial Dungaree.jpg",
+      "status": "ok",
+      "seconds": 6.27,
+      "original_size": 254421,
+      "processed_bytes": {
+        "in_place": 254421
+      },
+      "outputs": [
+        "Heavy Duty Industrial Dungaree.jpg"
+      ]
+    },
+    {
+      "source": "Heavy-Duty Twill Overalls (2).jpg",
+      "status": "ok",
+      "seconds": 6.69,
+      "original_size": 282175,
+      "processed_bytes": {
+        "in_place": 282175
+      },
+      "outputs": [
+        "Heavy-Duty Twill Overalls (2).jpg"
+      ]
+    },
+    {
+      "source": "Heavy-Duty Twill Overalls.jpg",
+      "status": "ok",
+      "seconds": 6.44,
+      "original_size": 312878,
+      "processed_bytes": {
+        "in_place": 312878
+      },
+      "outputs": [
+        "Heavy-Duty Twill Overalls.jpg"
+      ]
+    },
+    {
+      "source": "Industrial Hand Dryer (1800\u20132200W) (2).jpg",
+      "status": "ok",
+      "seconds": 6.27,
+      "original_size": 278669,
+      "processed_bytes": {
+        "in_place": 278669
+      },
+      "outputs": [
+        "Industrial Hand Dryer (1800\u20132200W) (2).jpg"
+      ]
+    },
+    {
+      "source": "Industrial Hand Dryer (1800\u20132200W) (3).jpg",
+      "status": "ok",
+      "seconds": 6.64,
+      "original_size": 252132,
+      "processed_bytes": {
+        "in_place": 252132
+      },
+      "outputs": [
+        "Industrial Hand Dryer (1800\u20132200W) (3).jpg"
+      ]
+    },
+    {
+      "source": "Industrial Hand Dryer (1800\u20132200W).jpg",
+      "status": "ok",
+      "seconds": 6.36,
+      "original_size": 251656,
+      "processed_bytes": {
+        "in_place": 251656
+      },
+      "outputs": [
+        "Industrial Hand Dryer (1800\u20132200W).jpg"
+      ]
+    },
+    {
+      "source": "Iron Multifolding Extension Ladder.jpg",
+      "status": "ok",
+      "seconds": 6.37,
+      "original_size": 260068,
+      "processed_bytes": {
+        "in_place": 260068
+      },
+      "outputs": [
+        "Iron Multifolding Extension Ladder.jpg"
+      ]
+    },
+    {
+      "source": "JSP HALF FACE MASK RESPIRATOR MASK.jpeg",
+      "status": "ok",
+      "seconds": 6.55,
+      "original_size": 282057,
+      "processed_bytes": {
+        "in_place": 282057
+      },
+      "outputs": [
+        "JSP HALF FACE MASK RESPIRATOR MASK.jpeg"
+      ]
+    },
+    {
+      "source": "Jua Kali Booster Cable 2000 Amp.jpeg",
+      "status": "ok",
+      "seconds": 5.83,
+      "original_size": 332616,
+      "processed_bytes": {
+        "in_place": 332616
+      },
+      "outputs": [
+        "Jua Kali Booster Cable 2000 Amp.jpeg"
+      ]
+    },
+    {
+      "source": "KRICKWOOD EAR MUFFS.jpg",
+      "status": "ok",
+      "seconds": 5.84,
+      "original_size": 275856,
+      "processed_bytes": {
+        "in_place": 275856
+      },
+      "outputs": [
+        "KRICKWOOD EAR MUFFS.jpg"
+      ]
+    },
+    {
+      "source": "LED Strong Light Flashlight.jpg",
+      "status": "ok",
+      "seconds": 5.65,
+      "original_size": 259429,
+      "processed_bytes": {
+        "in_place": 259429
+      },
+      "outputs": [
+        "LED Strong Light Flashlight.jpg"
+      ]
+    },
+    {
+      "source": "LIGHT REFLECTIVE RIDERS JACKET.jpg",
+      "status": "ok",
+      "seconds": 5.88,
+      "original_size": 288638,
+      "processed_bytes": {
+        "in_place": 288638
+      },
+      "outputs": [
+        "LIGHT REFLECTIVE RIDERS JACKET.jpg"
+      ]
+    },
+    {
+      "source": "Ladder.jpg",
+      "status": "ok",
+      "seconds": 5.67,
+      "original_size": 243492,
+      "processed_bytes": {
+        "in_place": 243492
+      },
+      "outputs": [
+        "Ladder.jpg"
+      ]
+    },
+    {
+      "source": "LPG Safety Signage.gif",
+      "status": "ok",
+      "seconds": 6.88,
+      "original_size": 492744,
+      "processed_bytes": {
+        "in_place": 492744
+      },
+      "outputs": [
+        "LPG Safety Signage.gif"
+      ]
+    },
+    {
+      "source": "Latex Powdered Medical Examination Gloves.jpg",
+      "status": "ok",
+      "seconds": 5.62,
+      "original_size": 256589,
+      "processed_bytes": {
+        "in_place": 256589
+      },
+      "outputs": [
+        "Latex Powdered Medical Examination Gloves.jpg"
+      ]
+    },
+    {
+      "source": "Leather Garden Gloves 10_ (2).jpg",
+      "status": "ok",
+      "seconds": 5.89,
+      "original_size": 384497,
+      "processed_bytes": {
+        "in_place": 384497
+      },
+      "outputs": [
+        "Leather Garden Gloves 10_ (2).jpg"
+      ]
+    },
+    {
+      "source": "Leather Garden Gloves 10_ (3).jpg",
+      "status": "ok",
+      "seconds": 5.86,
+      "original_size": 282134,
+      "processed_bytes": {
+        "in_place": 282134
+      },
+      "outputs": [
+        "Leather Garden Gloves 10_ (3).jpg"
+      ]
+    },
+    {
+      "source": "Leather Garden Gloves 10_.jpg",
+      "status": "ok",
+      "seconds": 6.25,
+      "original_size": 370549,
+      "processed_bytes": {
+        "in_place": 370549
+      },
+      "outputs": [
+        "Leather Garden Gloves 10_.jpg"
+      ]
+    },
+    {
+      "source": "Leather Working Gloves.jpg",
+      "status": "ok",
+      "seconds": 6.31,
+      "original_size": 368168,
+      "processed_bytes": {
+        "in_place": 368168
+      },
+      "outputs": [
+        "Leather Working Gloves.jpg"
+      ]
+    },
+    {
+      "source": "Lock Out.jpg",
+      "status": "ok",
+      "seconds": 5.84,
+      "original_size": 286745,
+      "processed_bytes": {
+        "in_place": 286745
+      },
+      "outputs": [
+        "Lock Out.jpg"
+      ]
+    },
+    {
+      "source": "Makuti Brooms (Large) (2).jpg",
+      "status": "ok",
+      "seconds": 5.62,
+      "original_size": 258965,
+      "processed_bytes": {
+        "in_place": 258965
+      },
+      "outputs": [
+        "Makuti Brooms (Large) (2).jpg"
+      ]
+    },
+    {
+      "source": "Makuti Brooms (Large).jpg",
+      "status": "ok",
+      "seconds": 6.04,
+      "original_size": 278870,
+      "processed_bytes": {
+        "in_place": 278870
+      },
+      "outputs": [
+        "Makuti Brooms (Large).jpg"
+      ]
+    },
+    {
+      "source": "Manilla Baler Twine (2).jpg",
+      "status": "ok",
+      "seconds": 5.99,
+      "original_size": 428362,
+      "processed_bytes": {
+        "in_place": 428362
+      },
+      "outputs": [
+        "Manilla Baler Twine (2).jpg"
+      ]
+    },
+    {
+      "source": "Manilla Baler Twine (3).jpg",
+      "status": "ok",
+      "seconds": 6.3,
+      "original_size": 312349,
+      "processed_bytes": {
+        "in_place": 312349
+      },
+      "outputs": [
+        "Manilla Baler Twine (3).jpg"
+      ]
+    },
+    {
+      "source": "Manilla Baler Twine.jpg",
+      "status": "ok",
+      "seconds": 5.55,
+      "original_size": 333751,
+      "processed_bytes": {
+        "in_place": 333751
+      },
+      "outputs": [
+        "Manilla Baler Twine.jpg"
+      ]
+    },
+    {
+      "source": "Manual Strapping Tool.jpg",
+      "status": "ok",
+      "seconds": 5.25,
+      "original_size": 272804,
+      "processed_bytes": {
+        "in_place": 272804
+      },
+      "outputs": [
+        "Manual Strapping Tool.jpg"
+      ]
+    },
+    {
+      "source": "Medium Clear First Aid Kit.jpg",
+      "status": "ok",
+      "seconds": 5.92,
+      "original_size": 315686,
+      "processed_bytes": {
+        "in_place": 315686
+      },
+      "outputs": [
+        "Medium Clear First Aid Kit.jpg"
+      ]
+    },
+    {
+      "source": "Medium Grey First Aid Kit.jpg",
+      "status": "ok",
+      "seconds": 5.85,
+      "original_size": 264469,
+      "processed_bytes": {
+        "in_place": 264469
+      },
+      "outputs": [
+        "Medium Grey First Aid Kit.jpg"
+      ]
+    },
+    {
+      "source": "Men at Work Signs.jpg",
+      "status": "ok",
+      "seconds": 5.84,
+      "original_size": 268494,
+      "processed_bytes": {
+        "in_place": 268494
+      },
+      "outputs": [
+        "Men at Work Signs.jpg"
+      ]
+    },
+    {
+      "source": "Metal Detectable Bandages.jpg",
+      "status": "ok",
+      "seconds": 6.09,
+      "original_size": 338126,
+      "processed_bytes": {
+        "in_place": 338126
+      },
+      "outputs": [
+        "Metal Detectable Bandages.jpg"
+      ]
+    },
+    {
+      "source": "Neck Barber Rolls (2).png",
+      "status": "ok",
+      "seconds": 8.88,
+      "original_size": 1260188,
+      "processed_bytes": {
+        "in_place": 1260188
+      },
+      "outputs": [
+        "Neck Barber Rolls (2).png"
+      ]
+    },
+    {
+      "source": "Non-Woven Packaging Bags (2).jpg",
+      "status": "ok",
+      "seconds": 5.32,
+      "original_size": 288432,
+      "processed_bytes": {
+        "in_place": 288432
+      },
+      "outputs": [
+        "Non-Woven Packaging Bags (2).jpg"
+      ]
+    },
+    {
+      "source": "Neck Barber Rolls.png",
+      "status": "ok",
+      "seconds": 9.07,
+      "original_size": 1084276,
+      "processed_bytes": {
+        "in_place": 1084276
+      },
+      "outputs": [
+        "Neck Barber Rolls.png"
+      ]
+    },
+    {
+      "source": "Non-Woven Packaging Bags.jpg",
+      "status": "ok",
+      "seconds": 5.02,
+      "original_size": 291054,
+      "processed_bytes": {
+        "in_place": 291054
+      },
+      "outputs": [
+        "Non-Woven Packaging Bags.jpg"
+      ]
+    },
+    {
+      "source": "PH2 Magnetic Drill Bits (65mm) (2).jpg",
+      "status": "ok",
+      "seconds": 5.36,
+      "original_size": 321125,
+      "processed_bytes": {
+        "in_place": 321125
+      },
+      "outputs": [
+        "PH2 Magnetic Drill Bits (65mm) (2).jpg"
+      ]
+    },
+    {
+      "source": "PH2 Magnetic Drill Bits (65mm).jpg",
+      "status": "ok",
+      "seconds": 5.75,
+      "original_size": 362118,
+      "processed_bytes": {
+        "in_place": 362118
+      },
+      "outputs": [
+        "PH2 Magnetic Drill Bits (65mm).jpg"
+      ]
+    },
+    {
+      "source": "PP Strapping Rolls 15mm (3).jpg",
+      "status": "ok",
+      "seconds": 5.85,
+      "original_size": 270854,
+      "processed_bytes": {
+        "in_place": 270854
+      },
+      "outputs": [
+        "PP Strapping Rolls 15mm (3).jpg"
+      ]
+    },
+    {
+      "source": "PP Strapping Rolls 15mm (2).jpg",
+      "status": "ok",
+      "seconds": 6.09,
+      "original_size": 270854,
+      "processed_bytes": {
+        "in_place": 270854
+      },
+      "outputs": [
+        "PP Strapping Rolls 15mm (2).jpg"
+      ]
+    },
+    {
+      "source": "PP Strapping Rolls 15mm.jpg",
+      "status": "ok",
+      "seconds": 5.28,
+      "original_size": 281402,
+      "processed_bytes": {
+        "in_place": 281402
+      },
+      "outputs": [
+        "PP Strapping Rolls 15mm.jpg"
+      ]
+    },
+    {
+      "source": "PP Woven Sacks (2).jpg",
+      "status": "ok",
+      "seconds": 5.56,
+      "original_size": 336273,
+      "processed_bytes": {
+        "in_place": 336273
+      },
+      "outputs": [
+        "PP Woven Sacks (2).jpg"
+      ]
+    },
+    {
+      "source": "PP Woven Sacks (3).jpg",
+      "status": "ok",
+      "seconds": 5.72,
+      "original_size": 367675,
+      "processed_bytes": {
+        "in_place": 367675
+      },
+      "outputs": [
+        "PP Woven Sacks (3).jpg"
+      ]
+    },
+    {
+      "source": "PP Woven Sacks (4).png",
+      "status": "ok",
+      "seconds": 8.6,
+      "original_size": 1095422,
+      "processed_bytes": {
+        "in_place": 1095422
+      },
+      "outputs": [
+        "PP Woven Sacks (4).png"
+      ]
+    },
+    {
+      "source": "PP Woven Sacks.jpg",
+      "status": "ok",
+      "seconds": 5.73,
+      "original_size": 336273,
+      "processed_bytes": {
+        "in_place": 336273
+      },
+      "outputs": [
+        "PP Woven Sacks.jpg"
+      ]
+    },
+    {
+      "source": "PPE Signage.jpg",
+      "status": "ok",
+      "seconds": 5.21,
+      "original_size": 316001,
+      "processed_bytes": {
+        "in_place": 316001
+      },
+      "outputs": [
+        "PPE Signage.jpg"
+      ]
+    },
+    {
+      "source": "PROTECTA CHEMICAL SAFETY GOGGLES.jpg",
+      "status": "ok",
+      "seconds": 5.56,
+      "original_size": 276787,
+      "processed_bytes": {
+        "in_place": 276787
+      },
+      "outputs": [
+        "PROTECTA CHEMICAL SAFETY GOGGLES.jpg"
+      ]
+    },
+    {
+      "source": "PVC Dotted Cotton Gloves.jpg",
+      "status": "ok",
+      "seconds": 7.21,
+      "original_size": 392243,
+      "processed_bytes": {
+        "in_place": 392243
+      },
+      "outputs": [
+        "PVC Dotted Cotton Gloves.jpg"
+      ]
+    },
+    {
+      "source": "Pallet Stretch Film (2).jpg",
+      "status": "ok",
+      "seconds": 7.62,
+      "original_size": 362229,
+      "processed_bytes": {
+        "in_place": 362229
+      },
+      "outputs": [
+        "Pallet Stretch Film (2).jpg"
+      ]
+    },
+    {
+      "source": "Pallet Stretch Film.jpg",
+      "status": "ok",
+      "seconds": 7.61,
+      "original_size": 301449,
+      "processed_bytes": {
+        "in_place": 301449
+      },
+      "outputs": [
+        "Pallet Stretch Film.jpg"
+      ]
+    },
+    {
+      "source": "Pallet Stretch Film (3).png",
+      "status": "ok",
+      "seconds": 11.38,
+      "original_size": 1131981,
+      "processed_bytes": {
+        "in_place": 1131981
+      },
+      "outputs": [
+        "Pallet Stretch Film (3).png"
+      ]
+    },
+    {
+      "source": "Personal Flotation Device.jpg",
+      "status": "ok",
+      "seconds": 5.44,
+      "original_size": 293521,
+      "processed_bytes": {
+        "in_place": 293521
+      },
+      "outputs": [
+        "Personal Flotation Device.jpg"
+      ]
+    },
+    {
+      "source": "Pop Rivet Machine (2).jpg",
+      "status": "ok",
+      "seconds": 4.97,
+      "original_size": 307936,
+      "processed_bytes": {
+        "in_place": 307936
+      },
+      "outputs": [
+        "Pop Rivet Machine (2).jpg"
+      ]
+    },
+    {
+      "source": "Pop Rivet Machine (3).jpg",
+      "status": "ok",
+      "seconds": 4.76,
+      "original_size": 311104,
+      "processed_bytes": {
+        "in_place": 311104
+      },
+      "outputs": [
+        "Pop Rivet Machine (3).jpg"
+      ]
+    },
+    {
+      "source": "Pop Rivet Machine.jpg",
+      "status": "ok",
+      "seconds": 5.98,
+      "original_size": 279514,
+      "processed_bytes": {
+        "in_place": 279514
+      },
+      "outputs": [
+        "Pop Rivet Machine.jpg"
+      ]
+    },
+    {
+      "source": "Pop Rivets.jpg",
+      "status": "ok",
+      "seconds": 5.81,
+      "original_size": 290629,
+      "processed_bytes": {
+        "in_place": 290629
+      },
+      "outputs": [
+        "Pop Rivets.jpg"
+      ]
+    },
+    {
+      "source": "Pop Rivets (2).png",
+      "status": "ok",
+      "seconds": 8.55,
+      "original_size": 1180744,
+      "processed_bytes": {
+        "in_place": 1180744
+      },
+      "outputs": [
+        "Pop Rivets (2).png"
+      ]
+    },
+    {
+      "source": "Portable Bag Closer Machine (2).png",
+      "status": "ok",
+      "seconds": 9.85,
+      "original_size": 1100668,
+      "processed_bytes": {
+        "in_place": 1100668
+      },
+      "outputs": [
+        "Portable Bag Closer Machine (2).png"
+      ]
+    },
+    {
+      "source": "Powder Free Disposable Latex Gloves.jpg",
+      "status": "ok",
+      "seconds": 6.8,
+      "original_size": 313021,
+      "processed_bytes": {
+        "in_place": 313021
+      },
+      "outputs": [
+        "Powder Free Disposable Latex Gloves.jpg"
+      ]
+    },
+    {
+      "source": "Power Mega Phone.jpg",
+      "status": "ok",
+      "seconds": 7.29,
+      "original_size": 256286,
+      "processed_bytes": {
+        "in_place": 256286
+      },
+      "outputs": [
+        "Power Mega Phone.jpg"
+      ]
+    },
+    {
+      "source": "Portable Bag Closer Machine.png",
+      "status": "ok",
+      "seconds": 10.94,
+      "original_size": 918050,
+      "processed_bytes": {
+        "in_place": 918050
+      },
+      "outputs": [
+        "Portable Bag Closer Machine.png"
+      ]
+    },
+    {
+      "source": "Professional Stethoscope.jpg",
+      "status": "ok",
+      "seconds": 8.35,
+      "original_size": 296578,
+      "processed_bytes": {
+        "in_place": 296578
+      },
+      "outputs": [
+        "Professional Stethoscope.jpg"
+      ]
+    },
+    {
+      "source": "Rain Coat With Inner Lining.jpeg",
+      "status": "ok",
+      "seconds": 8.56,
+      "original_size": 302456,
+      "processed_bytes": {
+        "in_place": 302456
+      },
+      "outputs": [
+        "Rain Coat With Inner Lining.jpeg"
+      ]
+    },
+    {
+      "source": "Rain Coat.jpg",
+      "status": "ok",
+      "seconds": 8.96,
+      "original_size": 266158,
+      "processed_bytes": {
+        "in_place": 266158
+      },
+      "outputs": [
+        "Rain Coat.jpg"
+      ]
+    },
+    {
+      "source": "Red Heavy-Duty Nitrile Gloves.jpg",
+      "status": "ok",
+      "seconds": 9.15,
+      "original_size": 320597,
+      "processed_bytes": {
+        "in_place": 320597
+      },
+      "outputs": [
+        "Red Heavy-Duty Nitrile Gloves.jpg"
+      ]
+    },
+    {
+      "source": "Red Pvc Gloves With Polyester Lining.jpg",
+      "status": "ok",
+      "seconds": 10.75,
+      "original_size": 277765,
+      "processed_bytes": {
+        "in_place": 277765
+      },
+      "outputs": [
+        "Red Pvc Gloves With Polyester Lining.jpg"
+      ]
+    },
+    {
+      "source": "Reflective Overalls (Normal Duty).jpg",
+      "status": "ok",
+      "seconds": 9.84,
+      "original_size": 295116,
+      "processed_bytes": {
+        "in_place": 295116
+      },
+      "outputs": [
+        "Reflective Overalls (Normal Duty).jpg"
+      ]
+    },
+    {
+      "source": "Reflector Jackets (2).jpg",
+      "status": "ok",
+      "seconds": 10.71,
+      "original_size": 316763,
+      "processed_bytes": {
+        "in_place": 316763
+      },
+      "outputs": [
+        "Reflector Jackets (2).jpg"
+      ]
+    },
+    {
+      "source": "Reflective Overalls (Normal Duty) (2).png",
+      "status": "ok",
+      "seconds": 15.65,
+      "original_size": 1142636,
+      "processed_bytes": {
+        "in_place": 1142636
+      },
+      "outputs": [
+        "Reflective Overalls (Normal Duty) (2).png"
+      ]
+    },
+    {
+      "source": "Reflector Jackets (3).jpg",
+      "status": "ok",
+      "seconds": 8.41,
+      "original_size": 326820,
+      "processed_bytes": {
+        "in_place": 326820
+      },
+      "outputs": [
+        "Reflector Jackets (3).jpg"
+      ]
+    },
+    {
+      "source": "Reflector Jackets 3 msgh6frn.jpg",
+      "status": "ok",
+      "seconds": 8.52,
+      "original_size": 326820,
+      "processed_bytes": {
+        "in_place": 326820
+      },
+      "outputs": [
+        "Reflector Jackets 3 msgh6frn.jpg"
+      ]
+    },
+    {
+      "source": "Reflector Jackets 3 msghj2m6.jpg",
+      "status": "ok",
+      "seconds": 8.19,
+      "original_size": 326820,
+      "processed_bytes": {
+        "in_place": 326820
+      },
+      "outputs": [
+        "Reflector Jackets 3 msghj2m6.jpg"
+      ]
+    },
+    {
+      "source": "Reflector Jackets 3 msgik0ko.jpg",
+      "status": "ok",
+      "seconds": 7.87,
+      "original_size": 326820,
+      "processed_bytes": {
+        "in_place": 326820
+      },
+      "outputs": [
+        "Reflector Jackets 3 msgik0ko.jpg"
+      ]
+    },
+    {
+      "source": "Reflector Jackets 3.jpg",
+      "status": "ok",
+      "seconds": 7.54,
+      "original_size": 326820,
+      "processed_bytes": {
+        "in_place": 326820
+      },
+      "outputs": [
+        "Reflector Jackets 3.jpg"
+      ]
+    },
+    {
+      "source": "Resends_Knicker Cut Resistant Gloves.jpeg",
+      "status": "ok",
+      "seconds": 8.13,
+      "original_size": 316007,
+      "processed_bytes": {
+        "in_place": 316007
+      },
+      "outputs": [
+        "Resends_Knicker Cut Resistant Gloves.jpeg"
+      ]
+    },
+    {
+      "source": "Reflector Jackets msgh56dv.png",
+      "status": "ok",
+      "seconds": 12.57,
+      "original_size": 1007411,
+      "processed_bytes": {
+        "in_place": 1007411
+      },
+      "outputs": [
+        "Reflector Jackets msgh56dv.png"
+      ]
+    },
+    {
+      "source": "Reflector Jackets msghiney.png",
+      "status": "ok",
+      "seconds": 12.42,
+      "original_size": 1007411,
+      "processed_bytes": {
+        "in_place": 1007411
+      },
+      "outputs": [
+        "Reflector Jackets msghiney.png"
+      ]
+    },
+    {
+      "source": "Reflector Jackets.png",
+      "status": "ok",
+      "seconds": 12.45,
+      "original_size": 1007411,
+      "processed_bytes": {
+        "in_place": 1007411
+      },
+      "outputs": [
+        "Reflector Jackets.png"
+      ]
+    },
+    {
+      "source": "Reusable Chef Hats (2).jpg",
+      "status": "ok",
+      "seconds": 5.94,
+      "original_size": 272733,
+      "processed_bytes": {
+        "in_place": 272733
+      },
+      "outputs": [
+        "Reusable Chef Hats (2).jpg"
+      ]
+    },
+    {
+      "source": "Reusable Chef Hats.jpg",
+      "status": "ok",
+      "seconds": 5.86,
+      "original_size": 276426,
+      "processed_bytes": {
+        "in_place": 276426
+      },
+      "outputs": [
+        "Reusable Chef Hats.jpg"
+      ]
+    },
+    {
+      "source": "Riders Chest Guard.jpg",
+      "status": "ok",
+      "seconds": 8.19,
+      "original_size": 336671,
+      "processed_bytes": {
+        "in_place": 336671
+      },
+      "outputs": [
+        "Riders Chest Guard.jpg"
+      ]
+    },
+    {
+      "source": "Rubber Bands (2).jpg",
+      "status": "ok",
+      "seconds": 9.86,
+      "original_size": 394457,
+      "processed_bytes": {
+        "in_place": 394457
+      },
+      "outputs": [
+        "Rubber Bands (2).jpg"
+      ]
+    },
+    {
+      "source": "Rubber Bands.jpg",
+      "status": "ok",
+      "seconds": 11.6,
+      "original_size": 358130,
+      "processed_bytes": {
+        "in_place": 358130
+      },
+      "outputs": [
+        "Rubber Bands.jpg"
+      ]
+    },
+    {
+      "source": "Safety Balaclava.jpg",
+      "status": "ok",
+      "seconds": 11.3,
+      "original_size": 260005,
+      "processed_bytes": {
+        "in_place": 260005
+      },
+      "outputs": [
+        "Safety Balaclava.jpg"
+      ]
+    },
+    {
+      "source": "Safety Goggles.jpg",
+      "status": "ok",
+      "seconds": 10.56,
+      "original_size": 256991,
+      "processed_bytes": {
+        "in_place": 256991
+      },
+      "outputs": [
+        "Safety Goggles.jpg"
+      ]
+    },
+    {
+      "source": "Safety Goggles (2).png",
+      "status": "ok",
+      "seconds": 17.71,
+      "original_size": 1014781,
+      "processed_bytes": {
+        "in_place": 1014781
+      },
+      "outputs": [
+        "Safety Goggles (2).png"
+      ]
+    },
+    {
+      "source": "Safety Gumboots (2).jpg",
+      "status": "ok",
+      "seconds": 11.72,
+      "original_size": 281893,
+      "processed_bytes": {
+        "in_place": 281893
+      },
+      "outputs": [
+        "Safety Gumboots (2).jpg"
+      ]
+    },
+    {
+      "source": "Safety Goggles.webp",
+      "status": "ok",
+      "seconds": 15.98,
+      "original_size": 117922,
+      "processed_bytes": {
+        "in_place": 117922
+      },
+      "outputs": [
+        "Safety Goggles.webp"
+      ]
+    },
+    {
+      "source": "Safety Jogger Best Boy Safety Boot.jpg",
+      "status": "ok",
+      "seconds": 8.75,
+      "original_size": 360662,
+      "processed_bytes": {
+        "in_place": 360662
+      },
+      "outputs": [
+        "Safety Jogger Best Boy Safety Boot.jpg"
+      ]
+    },
+    {
+      "source": "Safety Gumboots.png",
+      "status": "ok",
+      "seconds": 16.63,
+      "original_size": 1107526,
+      "processed_bytes": {
+        "in_place": 1107526
+      },
+      "outputs": [
+        "Safety Gumboots.png"
+      ]
+    },
+    {
+      "source": "Safety Jogger Safety Manager.jpg",
+      "status": "ok",
+      "seconds": 8.3,
+      "original_size": 297758,
+      "processed_bytes": {
+        "in_place": 297758
+      },
+      "outputs": [
+        "Safety Jogger Safety Manager.jpg"
+      ]
+    },
+    {
+      "source": "Safety Jogger Safety Boot.png",
+      "status": "ok",
+      "seconds": 12.84,
+      "original_size": 1383852,
+      "processed_bytes": {
+        "in_place": 1383852
+      },
+      "outputs": [
+        "Safety Jogger Safety Boot.png"
+      ]
+    },
+    {
+      "source": "Safety Overalls.png",
+      "status": "ok",
+      "seconds": 14.41,
+      "original_size": 900118,
+      "processed_bytes": {
+        "in_place": 900118
+      },
+      "outputs": [
+        "Safety Overalls.png"
+      ]
+    },
+    {
+      "source": "Salon Nitrile Gloves (Powder-Free) (2).jpg",
+      "status": "ok",
+      "seconds": 10.35,
+      "original_size": 274967,
+      "processed_bytes": {
+        "in_place": 274967
+      },
+      "outputs": [
+        "Salon Nitrile Gloves (Powder-Free) (2).jpg"
+      ]
+    },
+    {
+      "source": "Salon Nitrile Gloves (Powder-Free) (3).jpg",
+      "status": "ok",
+      "seconds": 10.52,
+      "original_size": 343880,
+      "processed_bytes": {
+        "in_place": 343880
+      },
+      "outputs": [
+        "Salon Nitrile Gloves (Powder-Free) (3).jpg"
+      ]
+    },
+    {
+      "source": "Safety Reflective Jacket (Long Sleeve-Yellow).png",
+      "status": "ok",
+      "seconds": 15.93,
+      "original_size": 1096144,
+      "processed_bytes": {
+        "in_place": 1096144
+      },
+      "outputs": [
+        "Safety Reflective Jacket (Long Sleeve-Yellow).png"
+      ]
+    },
+    {
+      "source": "Salon Nitrile Gloves (Powder-Free).jpg",
+      "status": "ok",
+      "seconds": 10.16,
+      "original_size": 292344,
+      "processed_bytes": {
+        "in_place": 292344
+      },
+      "outputs": [
+        "Salon Nitrile Gloves (Powder-Free).jpg"
+      ]
+    },
+    {
+      "source": "Salon Wrap Aprons (2).jpg",
+      "status": "ok",
+      "seconds": 9.79,
+      "original_size": 262914,
+      "processed_bytes": {
+        "in_place": 262914
+      },
+      "outputs": [
+        "Salon Wrap Aprons (2).jpg"
+      ]
+    },
+    {
+      "source": "Salon Wrap Aprons.jpg",
+      "status": "ok",
+      "seconds": 11.99,
+      "original_size": 272405,
+      "processed_bytes": {
+        "in_place": 272405
+      },
+      "outputs": [
+        "Salon Wrap Aprons.jpg"
+      ]
+    },
+    {
+      "source": "Sandak Gumboot.jpg",
+      "status": "ok",
+      "seconds": 11.81,
+      "original_size": 242336,
+      "processed_bytes": {
+        "in_place": 242336
+      },
+      "outputs": [
+        "Sandak Gumboot.jpg"
+      ]
+    },
+    {
+      "source": "Security Whistle.jpg",
+      "status": "ok",
+      "seconds": 13.34,
+      "original_size": 260945,
+      "processed_bytes": {
+        "in_place": 260945
+      },
+      "outputs": [
+        "Security Whistle.jpg"
+      ]
+    },
+    {
+      "source": "Shoe Covers (3).jpg",
+      "status": "ok",
+      "seconds": 11.74,
+      "original_size": 327514,
+      "processed_bytes": {
+        "in_place": 327514
+      },
+      "outputs": [
+        "Shoe Covers (3).jpg"
+      ]
+    },
+    {
+      "source": "Shoe Covers.jpg",
+      "status": "ok",
+      "seconds": 12.36,
+      "original_size": 300562,
+      "processed_bytes": {
+        "in_place": 300562
+      },
+      "outputs": [
+        "Shoe Covers.jpg"
+      ]
+    },
+    {
+      "source": "Shoe Covers (2).png",
+      "status": "ok",
+      "seconds": 18.37,
+      "original_size": 1130103,
+      "processed_bytes": {
+        "in_place": 1130103
+      },
+      "outputs": [
+        "Shoe Covers (2).png"
+      ]
+    },
+    {
+      "source": "Single Respirator Mask (NP307) (2).jpg",
+      "status": "ok",
+      "seconds": 9.01,
+      "original_size": 287523,
+      "processed_bytes": {
+        "in_place": 287523
+      },
+      "outputs": [
+        "Single Respirator Mask (NP307) (2).jpg"
+      ]
+    },
+    {
+      "source": "Single Respirator Mask (NP307) (3).jpg",
+      "status": "ok",
+      "seconds": 7.59,
+      "original_size": 281220,
+      "processed_bytes": {
+        "in_place": 281220
+      },
+      "outputs": [
+        "Single Respirator Mask (NP307) (3).jpg"
+      ]
+    },
+    {
+      "source": "Single Respirator Mask (NP307).jpg",
+      "status": "ok",
+      "seconds": 6.61,
+      "original_size": 288921,
+      "processed_bytes": {
+        "in_place": 288921
+      },
+      "outputs": [
+        "Single Respirator Mask (NP307).jpg"
+      ]
+    },
+    {
+      "source": "Sisal Twine (2).jpg",
+      "status": "ok",
+      "seconds": 7.12,
+      "original_size": 355456,
+      "processed_bytes": {
+        "in_place": 355456
+      },
+      "outputs": [
+        "Sisal Twine (2).jpg"
+      ]
+    },
+    {
+      "source": "Sisal Twine.jpg",
+      "status": "ok",
+      "seconds": 6.64,
+      "original_size": 368178,
+      "processed_bytes": {
+        "in_place": 368178
+      },
+      "outputs": [
+        "Sisal Twine.jpg"
+      ]
+    },
+    {
+      "source": "Smoke Detector.jpg",
+      "status": "ok",
+      "seconds": 6.73,
+      "original_size": 247956,
+      "processed_bytes": {
+        "in_place": 247956
+      },
+      "outputs": [
+        "Smoke Detector.jpg"
+      ]
+    },
+    {
+      "source": "Spine Board Stretcher.jpg",
+      "status": "ok",
+      "seconds": 5.84,
+      "original_size": 249442,
+      "processed_bytes": {
+        "in_place": 249442
+      },
+      "outputs": [
+        "Spine Board Stretcher.jpg"
+      ]
+    },
+    {
+      "source": "Stainless Steel Tissue Holders (2).jpg",
+      "status": "ok",
+      "seconds": 5.88,
+      "original_size": 274016,
+      "processed_bytes": {
+        "in_place": 274016
+      },
+      "outputs": [
+        "Stainless Steel Tissue Holders (2).jpg"
+      ]
+    },
+    {
+      "source": "Stainless Steel Tissue Holders (3).jpg",
+      "status": "ok",
+      "seconds": 5.92,
+      "original_size": 271842,
+      "processed_bytes": {
+        "in_place": 271842
+      },
+      "outputs": [
+        "Stainless Steel Tissue Holders (3).jpg"
+      ]
+    },
+    {
+      "source": "Stainless Steel Tissue Holders.jpg",
+      "status": "ok",
+      "seconds": 6.07,
+      "original_size": 252067,
+      "processed_bytes": {
+        "in_place": 252067
+      },
+      "outputs": [
+        "Stainless Steel Tissue Holders.jpg"
+      ]
+    },
+    {
+      "source": "Standard Foldable Wheelchair.jpg",
+      "status": "ok",
+      "seconds": 5.99,
+      "original_size": 307096,
+      "processed_bytes": {
+        "in_place": 307096
+      },
+      "outputs": [
+        "Standard Foldable Wheelchair.jpg"
+      ]
+    },
+    {
+      "source": "Steel Toe Gumboot.jpg",
+      "status": "ok",
+      "seconds": 5.91,
+      "original_size": 257611,
+      "processed_bytes": {
+        "in_place": 257611
+      },
+      "outputs": [
+        "Steel Toe Gumboot.jpg"
+      ]
+    },
+    {
+      "source": "Steel toe Gum Boot.jpg",
+      "status": "ok",
+      "seconds": 5.29,
+      "original_size": 248330,
+      "processed_bytes": {
+        "in_place": 248330
+      },
+      "outputs": [
+        "Steel toe Gum Boot.jpg"
+      ]
+    },
+    {
+      "source": "Steel-Toe Safety Shoes (2).jpg",
+      "status": "ok",
+      "seconds": 5.66,
+      "original_size": 383540,
+      "processed_bytes": {
+        "in_place": 383540
+      },
+      "outputs": [
+        "Steel-Toe Safety Shoes (2).jpg"
+      ]
+    },
+    {
+      "source": "Steel-Toe Safety Shoes (3).jpg",
+      "status": "ok",
+      "seconds": 5.94,
+      "original_size": 369806,
+      "processed_bytes": {
+        "in_place": 369806
+      },
+      "outputs": [
+        "Steel-Toe Safety Shoes (3).jpg"
+      ]
+    },
+    {
+      "source": "Steel-Toe Safety Shoes (4).jpg",
+      "status": "ok",
+      "seconds": 5.75,
+      "original_size": 300853,
+      "processed_bytes": {
+        "in_place": 300853
+      },
+      "outputs": [
+        "Steel-Toe Safety Shoes (4).jpg"
+      ]
+    },
+    {
+      "source": "Steel-Toe Safety Shoes.jpg",
+      "status": "ok",
+      "seconds": 5.43,
+      "original_size": 369819,
+      "processed_bytes": {
+        "in_place": 369819
+      },
+      "outputs": [
+        "Steel-Toe Safety Shoes.jpg"
+      ]
+    },
+    {
+      "source": "Strapping Metal Clips (2).jpeg",
+      "status": "ok",
+      "seconds": 5.04,
+      "original_size": 334727,
+      "processed_bytes": {
+        "in_place": 334727
+      },
+      "outputs": [
+        "Strapping Metal Clips (2).jpeg"
+      ]
+    },
+    {
+      "source": "Strapping Metal Clips (3).jpg",
+      "status": "ok",
+      "seconds": 5.73,
+      "original_size": 288729,
+      "processed_bytes": {
+        "in_place": 288729
+      },
+      "outputs": [
+        "Strapping Metal Clips (3).jpg"
+      ]
+    },
+    {
+      "source": "Strapping Metal Clips.jpg",
+      "status": "ok",
+      "seconds": 5.6,
+      "original_size": 329779,
+      "processed_bytes": {
+        "in_place": 329779
+      },
+      "outputs": [
+        "Strapping Metal Clips.jpg"
+      ]
+    },
+    {
+      "source": "Stun Gun Self Defense Flashlight Torch- 288 Type.jpg",
+      "status": "ok",
+      "seconds": 5.74,
+      "original_size": 277897,
+      "processed_bytes": {
+        "in_place": 277897
+      },
+      "outputs": [
+        "Stun Gun Self Defense Flashlight Torch- 288 Type.jpg"
+      ]
+    },
+    {
+      "source": "Suggestion Box Mid Size.jpg",
+      "status": "ok",
+      "seconds": 5.42,
+      "original_size": 271605,
+      "processed_bytes": {
+        "in_place": 271605
+      },
+      "outputs": [
+        "Suggestion Box Mid Size.jpg"
+      ]
+    },
+    {
+      "source": "Taiwan Chemical medical Clear Safety Goggles.jpg",
+      "status": "ok",
+      "seconds": 5.38,
+      "original_size": 239304,
+      "processed_bytes": {
+        "in_place": 239304
+      },
+      "outputs": [
+        "Taiwan Chemical medical Clear Safety Goggles.jpg"
+      ]
+    },
+    {
+      "source": "Thermal Receipt Rolls (2).jpg",
+      "status": "ok",
+      "seconds": 5.96,
+      "original_size": 274335,
+      "processed_bytes": {
+        "in_place": 274335
+      },
+      "outputs": [
+        "Thermal Receipt Rolls (2).jpg"
+      ]
+    },
+    {
+      "source": "Thermal Receipt Rolls.jpg",
+      "status": "ok",
+      "seconds": 5.74,
+      "original_size": 253372,
+      "processed_bytes": {
+        "in_place": 253372
+      },
+      "outputs": [
+        "Thermal Receipt Rolls.jpg"
+      ]
+    },
+    {
+      "source": "Thermal Shipping Labels (2).jpg",
+      "status": "ok",
+      "seconds": 6.22,
+      "original_size": 272789,
+      "processed_bytes": {
+        "in_place": 272789
+      },
+      "outputs": [
+        "Thermal Shipping Labels (2).jpg"
+      ]
+    },
+    {
+      "source": "Thermal Shipping Labels.jpg",
+      "status": "ok",
+      "seconds": 5.86,
+      "original_size": 284364,
+      "processed_bytes": {
+        "in_place": 284364
+      },
+      "outputs": [
+        "Thermal Shipping Labels.jpg"
+      ]
+    },
+    {
+      "source": "Truck Traffic Reflective Warning Safety Tape.jpg",
+      "status": "ok",
+      "seconds": 5.48,
+      "original_size": 308714,
+      "processed_bytes": {
+        "in_place": 308714
+      },
+      "outputs": [
+        "Truck Traffic Reflective Warning Safety Tape.jpg"
+      ]
+    },
+    {
+      "source": "Ultimate Plus Cut Resistant Gloves.jpeg",
+      "status": "ok",
+      "seconds": 5.67,
+      "original_size": 278089,
+      "processed_bytes": {
+        "in_place": 278089
+      },
+      "outputs": [
+        "Ultimate Plus Cut Resistant Gloves.jpeg"
+      ]
+    },
+    {
+      "source": "Unbranded Carton Boxes (2).jpg",
+      "status": "ok",
+      "seconds": 5.55,
+      "original_size": 269008,
+      "processed_bytes": {
+        "in_place": 269008
+      },
+      "outputs": [
+        "Unbranded Carton Boxes (2).jpg"
+      ]
+    },
+    {
+      "source": "Unbranded Carton Boxes (3).png",
+      "status": "ok",
+      "seconds": 8.53,
+      "original_size": 990036,
+      "processed_bytes": {
+        "in_place": 990036
+      },
+      "outputs": [
+        "Unbranded Carton Boxes (3).png"
+      ]
+    },
+    {
+      "source": "Urinal Screen Mats (2).jpg",
+      "status": "ok",
+      "seconds": 5.5,
+      "original_size": 387901,
+      "processed_bytes": {
+        "in_place": 387901
+      },
+      "outputs": [
+        "Urinal Screen Mats (2).jpg"
+      ]
+    },
+    {
+      "source": "Urinal Screen Mats.jpg",
+      "status": "ok",
+      "seconds": 5.45,
+      "original_size": 414162,
+      "processed_bytes": {
+        "in_place": 414162
+      },
+      "outputs": [
+        "Urinal Screen Mats.jpg"
+      ]
+    },
+    {
+      "source": "Unbranded Carton Boxes.png",
+      "status": "ok",
+      "seconds": 8.84,
+      "original_size": 919979,
+      "processed_bytes": {
+        "in_place": 919979
+      },
+      "outputs": [
+        "Unbranded Carton Boxes.png"
+      ]
+    },
+    {
+      "source": "Urinal Toilet Balls (2).jpg",
+      "status": "ok",
+      "seconds": 5.25,
+      "original_size": 314177,
+      "processed_bytes": {
+        "in_place": 314177
+      },
+      "outputs": [
+        "Urinal Toilet Balls (2).jpg"
+      ]
+    },
+    {
+      "source": "Urinal Toilet Balls.jpg",
+      "status": "ok",
+      "seconds": 5.78,
+      "original_size": 302975,
+      "processed_bytes": {
+        "in_place": 302975
+      },
+      "outputs": [
+        "Urinal Toilet Balls.jpg"
+      ]
+    },
+    {
+      "source": "VAULTEX SAFETY BOOT.jpg",
+      "status": "ok",
+      "seconds": 5.68,
+      "original_size": 322534,
+      "processed_bytes": {
+        "in_place": 322534
+      },
+      "outputs": [
+        "VAULTEX SAFETY BOOT.jpg"
+      ]
+    },
+    {
+      "source": "Vaultex Dust Mask VB1.png",
+      "status": "ok",
+      "seconds": 9.42,
+      "original_size": 985271,
+      "processed_bytes": {
+        "in_place": 985271
+      },
+      "outputs": [
+        "Vaultex Dust Mask VB1.png"
+      ]
+    },
+    {
+      "source": "Vaultex Safety Helmet.jpg",
+      "status": "ok",
+      "seconds": 6.11,
+      "original_size": 251706,
+      "processed_bytes": {
+        "in_place": 251706
+      },
+      "outputs": [
+        "Vaultex Safety Helmet.jpg"
+      ]
+    },
+    {
+      "source": "Washing & Scrubbing Pads (2).png",
+      "status": "ok",
+      "seconds": 7.81,
+      "original_size": 1787586,
+      "processed_bytes": {
+        "in_place": 1787586
+      },
+      "outputs": [
+        "Washing & Scrubbing Pads (2).png"
+      ]
+    },
+    {
+      "source": "Washing & Scrubbing Pads.png",
+      "status": "ok",
+      "seconds": 7.99,
+      "original_size": 1547859,
+      "processed_bytes": {
+        "in_place": 1547859
+      },
+      "outputs": [
+        "Washing & Scrubbing Pads.png"
+      ]
+    },
+    {
+      "source": "Waterproof Canvas Aprons (2).jpg",
+      "status": "ok",
+      "seconds": 5.34,
+      "original_size": 316372,
+      "processed_bytes": {
+        "in_place": 316372
+      },
+      "outputs": [
+        "Waterproof Canvas Aprons (2).jpg"
+      ]
+    },
+    {
+      "source": "Waterproof Canvas Aprons (3).webp",
+      "status": "ok",
+      "seconds": 8.66,
+      "original_size": 102694,
+      "processed_bytes": {
+        "in_place": 102694
+      },
+      "outputs": [
+        "Waterproof Canvas Aprons (3).webp"
+      ]
+    },
+    {
+      "source": "Waterproof Canvas Aprons.jpg",
+      "status": "ok",
+      "seconds": 6.54,
+      "original_size": 285529,
+      "processed_bytes": {
+        "in_place": 285529
+      },
+      "outputs": [
+        "Waterproof Canvas Aprons.jpg"
+      ]
+    },
+    {
+      "source": "Welding Gloves (2).jpg",
+      "status": "ok",
+      "seconds": 6.81,
+      "original_size": 352500,
+      "processed_bytes": {
+        "in_place": 352500
+      },
+      "outputs": [
+        "Welding Gloves (2).jpg"
+      ]
+    },
+    {
+      "source": "Welding Gloves (3).jpg",
+      "status": "ok",
+      "seconds": 6.2,
+      "original_size": 395223,
+      "processed_bytes": {
+        "in_place": 395223
+      },
+      "outputs": [
+        "Welding Gloves (3).jpg"
+      ]
+    },
+    {
+      "source": "Welding Gloves.jpg",
+      "status": "ok",
+      "seconds": 5.85,
+      "original_size": 357480,
+      "processed_bytes": {
+        "in_place": 357480
+      },
+      "outputs": [
+        "Welding Gloves.jpg"
+      ]
+    },
+    {
+      "source": "Welding Goggles (2).jpg",
+      "status": "ok",
+      "seconds": 5.8,
+      "original_size": 281212,
+      "processed_bytes": {
+        "in_place": 281212
+      },
+      "outputs": [
+        "Welding Goggles (2).jpg"
+      ]
+    },
+    {
+      "source": "Welding Goggles (3).jpg",
+      "status": "ok",
+      "seconds": 5.41,
+      "original_size": 274172,
+      "processed_bytes": {
+        "in_place": 274172
+      },
+      "outputs": [
+        "Welding Goggles (3).jpg"
+      ]
+    },
+    {
+      "source": "Welding Goggles.jpg",
+      "status": "ok",
+      "seconds": 5.89,
+      "original_size": 280918,
+      "processed_bytes": {
+        "in_place": 280918
+      },
+      "outputs": [
+        "Welding Goggles.jpg"
+      ]
+    },
+    {
+      "source": "Wooden Suggestion Box.jpg",
+      "status": "ok",
+      "seconds": 5.46,
+      "original_size": 278356,
+      "processed_bytes": {
+        "in_place": 278356
+      },
+      "outputs": [
+        "Wooden Suggestion Box.jpg"
+      ]
+    },
+    {
+      "source": "Work In Progress.jpg",
+      "status": "ok",
+      "seconds": 5.99,
+      "original_size": 268338,
+      "processed_bytes": {
+        "in_place": 268338
+      },
+      "outputs": [
+        "Work In Progress.jpg"
+      ]
+    },
+    {
+      "source": "Workwear Dustcoats (2).png",
+      "status": "ok",
+      "seconds": 8.83,
+      "original_size": 836770,
+      "processed_bytes": {
+        "in_place": 836770
+      },
+      "outputs": [
+        "Workwear Dustcoats (2).png"
+      ]
+    },
+    {
+      "source": "YAMATO JAPANESE QUALITY SAFETY SHOE.jpg",
+      "status": "ok",
+      "seconds": 4.72,
+      "original_size": 313720,
+      "processed_bytes": {
+        "in_place": 313720
+      },
+      "outputs": [
+        "YAMATO JAPANESE QUALITY SAFETY SHOE.jpg"
+      ]
+    },
+    {
+      "source": "Workwear Dustcoats (3).png",
+      "status": "ok",
+      "seconds": 8.76,
+      "original_size": 906499,
+      "processed_bytes": {
+        "in_place": 906499
+      },
+      "outputs": [
+        "Workwear Dustcoats (3).png"
+      ]
+    },
+    {
+      "source": "Workwear Dustcoats.png",
+      "status": "ok",
+      "seconds": 8.37,
+      "original_size": 836770,
+      "processed_bytes": {
+        "in_place": 836770
+      },
+      "outputs": [
+        "Workwear Dustcoats.png"
+      ]
+    },
+    {
+      "source": "content msh0qxti.jpg",
+      "status": "ok",
+      "seconds": 4.95,
+      "original_size": 258652,
+      "processed_bytes": {
+        "in_place": 258652
+      },
+      "outputs": [
+        "content msh0qxti.jpg"
+      ]
+    },
+    {
+      "source": "disposablemask msk2ewxk.jpg",
+      "status": "ok",
+      "seconds": 6.1,
+      "original_size": 351671,
+      "processed_bytes": {
+        "in_place": 351671
+      },
+      "outputs": [
+        "disposablemask msk2ewxk.jpg"
+      ]
+    },
+    {
+      "source": "disposablemask1 msk2ejn7.jpg",
+      "status": "ok",
+      "seconds": 6.2,
+      "original_size": 346827,
+      "processed_bytes": {
+        "in_place": 346827
+      },
+      "outputs": [
+        "disposablemask1 msk2ejn7.jpg"
+      ]
+    },
+    {
+      "source": "disposablemask1.jpg",
+      "status": "ok",
+      "seconds": 5.74,
+      "original_size": 287577,
+      "processed_bytes": {
+        "in_place": 287577
+      },
+      "outputs": [
+        "disposablemask1.jpg"
+      ]
+    },
+    {
+      "source": "disposablemask2 msk2ebba.jpg",
+      "status": "ok",
+      "seconds": 5.56,
+      "original_size": 330202,
+      "processed_bytes": {
+        "in_place": 330202
+      },
+      "outputs": [
+        "disposablemask2 msk2ebba.jpg"
+      ]
+    },
+    {
+      "source": "firstaid-1.jpg",
+      "status": "ok",
+      "seconds": 5.51,
+      "original_size": 266418,
+      "processed_bytes": {
+        "in_place": 266418
+      },
+      "outputs": [
+        "firstaid-1.jpg"
+      ]
+    },
+    {
+      "source": "firstaid-2.jpg",
+      "status": "ok",
+      "seconds": 5.49,
+      "original_size": 266418,
+      "processed_bytes": {
+        "in_place": 266418
+      },
+      "outputs": [
+        "firstaid-2.jpg"
+      ]
+    },
+    {
+      "source": "firstaid.jpg",
+      "status": "ok",
+      "seconds": 5.73,
+      "original_size": 332260,
+      "processed_bytes": {
+        "in_place": 332260
+      },
+      "outputs": [
+        "firstaid.jpg"
+      ]
+    },
+    {
+      "source": "firstaid1 (1).jpg",
+      "status": "ok",
+      "seconds": 5.99,
+      "original_size": 352128,
+      "processed_bytes": {
+        "in_place": 352128
+      },
+      "outputs": [
+        "firstaid1 (1).jpg"
+      ]
+    },
+    {
+      "source": "firstaid1 (2).jpg",
+      "status": "ok",
+      "seconds": 5.73,
+      "original_size": 352128,
+      "processed_bytes": {
+        "in_place": 352128
+      },
+      "outputs": [
+        "firstaid1 (2).jpg"
+      ]
+    },
+    {
+      "source": "firstaid1-1.jpg",
+      "status": "ok",
+      "seconds": 5.76,
+      "original_size": 290330,
+      "processed_bytes": {
+        "in_place": 290330
+      },
+      "outputs": [
+        "firstaid1-1.jpg"
+      ]
+    },
+    {
+      "source": "firstaid1.jpg",
+      "status": "ok",
+      "seconds": 5.92,
+      "original_size": 364418,
+      "processed_bytes": {
+        "in_place": 364418
+      },
+      "outputs": [
+        "firstaid1.jpg"
+      ]
+    },
+    {
+      "source": "firstaid2.jpg",
+      "status": "ok",
+      "seconds": 5.69,
+      "original_size": 266787,
+      "processed_bytes": {
+        "in_place": 266787
+      },
+      "outputs": [
+        "firstaid2.jpg"
+      ]
+    },
+    {
+      "source": "firstaid3.jpg",
+      "status": "ok",
+      "seconds": 5.78,
+      "original_size": 286996,
+      "processed_bytes": {
+        "in_place": 286996
+      },
+      "outputs": [
+        "firstaid3.jpg"
+      ]
+    },
+    {
+      "source": "griptech1 msihzjjx.jpg",
+      "status": "ok",
+      "seconds": 5.89,
+      "original_size": 349983,
+      "processed_bytes": {
+        "in_place": 349983
+      },
+      "outputs": [
+        "griptech1 msihzjjx.jpg"
+      ]
+    },
+    {
+      "source": "griptech1 msii1adf.jpg",
+      "status": "ok",
+      "seconds": 5.97,
+      "original_size": 349983,
+      "processed_bytes": {
+        "in_place": 349983
+      },
+      "outputs": [
+        "griptech1 msii1adf.jpg"
+      ]
+    },
+    {
+      "source": "griptech2 msihzjsa.jpg",
+      "status": "ok",
+      "seconds": 5.78,
+      "original_size": 377973,
+      "processed_bytes": {
+        "in_place": 377973
+      },
+      "outputs": [
+        "griptech2 msihzjsa.jpg"
+      ]
+    },
+    {
+      "source": "griptech3 msii0p1p.jpg",
+      "status": "ok",
+      "seconds": 6.16,
+      "original_size": 354984,
+      "processed_bytes": {
+        "in_place": 354984
+      },
+      "outputs": [
+        "griptech3 msii0p1p.jpg"
+      ]
+    },
+    {
+      "source": "gumboot msgnfod3.jpg",
+      "status": "ok",
+      "seconds": 6.03,
+      "original_size": 281916,
+      "processed_bytes": {
+        "in_place": 281916
+      },
+      "outputs": [
+        "gumboot msgnfod3.jpg"
+      ]
+    },
+    {
+      "source": "helmet1 msigle4f.jpg",
+      "status": "ok",
+      "seconds": 5.49,
+      "original_size": 266033,
+      "processed_bytes": {
+        "in_place": 266033
+      },
+      "outputs": [
+        "helmet1 msigle4f.jpg"
+      ]
+    },
+    {
+      "source": "helmet2 msigkh89.jpg",
+      "status": "ok",
+      "seconds": 5.75,
+      "original_size": 294515,
+      "processed_bytes": {
+        "in_place": 294515
+      },
+      "outputs": [
+        "helmet2 msigkh89.jpg"
+      ]
+    },
+    {
+      "source": "helmet2 msigktv6.jpg",
+      "status": "ok",
+      "seconds": 6.15,
+      "original_size": 294515,
+      "processed_bytes": {
+        "in_place": 294515
+      },
+      "outputs": [
+        "helmet2 msigktv6.jpg"
+      ]
+    },
+    {
+      "source": "helmet3 msigluqy.jpg",
+      "status": "ok",
+      "seconds": 6.15,
+      "original_size": 299373,
+      "processed_bytes": {
+        "in_place": 299373
+      },
+      "outputs": [
+        "helmet3 msigluqy.jpg"
+      ]
+    },
+    {
+      "source": "marinevest msjwrnwy.jpg",
+      "status": "ok",
+      "seconds": 5.67,
+      "original_size": 274156,
+      "processed_bytes": {
+        "in_place": 274156
+      },
+      "outputs": [
+        "marinevest msjwrnwy.jpg"
+      ]
+    },
+    {
+      "source": "marinevest2 msjwsjct.jpg",
+      "status": "ok",
+      "seconds": 5.71,
+      "original_size": 277746,
+      "processed_bytes": {
+        "in_place": 277746
+      },
+      "outputs": [
+        "marinevest2 msjwsjct.jpg"
+      ]
+    },
+    {
+      "source": "marinevest3 msjwsy6c.jpg",
+      "status": "ok",
+      "seconds": 5.92,
+      "original_size": 259479,
+      "processed_bytes": {
+        "in_place": 259479
+      },
+      "outputs": [
+        "marinevest3 msjwsy6c.jpg"
+      ]
+    },
+    {
+      "source": "marinevest4 msjwrhwp.jpg",
+      "status": "ok",
+      "seconds": 6.02,
+      "original_size": 296968,
+      "processed_bytes": {
+        "in_place": 296968
+      },
+      "outputs": [
+        "marinevest4 msjwrhwp.jpg"
+      ]
+    },
+    {
+      "source": "nitrile msk46fw0.jpg",
+      "status": "ok",
+      "seconds": 6.17,
+      "original_size": 388065,
+      "processed_bytes": {
+        "in_place": 388065
+      },
+      "outputs": [
+        "nitrile msk46fw0.jpg"
+      ]
+    },
+    {
+      "source": "nitrile1 msk49oah.jpg",
+      "status": "ok",
+      "seconds": 6.35,
+      "original_size": 410034,
+      "processed_bytes": {
+        "in_place": 410034
+      },
+      "outputs": [
+        "nitrile1 msk49oah.jpg"
+      ]
+    },
+    {
+      "source": "nitrile2 msk492gf.jpg",
+      "status": "ok",
+      "seconds": 6.03,
+      "original_size": 409263,
+      "processed_bytes": {
+        "in_place": 409263
+      },
+      "outputs": [
+        "nitrile2 msk492gf.jpg"
+      ]
+    },
+    {
+      "source": "original-name-test.png",
+      "status": "ok",
+      "seconds": 8.48,
+      "original_size": 727015,
+      "processed_bytes": {
+        "in_place": 727015
+      },
+      "outputs": [
+        "original-name-test.png"
+      ]
+    },
+    {
+      "source": "overall1.png",
+      "status": "ok",
+      "seconds": 8.55,
+      "original_size": 986669,
+      "processed_bytes": {
+        "in_place": 986669
+      },
+      "outputs": [
+        "overall1.png"
+      ]
+    },
+    {
+      "source": "product_template.jpg",
+      "status": "ok",
+      "seconds": 5.09,
+      "original_size": 267825,
+      "processed_bytes": {
+        "in_place": 267825
+      },
+      "outputs": [
+        "product_template.jpg"
+      ]
+    },
+    {
+      "source": "overall2.png",
+      "status": "ok",
+      "seconds": 8.13,
+      "original_size": 881312,
+      "processed_bytes": {
+        "in_place": 881312
+      },
+      "outputs": [
+        "overall2.png"
+      ]
+    },
+    {
+      "source": "test-pixel mslbyhl7.png",
+      "status": "error",
+      "error": "OSError: broken data stream when reading image file",
+      "seconds": 0.01
+    },
+    {
+      "source": "reusable1 msk2pkdl.jpg",
+      "status": "ok",
+      "seconds": 4.61,
+      "original_size": 326317,
+      "processed_bytes": {
+        "in_place": 326317
+      },
+      "outputs": [
+        "reusable1 msk2pkdl.jpg"
+      ]
+    },
+    {
+      "source": "reusable3 msk2s8cc.jpg",
+      "status": "ok",
+      "seconds": 4.3,
+      "original_size": 316310,
+      "processed_bytes": {
+        "in_place": 316310
+      },
+      "outputs": [
+        "reusable3 msk2s8cc.jpg"
+      ]
+    },
+    {
+      "source": "reusable3 msk2xtqj.jpg",
+      "status": "ok",
+      "seconds": 4.02,
+      "original_size": 316310,
+      "processed_bytes": {
+        "in_place": 316310
+      },
+      "outputs": [
+        "reusable3 msk2xtqj.jpg"
+      ]
+    }
+  ]
+}
