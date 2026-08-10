@@ -32,6 +32,11 @@ export type DbOrder = {
   po_ref: string | null;
   company: string | null;
   po_file: string | null;
+  payment_phone: string | null;
+  mpesa_checkout_id: string | null;
+  mpesa_merchant_id: string | null;
+  paystack_reference: string | null;
+  payment_token: string | null;
   created_at: string;
 };
 
@@ -522,7 +527,7 @@ export async function provisionUserLogin(input: {
 
 // ---- Orders ----
 
-export async function createOrder(input: { user_id?: string | null; name: string; email: string; phone: string; address: string; items: string; total: number; subtotal?: number; discount?: number; shipping?: number; payment: string; po_ref?: string; company?: string; po_file?: string }): Promise<DbOrder> {  const order: DbOrder = {
+export async function createOrder(input: { user_id?: string | null; name: string; email: string; phone: string; address: string; items: string; total: number; subtotal?: number; discount?: number; shipping?: number; payment: string; po_ref?: string; company?: string; po_file?: string; payment_phone?: string | null; payment_token?: string | null }): Promise<DbOrder> {  const order: DbOrder = {
     id: `KS-${Math.floor(10000 + Math.random() * 89999)}`,
     user_id: input.user_id ?? null,
     name: input.name,
@@ -536,13 +541,20 @@ export async function createOrder(input: { user_id?: string | null; name: string
     shipping: input.shipping ?? 0,
     status: "Processing",
     payment: input.payment,
-    paid: input.payment === "po" ? 0 : 1,
+    // Every order starts unpaid — M-Pesa (STK callback), Paystack (webhook/verify)
+    // or an admin flips it to paid once the money is actually received.
+    paid: 0,
     po_ref: input.po_ref ?? null,
     company: input.company ?? null,
     po_file: input.po_file ?? null,
+    payment_phone: input.payment_phone ?? null,
+    mpesa_checkout_id: null,
+    mpesa_merchant_id: null,
+    paystack_reference: null,
+    payment_token: input.payment_token ?? null,
     created_at: new Date().toISOString(),
   };
-  await qe("INSERT INTO orders (id, user_id, name, email, phone, address, items, total, subtotal, discount, shipping, status, payment, paid, po_ref, company, po_file, created_at) VALUES (@id, @user_id, @name, @email, @phone, @address, @items, @total, @subtotal, @discount, @shipping, @status, @payment, @paid, @po_ref, @company, @po_file, @created_at)", order);
+  await qe("INSERT INTO orders (id, user_id, name, email, phone, address, items, total, subtotal, discount, shipping, status, payment, paid, po_ref, company, po_file, payment_phone, mpesa_checkout_id, mpesa_merchant_id, paystack_reference, payment_token, created_at) VALUES (@id, @user_id, @name, @email, @phone, @address, @items, @total, @subtotal, @discount, @shipping, @status, @payment, @paid, @po_ref, @company, @po_file, @payment_phone, @mpesa_checkout_id, @mpesa_merchant_id, @paystack_reference, @payment_token, @created_at)", order);
   return order;
 }
 
@@ -551,6 +563,22 @@ export async function getOrderById(id: string): Promise<DbOrder | undefined> {  
 
 export async function setOrderPaid(id: string, paid: number) {
   await qe("UPDATE orders SET paid = ? WHERE id = ?", paid, id);
+}
+
+export async function setMpesaCheckout(id: string, checkoutId: string, merchantId: string) {
+  await qe("UPDATE orders SET mpesa_checkout_id = ?, mpesa_merchant_id = ? WHERE id = ?", checkoutId, merchantId, id);
+}
+
+export async function setPaystackReference(id: string, reference: string) {
+  await qe("UPDATE orders SET paystack_reference = ? WHERE id = ?", reference, id);
+}
+
+export async function getOrderByMpesaCheckout(checkoutId: string): Promise<DbOrder | undefined> {
+  return (await q1("SELECT * FROM orders WHERE mpesa_checkout_id = ?", checkoutId)) as DbOrder | undefined;
+}
+
+export async function getOrderByPaystackReference(reference: string): Promise<DbOrder | undefined> {
+  return (await q1("SELECT * FROM orders WHERE paystack_reference = ?", reference)) as DbOrder | undefined;
 }
 
 export async function listOrders(): Promise<DbOrder[]> {  return (await qr("SELECT * FROM orders ORDER BY created_at DESC")) as DbOrder[];
@@ -1599,5 +1627,71 @@ export async function deleteNewsletterSubscriber(id: string) {
 export async function countNewsletterSubscribers(): Promise<number> {
   const row = (await q1("SELECT COUNT(*)::int AS n FROM newsletter_subscribers WHERE status = 'subscribed'")) as { n: number };
   return row?.n ?? 0;
+}
+
+// ---- Newsletter campaigns (send history) ----
+
+export type DbNewsletterCampaign = {
+  id: string;
+  subject: string;
+  body: string;
+  source: string;
+  source_slug: string | null;
+  total: number;
+  sent: number;
+  failed: number;
+  created_at: string;
+};
+
+export async function createNewsletterCampaign(input: {
+  subject: string;
+  body: string;
+  source?: string;
+  source_slug?: string | null;
+  total: number;
+  sent: number;
+  failed: number;
+}): Promise<DbNewsletterCampaign> {
+  const campaign: DbNewsletterCampaign = {
+    id: randomUUID(),
+    subject: input.subject,
+    body: input.body,
+    source: input.source ?? "manual",
+    source_slug: input.source_slug ?? null,
+    total: input.total,
+    sent: input.sent,
+    failed: input.failed,
+    created_at: new Date().toISOString(),
+  };
+  await qe(
+    "INSERT INTO newsletter_campaigns (id, subject, body, source, source_slug, total, sent, failed, created_at) VALUES (@id, @subject, @body, @source, @source_slug, @total, @sent, @failed, @created_at)",
+    campaign
+  );
+  return campaign;
+}
+
+export async function listNewsletterCampaigns(limit = 50): Promise<DbNewsletterCampaign[]> {
+  return (await qr(
+    "SELECT * FROM newsletter_campaigns ORDER BY created_at DESC LIMIT ?",
+    limit
+  )) as DbNewsletterCampaign[];
+}
+
+/** Imports every registered user with a valid email into the subscriber list. */
+export async function importUsersToNewsletter(): Promise<{ added: number; skipped: number }> {
+  const users = (await qr("SELECT name, email FROM users")) as { name: string; email: string }[];
+  let added = 0;
+  let skipped = 0;
+  for (const u of users) {
+    const email = (u.email ?? "").trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      skipped++;
+      continue;
+    }
+    const { duplicate } = await subscribeNewsletter({ email, name: u.name || null, source: "account" });
+    if (duplicate) skipped++;
+    else added++;
+  }
+  return { added, skipped };
 }
 

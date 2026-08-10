@@ -6,6 +6,7 @@ import { bulkUnitPrice, formatKES } from "@/lib/utils";
 import { buildInvoicePdf } from "@/lib/invoice-pdf";
 import { sendOrderInvoiceEmail, sendNewOrderAlert } from "@/lib/mailer";
 import { getSetting } from "@/lib/db";
+import { randomBytes } from "crypto";
 
 export async function GET(req: Request) {
   const user = await getSessionUser();
@@ -55,7 +56,7 @@ async function computeTotals(items: OrderItem[]) {
 }
 
 export async function POST(req: Request) {
-  let body: { name?: string; email?: string; phone?: string; address?: string; items?: unknown[]; total?: number; payment?: string; po_ref?: string; company?: string; po_file?: string };
+  let body: { name?: string; email?: string; phone?: string; address?: string; items?: unknown[]; total?: number; payment?: string; po_ref?: string; company?: string; po_file?: string; momo?: string };
   try {
     body = await req.json();
   } catch {
@@ -90,6 +91,11 @@ export async function POST(req: Request) {
     po_ref: body.po_ref,
     company: body.company,
     po_file: body.po_file,
+    // The M-Pesa number the STK push is sent to — may differ from the delivery phone.
+    payment_phone: body.payment === "mpesa" ? body.momo : null,
+    // One-time token returned to the client so it can start the payment and
+    // check its status without needing a login (works for guest checkout too).
+    payment_token: randomBytes(24).toString("hex"),
   });
 
   if (user) {

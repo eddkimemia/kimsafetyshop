@@ -224,7 +224,7 @@ export default function CorporatePage() {
                   ["Submit company details", "Share your KRA PIN, industry and annual volume — we respond within 4 business hours."],
                   ["Receive negotiated pricing", "Your account manager sends a custom price list with tiered volume discounts."],
                   ["Place orders your way", "Online, WhatsApp, phone or purchase order — with approvals for your team."],
-                  ["Monthly consolidated invoice", "One tax invoice for the month, paid by credit terms or direct transfer."],
+                  ["Monthly consolidated invoice", "One tax invoice for the month, paid on credit terms."],
                 ].map(([title, text], i) => (
                   <li key={title} className="flex gap-4">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-900 font-display text-sm font-extrabold text-white">

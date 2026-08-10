@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { mergedGuides } from "@/lib/knowledge";
 import { getAdminGuide, upsertAdminGuide, deleteAdminGuide } from "@/lib/db";
+import { sendContentNewsletter } from "@/lib/newsletter-send";
 
 export async function GET() {
   const denied = await requireAdmin();
@@ -36,6 +37,15 @@ export async function POST(req: Request) {
     static: false,
   };
   await upsertAdminGuide(slug, record);
+  // A new knowledge guide is live immediately — mail it to subscribers.
+  sendContentNewsletter({
+    slug,
+    title,
+    excerpt: String(record.excerpt ?? ""),
+    content: String(record.content ?? ""),
+    cover: typeof record.image === "string" && record.image ? record.image : null,
+    kind: "knowledge",
+  }).catch((err) => console.error("[content] newsletter hook failed:", err));
   return NextResponse.json({ guide: record }, { status: 201 });
 }
 

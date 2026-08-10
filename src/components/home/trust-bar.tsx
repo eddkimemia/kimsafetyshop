@@ -16,7 +16,7 @@ const items = [
   {
     icon: Lock,
     title: "Secure Payments",
-    text: "M-Pesa, cards, bank transfer and purchase orders — protected transactions.",
+    text: "M-Pesa, cards and purchase orders — protected transactions.",
     accent: "text-navy-700 bg-navy-50",
   },
   {

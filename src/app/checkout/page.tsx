@@ -2,15 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Lock, Truck, ArrowRight, Package, Loader2, Download, CircleAlert, FileUp } from "lucide-react";
+import { Check, Lock, Truck, ArrowRight, Package, Loader2, Download, FileUp, CircleAlert } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { formatKES, cn } from "@/lib/utils";
 import { ProductArt } from "@/components/product/product-art";
 import { PageHeader } from "@/components/layout/page-header";
 
 const steps = ["Contact", "Delivery", "Payment", "Review"];
-
-const isInstantPayment = (m: string) => m !== "po";
 
 export default function CheckoutPage() {
   const { cart, cartTotal, cartOldTotal, clearCart, liveProduct } = useStore();
@@ -24,8 +22,12 @@ export default function CheckoutPage() {
   const [poError, setPoError] = useState("");
   const [form, setForm] = useState({ first: "", last: "", email: "", phone: "", county: "Nairobi", town: "", address: "", notes: "", po: "", company: "" });
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [paymentToken, setPaymentToken] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [paidNow, setPaidNow] = useState(false);
+  const [pollDone, setPollDone] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const prefillDone = useRef(false);
@@ -94,6 +96,7 @@ export default function CheckoutPage() {
   const placeOrder = async () => {
     setPlacing(true);
     setOrderError(null);
+    setPayError(null);
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
@@ -107,6 +110,7 @@ export default function CheckoutPage() {
           company: form.company.trim(),
           po_ref: form.po.trim(),
           po_file: poFile,
+          momo: momo.trim(),
           total,
           items: cart.map((i) => {
             const p = liveProduct(i.productId);
@@ -117,15 +121,67 @@ export default function CheckoutPage() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Failed to place order");
       setOrderId(json.order?.id ?? null);
+      setPaymentToken(json.order?.payment_token ?? null);
       setPlaced(true);
       clearCart();
       window.scrollTo({ top: 0, behavior: "smooth" });
+      if (payment !== "po" && json.order?.id && json.order?.payment_token) {
+        startPayment(json.order.id, json.order.payment_token);
+      }
     } catch (err) {
       setOrderError(err instanceof Error ? err.message : "Failed to place order. Please try again.");
     } finally {
       setPlacing(false);
     }
   };
+
+  const startPayment = async (id: string, token: string) => {
+    try {
+      const res = await fetch("/api/payments/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: id, token }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Payment could not be started");
+      if (json.method === "card" && json.authorizationUrl) {
+        window.location.assign(json.authorizationUrl);
+      }
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : "Payment could not be started. Contact us on WhatsApp for help.");
+    }
+  };
+
+  // Poll the M-Pesa status endpoint until the STK callback confirms payment
+  // (or give up after 2 minutes and let the customer contact us).
+  useEffect(() => {
+    if (!placed || payment !== "mpesa" || paidNow || pollDone) return;
+    let cancelled = false;
+    const iv = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/orders/status?orderId=${encodeURIComponent(orderId ?? "")}&token=${encodeURIComponent(paymentToken ?? "")}`);
+        const j = await r.json();
+        if (!cancelled && j.paid === 1) {
+          setPaidNow(true);
+          setPollDone(true);
+          clearInterval(iv);
+        }
+      } catch {
+        /* transient network error — keep polling */
+      }
+    }, 3000);
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        setPollDone(true);
+        clearInterval(iv);
+      }
+    }, 120_000);
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+      clearTimeout(timeout);
+    };
+  }, [placed, payment, orderId, paymentToken, paidNow, pollDone]);
 
   const next = async () => {
     const errs: Record<string, string> = {};
@@ -188,11 +244,17 @@ export default function CheckoutPage() {
   );
 
   if (placed) {
-    const paid = isInstantPayment(payment);
+    const waitingMpesa = payment === "mpesa" && !paidNow && !payError;
     return (
       <div className="flex flex-col items-center gap-4 bg-surface px-4 py-24 text-center">
-        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-50">
-          <Check className="h-12 w-12 text-emerald-600" />
+        <div className={cn("flex h-24 w-24 items-center justify-center rounded-full", paidNow ? "bg-emerald-50" : "bg-amber-50")}>
+          {paidNow ? (
+            <Check className="h-12 w-12 text-emerald-600" />
+          ) : waitingMpesa ? (
+            <Loader2 className="h-12 w-12 animate-spin text-amber-500" />
+          ) : (
+            <CircleAlert className="h-12 w-12 text-amber-500" />
+          )}
         </div>
         <span className="rounded-full bg-emerald-50 px-4 py-1.5 text-xs font-bold text-emerald-700">
           Order #{orderId ?? `KS-${Math.floor(10000 + Math.random() * 89999)}`}
@@ -202,14 +264,27 @@ export default function CheckoutPage() {
           A confirmation has been sent to <strong>{form.email || "your email"}</strong>. You&apos;ll receive
           a dispatch notification once your order leaves our Nairobi warehouse.
         </p>
+        {waitingMpesa && (
+          <p className="max-w-md text-sm text-gray-600">
+            An STK push was sent to <strong>{momo}</strong> for {formatKES(total)} — enter your M-Pesa PIN to
+            confirm the payment.
+          </p>
+        )}
+        {payError && (
+          <p className="max-w-md rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-danger">{payError}</p>
+        )}
         <span
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold",
-            paid ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+            paidNow ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
           )}
         >
-          {paid ? <Check className="h-3.5 w-3.5" /> : <CircleAlert className="h-3.5 w-3.5" />}
-          {paid ? "Payment received — invoice marked PAID" : "Payment pending — invoice marked UNPAID"}
+          {paidNow ? <Check className="h-3.5 w-3.5" /> : waitingMpesa ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CircleAlert className="h-3.5 w-3.5" />}
+          {paidNow
+            ? "Payment received — invoice marked PAID"
+            : waitingMpesa
+              ? "Waiting for M-Pesa confirmation…"
+              : "Payment pending — invoice marked UNPAID"}
         </span>
         <div className="mt-2 flex flex-wrap justify-center gap-3">
           <a
@@ -323,7 +398,6 @@ export default function CheckoutPage() {
                 {[
                   ["mpesa", "M-Pesa", "Pay instantly via STK push — most popular"],
                   ["card", "Card", "Visa & Mastercard via Paystack"],
-                  ["bank", "Bank Transfer", "Easypay / PesaLink — instant confirmation"],
                   ["po", "Purchase Order", "B2B & corporate — pay in 30 days"],
                 ].map(([value, label, sub]) => (
                   <button
@@ -356,15 +430,10 @@ export default function CheckoutPage() {
                     </p>
                   </div>
                 )}
-                {payment === "bank" && (
-                  <p className="text-sm text-gray-500">
-                    Pay to <strong>KimSafety Ltd — 0110 2123 4567</strong>, Equity Bank (Business account). Use order
-                    reference <strong>KSCK-{Date.now() % 100000}</strong> and SMS proof of payment to +254 715135141.
-                  </p>
-                )}
                 {payment === "card" && (
                   <p className="text-sm text-gray-500">
                     You&apos;ll be redirected to Paystack&apos;s secure payment page to complete your card payment.
+                    Your order is placed and stays unpaid until the payment is confirmed.
                   </p>
                 )}
                 {payment === "po" && (

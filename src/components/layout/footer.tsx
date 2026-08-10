@@ -143,7 +143,7 @@ export function Footer() {
             <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-emerald-400" /> Mon–Sat 8am–6pm</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2">
-            {["M-Pesa", "Visa", "Mastercard", "Paystack", "Bank Transfer", "PO"].map((m) => (
+            {["M-Pesa", "Visa", "Mastercard", "Paystack", "PO"].map((m) => (
               <span
                 key={m}
                 className="rounded-lg border border-white/15 px-3 py-1.5 text-[11px] font-bold text-white/70"

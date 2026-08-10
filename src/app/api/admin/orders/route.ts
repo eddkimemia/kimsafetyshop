@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
-import { createNotification, getOrderById, listOrders, setOrderStatus } from "@/lib/db";
+import { createNotification, getOrderById, listOrders, setOrderPaid, setOrderStatus } from "@/lib/db";
 import { liveGetProduct } from "@/lib/catalog";
 import { productImages } from "@/lib/data/product-images";
 import { bulkUnitPrice } from "@/lib/utils";
@@ -45,17 +45,33 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
-  let body: { id?: string; status?: string };
+  let body: { id?: string; status?: string; paid?: number };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
-  if (!body.id || !VALID.includes(body.status ?? "")) {
-    return NextResponse.json({ error: "Invalid order id or status" }, { status: 400 });
-  }
+  if (!body.id) return NextResponse.json({ error: "Missing order id" }, { status: 400 });
   const order = await getOrderById(body.id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
+  if (body.paid !== undefined) {
+    await setOrderPaid(body.id, body.paid ? 1 : 0);
+    if (order.user_id && body.paid) {
+      await createNotification({
+        user_id: order.user_id,
+        type: "order",
+        title: `Payment confirmed for ${order.id}`,
+        message: `We received your payment of ${order.total} — thank you!`,
+        link: "/account/orders",
+      });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  if (!VALID.includes(body.status ?? "")) {
+    return NextResponse.json({ error: "Invalid order id or status" }, { status: 400 });
+  }
   await setOrderStatus(body.id, body.status as string);
   if (order.user_id) {
     await createNotification({

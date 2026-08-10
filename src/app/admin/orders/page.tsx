@@ -46,7 +46,6 @@ const payments = [
   { value: "all", label: "All payment methods" },
   { value: "mpesa", label: "M-Pesa" },
   { value: "card", label: "Card (Paystack)" },
-  { value: "bank", label: "Bank Transfer" },
   { value: "po", label: "Purchase Order" },
 ] as const;
 

@@ -24,6 +24,9 @@ type Order = {
   status: string;
   payment: string;
   paid: number;
+  payment_phone?: string | null;
+  mpesa_checkout_id?: string | null;
+  paystack_reference?: string | null;
   created_at: string;
 };
 
@@ -32,7 +35,6 @@ const statuses = ["Processing", "In transit", "Delivered", "Cancelled"];
 const paymentLabel: Record<string, string> = {
   mpesa: "M-Pesa",
   card: "Card (Paystack)",
-  bank: "Bank Transfer",
   po: "Purchase Order (30-day terms)",
 };
 
@@ -50,6 +52,17 @@ export default function AdminOrderDetailPage() {
     });
     const json = await res.json().catch(() => ({}));
     setNotice(res.ok ? `Order #${id} → ${status}` : json.error ?? "Update failed");
+    refresh();
+  };
+
+  const markPaid = async () => {
+    const res = await fetch("/api/admin/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, paid: 1 }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setNotice(res.ok ? `Order #${id} marked as paid.` : json.error ?? "Update failed");
     refresh();
   };
 
@@ -227,6 +240,15 @@ export default function AdminOrderDetailPage() {
                     </span>
                     <span className="font-semibold capitalize text-navy-900">{paymentLabel[order.payment] ?? order.payment.replace("-", " ")}</span>
                   </p>
+                  {order.payment === "mpesa" && order.payment_phone && (
+                    <p className="flex items-center justify-between">
+                      <span className="text-gray-600">M-Pesa number</span>
+                      <span className="font-semibold text-navy-900">{order.payment_phone}</span>
+                    </p>
+                  )}
+                  {order.paystack_reference && (
+                    <p className="break-all text-right font-mono text-[11px] text-gray-400">Ref: {order.paystack_reference}</p>
+                  )}
                   <p className="flex items-center justify-between">
                     <span className="text-gray-600">Status</span>
                     {order.paid === 1 ? (
@@ -235,6 +257,14 @@ export default function AdminOrderDetailPage() {
                       <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold text-danger">Unpaid</span>
                     )}
                   </p>
+                  {order.paid !== 1 && (
+                    <button
+                      onClick={markPaid}
+                      className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700"
+                    >
+                      Mark as paid
+                    </button>
+                  )}
                 </div>
               </AdminCard>
 

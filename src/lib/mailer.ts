@@ -131,6 +131,33 @@ function sectionTitle(label: string): string {
   return `<p style="font-size:12px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:${NAVY};margin:0 0 14px 0;border-bottom:2px solid #f3f4f6;padding-bottom:10px;">${label}</p>`;
 }
 
+/**
+ * Rewrites relative image src attributes (e.g. "/api/uploads/photo.jpg" from the
+ * rich text editor) to absolute URLs. Email clients fetch images from the web —
+ * a relative path cannot be resolved and the image is silently dropped.
+ */
+function absolutizeImages(html: string): string {
+  return html.replace(/src\s*=\s*(["'])(.*?)\1/g, (match, quote: string, url: string) => {
+    const u = url.trim();
+    if (u.startsWith("http://") || u.startsWith("https://") || u.startsWith("//") || u.startsWith("data:") || u.startsWith("cid:") || u.startsWith("blob:") || u === "") {
+      return match;
+    }
+    return `src=${quote}${siteUrl}${u.startsWith("/") ? "" : "/"}${u}${quote}`;
+  });
+}
+
+/**
+ * Makes images email-client friendly: absolute URLs (handled by absolutizeImages
+ * upstream) plus a width cap so wide photos don't blow out the layout in Outlook
+ * and mobile clients.
+ */
+function styleEmailImages(html: string): string {
+  return html.replace(/<img\b([^>]*)>/g, (match, attrs: string) => {
+    if (/style=/i.test(attrs)) return match;
+    return `<img${attrs} style="max-width:100%;height:auto;border-radius:10px;display:block;">`;
+  });
+}
+
 function summaryCard(rows: { label: string; value: string; highlight?: boolean }[]): string {
   const body = rows
     .map(
@@ -369,7 +396,6 @@ export async function sendOrderInvoiceEmail(input: {
   const paymentLabel: Record<string, string> = {
     mpesa: "M-Pesa",
     card: "Card (Paystack)",
-    bank: "Bank Transfer",
     po: "Purchase Order (30-day terms)",
   };
   const rows = await resolveItems(items);
@@ -505,7 +531,7 @@ export async function newsletterHtml(input: { title: string; body: string }): Pr
   // paragraphs when the message contains no markup at all.
   const isHtml = /<[a-zA-Z][\s\S]*>/.test(input.body);
   const content = isHtml
-    ? input.body
+    ? styleEmailImages(absolutizeImages(input.body))
     : input.body
         .split(/\n+/)
         .map((p) => p.trim())

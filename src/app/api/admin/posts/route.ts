@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/api-helpers";
 import { sanitizePostHtml } from "@/lib/blog";
 import { listPosts, getPostBySlug, createPost, updatePost, deletePost, type PostInput } from "@/lib/db";
 import { slugify } from "@/lib/utils";
+import { sendContentNewsletter } from "@/lib/newsletter-send";
 
 function parseBody(body: unknown): PostInput | null {
   const b = body as Partial<PostInput> & { title?: string; content?: string };
@@ -45,6 +46,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Slug "${input.slug}" already exists` }, { status: 409 });
   }
   const post = await createPost(input);
+  if (post.published) {
+    // Fire-and-forget: a newly published post is automatically mailed to all
+    // newsletter subscribers. A failure here must never block the publish.
+    sendContentNewsletter({ ...post, kind: "blog" }).catch((err) => console.error("[blog] newsletter hook failed:", err));
+  }
   return NextResponse.json({ post }, { status: 201 });
 }
 
@@ -66,8 +72,13 @@ export async function PATCH(req: Request) {
   if (conflict && conflict.slug !== slug) {
     return NextResponse.json({ error: `Slug "${input.slug}" already exists` }, { status: 409 });
   }
+  const before = await getPostBySlug(slug, true);
   const post = await updatePost(slug, input);
   if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
+  // Only mail subscribers on the draft → published transition, not on every edit.
+  if (post.published && before && !before.published) {
+    sendContentNewsletter({ ...post, kind: "blog" }).catch((err) => console.error("[blog] newsletter hook failed:", err));
+  }
   return NextResponse.json({ post: { ...post, published: Boolean(post.published) } });
 }
 

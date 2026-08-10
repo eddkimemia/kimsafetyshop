@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import {
   Download,
+  History,
   Loader2,
   MailPlus,
   Send,
   Trash2,
+  UserPlus,
   Users,
   CheckCircle2,
   XCircle,
@@ -22,6 +24,18 @@ type Subscriber = {
   source: string;
   status: string;
   unsubscribed_at: string | null;
+  created_at: string;
+};
+
+type Campaign = {
+  id: string;
+  subject: string;
+  body: string;
+  source: string;
+  source_slug: string | null;
+  total: number;
+  sent: number;
+  failed: number;
   created_at: string;
 };
 
@@ -53,6 +67,70 @@ export default function AdminNewsletterPage() {
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
+
+  const [newEmail, setNewEmail] = useState("");
+  const [newName, setNewName] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    setHistoryLoading(true);
+    fetch("/api/admin/newsletter/history")
+      .then((r) => r.json())
+      .then((j) => setCampaigns(Array.isArray(j.campaigns) ? j.campaigns : []))
+      .catch(() => {})
+      .finally(() => setHistoryLoading(false));
+  }, [isSuperAdmin]);
+
+  const addSubscriber = async () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())) {
+      setError("Enter a valid email address");
+      return;
+    }
+    setAdding(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newEmail, name: newName }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Add failed");
+      setNotice(json.duplicate ? `${newEmail.trim()} is already subscribed.` : `${newEmail.trim()} added to the newsletter.`);
+      setNewEmail("");
+      setNewName("");
+      refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Add failed");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const importCustomers = async () => {
+    if (!confirm("Import all registered customers into the newsletter list? Existing subscribers are skipped.")) return;
+    setImporting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/newsletter/import", { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Import failed");
+      setNotice(`Import complete — ${json.added} added, ${json.skipped} already subscribed or skipped.`);
+      refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const subscribers = useMemo(() => {
     const all = data?.subscribers ?? [];
@@ -133,7 +211,8 @@ export default function AdminNewsletterPage() {
           <div>
             <h1 className="font-display text-2xl font-extrabold text-navy-900">Newsletter</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Subscribers from the homepage and blog forms. Compose a monthly briefing and send it by email.
+              Manage subscribers, compose a briefing, and track history. New blog posts and knowledge guides are
+              mailed to subscribers automatically.
             </p>
           </div>
 
@@ -170,6 +249,47 @@ export default function AdminNewsletterPage() {
             >
               {sendingTest ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailPlus className="h-4 w-4" />}
               {sendingTest ? "Sending test…" : "Send test"}
+            </button>
+          </div>
+        </div>
+      </AdminCard>
+
+      <AdminCard
+        title="Add subscribers"
+        subtitle="Manually add an email, or import every registered customer in one click"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input
+              className={inputCls}
+              type="email"
+              placeholder="Email address *"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+            />
+            <input
+              className={inputCls}
+              placeholder="Name (optional)"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={addSubscriber}
+              disabled={adding || !newEmail.trim()}
+              className="inline-flex items-center gap-2 rounded-xl bg-navy-900 px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-navy-800 disabled:opacity-60"
+            >
+              {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              {adding ? "Adding…" : "Add subscriber"}
+            </button>
+            <button
+              onClick={importCustomers}
+              disabled={importing}
+              className="inline-flex items-center gap-2 rounded-xl border border-line px-4 py-2.5 text-xs font-bold text-gray-500 transition-colors hover:text-navy-900 disabled:opacity-60"
+            >
+              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+              {importing ? "Importing…" : "Import registered customers"}
             </button>
           </div>
         </div>
@@ -233,6 +353,72 @@ export default function AdminNewsletterPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </AdminCard>
+
+      <AdminCard
+        title="History"
+        subtitle="Every broadcast that was sent — manual briefings plus auto-sends for published blog posts and knowledge guides"
+        action={
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-safety-50 px-3 py-1.5 text-xs font-bold text-safety-700">
+            <History className="h-3.5 w-3.5" /> {campaigns.length} sends
+          </span>
+        }
+      >
+        {historyLoading ? (
+          <p className="py-10 text-center text-sm text-gray-400">Loading…</p>
+        ) : campaigns.length === 0 ? (
+          <p className="py-10 text-center text-sm text-gray-400">No sends recorded yet.</p>
+        ) : (
+          <div className="divide-y divide-line/60 rounded-xl border border-line">
+            {campaigns.map((c) => {
+              const sourceLabel = c.source === "blog" ? "Blog" : c.source === "knowledge" ? "Knowledge" : "Manual";
+              return (
+                <div key={c.id}>
+                  <button
+                    onClick={() => setExpanded(expanded === c.id ? null : c.id)}
+                    className="flex w-full flex-wrap items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-surface"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-navy-900">{c.subject}</p>
+                      <p className="mt-0.5 text-[11px] text-gray-400">
+                        {new Date(c.created_at).toLocaleString("en-KE", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" })}
+                        {" · "}
+                        <span className="font-semibold">{sourceLabel}</span>
+                        {c.source_slug ? ` · ${c.source_slug}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-gray-500">
+                        {c.sent}/{c.total} delivered
+                        {c.failed > 0 && <span className="text-danger"> · {c.failed} failed</span>}
+                      </span>
+                      {c.failed > 0 ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                          <XCircle className="h-3 w-3" /> Partial
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                          <CheckCircle2 className="h-3 w-3" /> Sent
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                  {expanded === c.id && (
+                    <div className="border-t border-line/60 bg-surface/50 px-4 py-4">
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">Email preview</p>
+                      <div
+                        className="rounded-xl border border-line bg-white p-4"
+                        style={{ maxHeight: 420, overflow: "auto" }}
+                        // eslint-disable-next-line react/no-danger
+                        dangerouslySetInnerHTML={{ __html: c.body }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </AdminCard>

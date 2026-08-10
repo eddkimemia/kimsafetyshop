@@ -21,7 +21,7 @@ const faqs = [
   },
   {
     q: "Which payment methods do you accept?",
-    a: "M-Pesa (STK push), Visa/Mastercard via Paystack, bank transfer (Easypay/PesaLink) and purchase orders for approved corporate accounts with 30-day terms.",
+    a: "M-Pesa (STK push), Visa/Mastercard via Paystack, and purchase orders for approved corporate accounts with 30-day terms.",
   },
   {
     q: "Are your products genuine and certified?",

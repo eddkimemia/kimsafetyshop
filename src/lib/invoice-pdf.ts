@@ -38,7 +38,6 @@ const FALLBACK_COMPANY = {
 const paymentLabel: Record<string, string> = {
   mpesa: "M-Pesa",
   card: "Card (Paystack)",
-  bank: "Bank Transfer",
   po: "Purchase Order (30-day terms)",
 };
 

@@ -20,7 +20,7 @@ const sections: [string, string][] = [
   ],
   [
     "4. Payment",
-    "Payment is due at checkout unless credit terms have been granted in writing. Accepted methods: M-Pesa, card (Paystack), bank transfer and approved purchase orders. Title transfers upon full payment.",
+    "Payment is due at checkout unless credit terms have been granted in writing. Accepted methods: M-Pesa (STK push), card (Paystack) and approved purchase orders. Title transfers upon full payment.",
   ],
   [
     "5. Delivery",

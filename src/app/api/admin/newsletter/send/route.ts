@@ -3,6 +3,7 @@ import { listNewsletterSubscribers } from "@/lib/db";
 import { getSmtpConfig, isSmtpConfigured, newsletterHtml, sendNewsletterBroadcast } from "@/lib/mailer";
 import { sanitizePostHtml } from "@/lib/blog";
 import { requireSuperAdmin } from "@/lib/api-helpers";
+import { recordManualNewsletter } from "@/lib/newsletter-send";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
       to,
       cfg,
     });
+    recordManualNewsletter({ subject, body: emailHtml, total: to.length, sent, failed });
     return NextResponse.json({ sent, failed, total: to.length });
   } catch (err) {
     console.error("[newsletter] broadcast failed:", (err as Error).message);
