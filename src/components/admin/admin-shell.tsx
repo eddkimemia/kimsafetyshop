@@ -177,7 +177,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <Store className="h-3.5 w-3.5" /> View storefront
             </Link>
             <button
-              onClick={() => signOut({ callbackUrl: "/admin/login" })}
+              onClick={() => signOut({ callbackUrl: "/login" })}
               className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-bold text-navy-900 transition-colors hover:bg-surface"
             >
               <LogOut className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Sign out</span>

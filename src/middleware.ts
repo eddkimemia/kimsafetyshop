@@ -10,12 +10,8 @@ export async function middleware(req: NextRequest) {
   requestHeaders.set("x-pathname", pathname);
 
   if (!token) {
-    // The admin sign-in page must render for unauthenticated visitors — otherwise this would loop.
-    if (pathname === "/admin/login") {
-      return NextResponse.next({ request: { headers: requestHeaders } });
-    }
     const url = req.nextUrl.clone();
-    url.pathname = pathname.startsWith("/admin") ? "/admin/login" : "/login";
+    url.pathname = pathname.startsWith("/admin") ? "/login" : "/login";
     url.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(url);
   }

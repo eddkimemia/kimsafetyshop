@@ -29,6 +29,7 @@ export default function CheckoutPage() {
   const [form, setForm] = useState({ first: "", last: "", email: "", phone: "", county: "Nairobi", town: "", address: "", notes: "", po: "", company: "" });
   const [orderId, setOrderId] = useState<string | null>(null);
   const [paymentToken, setPaymentToken] = useState<string | null>(null);
+  const [placedTotal, setPlacedTotal] = useState(0);
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [payError, setPayError] = useState<string | null>(null);
@@ -128,6 +129,9 @@ export default function CheckoutPage() {
       if (!res.ok) throw new Error(json.error ?? "Failed to place order");
       setOrderId(json.order?.id ?? null);
       setPaymentToken(json.order?.payment_token ?? null);
+      // Pin the authoritative total before clearing the cart — after this the
+      // derived `total` would be 0 and the thank-you screen would show "Ksh 0".
+      setPlacedTotal(json.order?.total ?? total);
       setPlaced(true);
       clearCart();
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -272,7 +276,7 @@ export default function CheckoutPage() {
         </p>
         {waitingMpesa && (
           <p className="max-w-md text-sm text-gray-600">
-            An STK push was sent to <strong>{momo}</strong> for {formatKES(total)} — enter your M-Pesa PIN to
+            An STK push was sent to <strong>{momo}</strong> for {formatKES(placedTotal)} — enter your M-Pesa PIN to
             confirm the payment.
           </p>
         )}

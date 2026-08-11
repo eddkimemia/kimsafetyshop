@@ -157,6 +157,8 @@ export default function AdminProductEditPage() {
         downloads: found.downloads ?? [],
       });
       setLoaded(true);
+      refPrice.current = found.price;
+      refBulk.current = found.bulk ?? [];
     } else if (data) {
       setError(`Product "${rawSku}" not found in the catalog.`);
       setLoaded(true);
@@ -165,28 +167,53 @@ export default function AdminProductEditPage() {
 
   const set = (patch: Partial<AdminProduct>) => setForm((f) => ({ ...f, ...patch }));
 
-  // Bulk tiers are a percentage of the base price, so when the price changes the
-  // tier prices must move with it. Each tier keeps the same % discount it had
-  // relative to the old price (qty ranges and savings labels are preserved);
-  // products with no custom tiers get the standard 5%/9%/13% pattern.
-  const rescaleBulk = (form: AdminProduct, newPrice: number): BulkTier[] => {
-    const oldPrice = form.price;
-    const tiers = form.bulk?.length ? form.bulk : buildBulk(form);
-    if (!oldPrice || oldPrice <= 0) return buildBulk({ ...form, price: newPrice });
-    return tiers.map((tier) => {
+  // Bulk tiers are a percentage of the base price, so the price field and the
+  // bulk table must always move together. Tier percentages are anchored to a
+  // pristine reference (`refPrice` + `refBulk`) that only advances on commit
+  // (blur/enter), manual tier edits, or save. Every price keystroke rescales
+  // against that fixed reference, so intermediate typing (1200 -> "1" -> "15"
+  // -> "1500") can never corrupt the discount pattern.
+  const refPrice = useRef<number | null>(null);
+  const refBulk = useRef<BulkTier[]>([]);
+
+  const rescaleTiers = (tiers: BulkTier[], fromPrice: number, toPrice: number): BulkTier[] =>
+    tiers.map((tier) => {
       const unit = Number(String(tier.price ?? "").replace(/[^\d.]/g, ""));
       if (!Number.isFinite(unit) || unit <= 0) return tier;
-      const discountPct = (oldPrice - unit) / oldPrice;
-      const next = Math.max(1, Math.round(newPrice * (1 - discountPct)));
+      const discountPct = Math.max(0, Math.min(1, (fromPrice - unit) / fromPrice));
+      const next = Math.max(1, Math.round(toPrice * (1 - discountPct)));
       return { ...tier, price: next.toLocaleString() };
     });
+
+  const setPrice = (value: number) =>
+    setForm((f) => {
+      const from = refPrice.current ?? f.price;
+      if (value > 0 && from > 0) {
+        const base = refBulk.current.length ? refBulk.current : buildBulk({ ...f, price: from });
+        return { ...f, price: value, bulk: rescaleTiers(base, from, value) };
+      }
+      return { ...f, price: value, bulk: value > 0 ? buildBulk({ ...f, price: value }) : f.bulk };
+    });
+
+  // The typed price + tiers become the new reference basis for future rescales.
+  const commitPrice = () => {
+    refPrice.current = form.price;
+    refBulk.current = form.bulk ?? [];
   };
 
-  const setPrice = (value: number) => {
-    setForm((f) => ({ ...f, price: value, bulk: rescaleBulk(f, value) }));
-  };
+  const syncBulkToPrice = () =>
+    setForm((f) => {
+      refPrice.current = f.price;
+      refBulk.current = buildBulk(f);
+      return { ...f, bulk: refBulk.current };
+    });
 
-  const syncBulkToPrice = () => setForm((f) => ({ ...f, bulk: buildBulk(f) }));
+  const editTier = (i: number, patch: Partial<BulkTier>) =>
+    setForm((f) => {
+      refPrice.current = f.price;
+      refBulk.current = (f.bulk ?? []).map((b, idx) => (idx === i ? { ...b, ...patch } : b));
+      return { ...f, bulk: refBulk.current };
+    });
 
   const save = async () => {
     if (!form.name || !form.price) {
@@ -195,14 +222,26 @@ export default function AdminProductEditPage() {
     }
     setSaving(true);
     setError(null);
+    // If the price was typed but never committed (blur/enter), rescale the
+    // tiers against the last committed price so the save is always consistent.
+    let product = form;
+    if (refPrice.current !== form.price && form.price > 0) {
+      if (refPrice.current != null && refPrice.current > 0 && refBulk.current.length) {
+        product = { ...form, bulk: rescaleTiers(refBulk.current, refPrice.current, form.price) };
+      } else {
+        product = { ...form, bulk: buildBulk(form) };
+      }
+      refPrice.current = form.price;
+      refBulk.current = product.bulk;
+    }
     const body: Partial<AdminProduct> = {
-      ...form,
+      ...product,
       tags: form.tags.filter(Boolean),
       features: (form.features ?? []).filter((l) => l.trim()),
       gallery: (form.gallery ?? []).filter(Boolean),
       downloads: (form.downloads ?? []).filter((d) => d.name.trim()),
       specs: form.specs?.length ? form.specs.filter((s) => s.label.trim() || s.value.trim()) : buildSpecs(form),
-      bulk: form.bulk?.length ? form.bulk.filter((b) => b.qty.trim()) : buildBulk(form),
+      bulk: product.bulk?.length ? product.bulk.filter((b) => b.qty.trim()) : buildBulk(product),
     };
     const res = await fetch("/api/admin/products", {
       method: isNew ? "POST" : "PATCH",
@@ -292,7 +331,7 @@ export default function AdminProductEditPage() {
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-xs font-bold text-gray-500">Price (KES) *</span>
-                  <input type="number" className={adminField} value={form.price} onChange={(e) => setPrice(Number(e.target.value))} />
+                  <input type="number" className={adminField} value={form.price} onChange={(e) => setPrice(Number(e.target.value))} onBlur={commitPrice} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-xs font-bold text-gray-500">Old price (KES, optional)</span>
@@ -497,7 +536,7 @@ export default function AdminProductEditPage() {
                   <RefreshCw className="h-3.5 w-3.5" /> Sync to price
                 </button>
                 <button
-                  onClick={() => set({ bulk: [...(form.bulk ?? []), { qty: "", price: "", savings: "" }] })}
+                  onClick={() => setForm((f) => { refPrice.current = f.price; refBulk.current = [...(f.bulk ?? []), { qty: "", price: "", savings: "" }]; return { ...f, bulk: refBulk.current }; })}
                   className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-[11px] font-bold text-navy-900 hover:bg-surface"
                 >
                   <Plus className="h-3.5 w-3.5" /> Add tier
@@ -512,22 +551,22 @@ export default function AdminProductEditPage() {
                     className={adminField}
                     placeholder="Qty (e.g. 10 – 49)"
                     value={tier.qty}
-                    onChange={(e) => set({ bulk: (form.bulk ?? []).map((b, idx) => (idx === i ? { ...b, qty: e.target.value } : b)) })}
+                    onChange={(e) => editTier(i, { qty: e.target.value })}
                   />
                   <input
                     className={adminField}
                     placeholder="Price (e.g. 1,750)"
                     value={tier.price}
-                    onChange={(e) => set({ bulk: (form.bulk ?? []).map((b, idx) => (idx === i ? { ...b, price: e.target.value } : b)) })}
+                    onChange={(e) => editTier(i, { price: e.target.value })}
                   />
                   <input
                     className={adminField}
                     placeholder="Savings (e.g. 5% off)"
                     value={tier.savings}
-                    onChange={(e) => set({ bulk: (form.bulk ?? []).map((b, idx) => (idx === i ? { ...b, savings: e.target.value } : b)) })}
+                    onChange={(e) => editTier(i, { savings: e.target.value })}
                   />
                   <button
-                    onClick={() => set({ bulk: (form.bulk ?? []).filter((_, idx) => idx !== i) })}
+                    onClick={() => setForm((f) => { refPrice.current = f.price; refBulk.current = (f.bulk ?? []).filter((_, idx) => idx !== i); return { ...f, bulk: refBulk.current }; })}
                     aria-label={`Remove bulk tier ${i + 1}`}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-danger/40 hover:text-danger"
                   >
