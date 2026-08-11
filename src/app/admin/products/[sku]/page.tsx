@@ -165,16 +165,25 @@ export default function AdminProductEditPage() {
 
   const set = (patch: Partial<AdminProduct>) => setForm((f) => ({ ...f, ...patch }));
 
-  // Changing the price should move the standard 5%/9%/13% bulk tiers with it —
-  // but only when the tiers were auto-generated (i.e. still match what the old
-  // price produced). Manually edited tiers are left untouched.
-  const setPrice = (value: number) => {
-    setForm((f) => {
-      const autoForOld = buildBulk({ ...f, price: f.price });
-      const isAuto = JSON.stringify(f.bulk ?? []) === JSON.stringify(autoForOld);
-      if (!isAuto) return { ...f, price: value };
-      return { ...f, price: value, bulk: buildBulk({ ...f, price: value }) };
+  // Bulk tiers are a percentage of the base price, so when the price changes the
+  // tier prices must move with it. Each tier keeps the same % discount it had
+  // relative to the old price (qty ranges and savings labels are preserved);
+  // products with no custom tiers get the standard 5%/9%/13% pattern.
+  const rescaleBulk = (form: AdminProduct, newPrice: number): BulkTier[] => {
+    const oldPrice = form.price;
+    const tiers = form.bulk?.length ? form.bulk : buildBulk(form);
+    if (!oldPrice || oldPrice <= 0) return buildBulk({ ...form, price: newPrice });
+    return tiers.map((tier) => {
+      const unit = Number(String(tier.price ?? "").replace(/[^\d.]/g, ""));
+      if (!Number.isFinite(unit) || unit <= 0) return tier;
+      const discountPct = (oldPrice - unit) / oldPrice;
+      const next = Math.max(1, Math.round(newPrice * (1 - discountPct)));
+      return { ...tier, price: next.toLocaleString() };
     });
+  };
+
+  const setPrice = (value: number) => {
+    setForm((f) => ({ ...f, price: value, bulk: rescaleBulk(f, value) }));
   };
 
   const syncBulkToPrice = () => setForm((f) => ({ ...f, bulk: buildBulk(f) }));

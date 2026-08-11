@@ -46,7 +46,7 @@ export function ProductDetail({
   product: Product;
   related: Product[];
 }) {
-  const { addToCart, toggleWishlist, wishlist, toggleCompare, compare, noteRecentlyViewed, recentlyViewed, liveProduct } = useStore();
+  const { addToCart, toggleWishlist, wishlist, toggleCompare, compare, noteRecentlyViewed, recentlyViewed, liveProduct, refreshCatalog } = useStore();
   const overrides = useAdminImageOverrides();
   const adminGalleries = useAdminGalleries();
   const [qty, setQty] = useState(1);
@@ -54,18 +54,26 @@ export function ProductDetail({
   const [buyNowLoading, setBuyNowLoading] = useState(false);
   const [added, setAdded] = useState(false);
 
+  // Re-sync with the live catalog on mount so admin price/stock/bulk edits show
+  // up immediately, even while this page's server-rendered HTML is still from
+  // the previous ISR window. Falls back to the server-rendered product prop.
+  useEffect(() => {
+    refreshCatalog().catch(() => {});
+  }, [refreshCatalog]);
+  const live = liveProduct(product.id) ?? product;
+
   useEffect(() => {
     noteRecentlyViewed(product.id);
   }, [product.id, noteRecentlyViewed]);
 
-  const off = discountPercent(product.price, product.oldPrice);
+  const off = discountPercent(live.price, live.oldPrice);
   const inWish = wishlist.includes(product.id);
   const inCompare = compare.includes(product.id);
-  const out = product.stock <= 0;
-  const low = !out && product.stock <= product.lowStockAt;
-  const unitPrice = bulkUnitPrice(product, qty);
-  const bulkPriceActive = unitPrice < product.price;
-  const activeTier = activeBulkTier(product, qty);
+  const out = live.stock <= 0;
+  const low = !out && live.stock <= live.lowStockAt;
+  const unitPrice = bulkUnitPrice(live, qty);
+  const bulkPriceActive = unitPrice < live.price;
+  const activeTier = activeBulkTier(live, qty);
 
   const galleryVariants = useMemo(() => {
     const main = productImageFor(product.sku);
@@ -132,7 +140,7 @@ export function ProductDetail({
               <div className="absolute left-4 top-4 flex gap-2">
                 {off && (
                   <span className="rounded-full bg-danger px-3 py-1.5 text-xs font-bold text-white shadow-sm">
-                    Save {formatKES(product.oldPrice! - product.price)} (-{off}%)
+                    Save {formatKES(live.oldPrice! - live.price)} (-{off}%)
                   </span>
                 )}
                 {product.new && (
@@ -192,7 +200,7 @@ export function ProductDetail({
                   out ? "bg-red-50 text-danger" : low ? "bg-amber-50 text-warning" : "bg-emerald-50 text-emerald-700"
                 )}
               >
-                {out ? "Out of stock" : low ? `Only ${product.stock} left — low stock` : `${product.stock} in stock`}
+                {out ? "Out of stock" : low ? `Only ${live.stock} left — low stock` : `${live.stock} in stock`}
               </span>
             </div>
 
@@ -203,20 +211,20 @@ export function ProductDetail({
                     {formatKES(unitPrice)}
                   </span>
                   {bulkPriceActive && (
-                    <span className="pb-1 text-base text-gray-400 line-through">{formatKES(product.price)}</span>
+                    <span className="pb-1 text-base text-gray-400 line-through">{formatKES(live.price)}</span>
                   )}
-                  {!bulkPriceActive && off && product.oldPrice != null && product.oldPrice > product.price && (
-                    <span className="pb-1 text-base text-gray-400 line-through">{formatKES(product.oldPrice)}</span>
+                  {!bulkPriceActive && off && live.oldPrice != null && live.oldPrice > live.price && (
+                    <span className="pb-1 text-base text-gray-400 line-through">{formatKES(live.oldPrice)}</span>
                   )}
                 </div>
                 {bulkPriceActive && activeTier && (
                   <p className="mt-1 text-xs font-semibold text-emerald-600">
-                    Bulk price unlocked — {formatKES(product.price - unitPrice)} off per unit ({activeTier.savings})
+                    Bulk price unlocked — {formatKES(live.price - unitPrice)} off per unit ({activeTier.savings})
                   </p>
                 )}
-                {!bulkPriceActive && off && product.oldPrice != null && product.oldPrice > product.price && (
+                {!bulkPriceActive && off && live.oldPrice != null && live.oldPrice > live.price && (
                   <p className="mt-1 text-xs font-semibold text-emerald-600">
-                    You save {formatKES(product.oldPrice - product.price)} ({off}%)
+                    You save {formatKES(live.oldPrice - live.price)} ({off}%)
                   </p>
                 )}
               </div>
@@ -231,8 +239,8 @@ export function ProductDetail({
                 <BadgePercent className="h-4 w-4 text-safety-500" /> Bulk pricing
               </p>
               <div className="grid grid-cols-4 gap-2 text-center text-[11px]">
-                {product.bulk.map((tier) => {
-                  const active = activeBulkTier(product, qty)?.qty === tier.qty;
+                {live.bulk.map((tier) => {
+                  const active = activeBulkTier(live, qty)?.qty === tier.qty;
                   return (
                     <div
                       key={tier.qty}
