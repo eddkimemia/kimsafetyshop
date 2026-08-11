@@ -43,6 +43,11 @@ export function bulkUnitPrice(
     const from = Number(m[1]);
     const parsed = Number(String(tier.price ?? "").replace(/[^\d.]/g, ""));
     const unit = Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : base;
+    // The "1 – 9" tier is just the standard price — it must never override the
+    // product's actual price, otherwise a stale tier row (saved before a price
+    // edit) would make cart/checkout/product pages show the old price forever.
+    // Discounts only ever start from the 10+ tier in this catalogue.
+    if (from <= 1) continue;
     if (from <= qty && from >= bestFrom) {
       bestFrom = from;
       best = unit;

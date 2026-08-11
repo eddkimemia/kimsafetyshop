@@ -8,7 +8,10 @@ import { liveGetBySlug, liveRelatedFor } from "@/lib/catalog";
 import { siteUrl } from "@/lib/site";
 import { ProductDetail } from "@/components/product/product-detail";
 
-export const dynamic = "force-dynamic";
+// ISR: product pages render once and refresh every 30s, so repeat visits don't
+// re-run the full merge/DB lookup per request. Admin price changes still reach
+// buyers quickly because cart/checkout re-fetch the live catalog client-side.
+export const revalidate = 30;
 
 export function generateStaticParams() {
   return products.map((p) => ({ slug: p.slug }));

@@ -182,7 +182,7 @@ export function ProductArt({
           src={imageSrc}
           alt={alt ?? defaultAlt}
           fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          sizes="(max-width: 768px) 48vw, (max-width: 1200px) 33vw, 25vw"
           className="object-cover"
           onError={() => setFailed(true)}
         />

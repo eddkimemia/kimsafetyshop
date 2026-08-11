@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { liveCatalog, liveGetBySlug } from "@/lib/catalog";
 
-export const dynamic = "force-dynamic";
+// The merged catalog is already memoized in-process for 5s (catalog.ts TTL);
+// caching the HTTP response for the same window means the storefront's
+// per-page catalog fetch never hits the server or database twice within 5s.
+export const revalidate = 5;
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
