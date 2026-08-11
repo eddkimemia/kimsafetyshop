@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrderById } from "@/lib/db";
+import { MPESA_COOLDOWN_MS, MPESA_MAX_ATTEMPTS } from "@/lib/payments/mpesa";
 
 export const dynamic = "force-dynamic";
 
@@ -19,5 +20,26 @@ export async function GET(req: Request) {
   if (!order.payment_token || token !== order.payment_token) {
     return NextResponse.json({ error: "Invalid payment token" }, { status: 403 });
   }
-  return NextResponse.json({ orderId: order.id, payment: order.payment, paid: order.paid, status: order.status });
+  // Retry info for the M-Pesa "Resend STK push" flow: when the last push was
+  // declined (mpesa_last_result set) or the cooldown hasn't elapsed, the
+  // checkout screen uses these to render the failure reason + countdown.
+  let canResend = false;
+  let retryAfterMs = 0;
+  if (order.paid !== 1 && order.payment === "mpesa") {
+    const lastPushAt = order.mpesa_pushed_at ? new Date(order.mpesa_pushed_at).getTime() : 0;
+    retryAfterMs = Math.max(0, MPESA_COOLDOWN_MS - (Date.now() - lastPushAt));
+    canResend = (order.mpesa_push_count ?? 0) < MPESA_MAX_ATTEMPTS && retryAfterMs === 0;
+  }
+  return NextResponse.json({
+    orderId: order.id,
+    payment: order.payment,
+    paid: order.paid,
+    status: order.status,
+    mpesaPushCount: order.mpesa_push_count ?? 0,
+    mpesaLastResult: order.mpesa_last_result,
+    mpesaLastResultDesc: order.mpesa_last_result_desc,
+    transactionId: order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_reference,
+    canResend,
+    retryAfterMs,
+  });
 }

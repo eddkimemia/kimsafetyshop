@@ -109,7 +109,8 @@ export async function POST(req: Request) {
   }
 
   // Email the invoice PDF to the customer. Best-effort: never fail the order
-  // placement when SMTP is unavailable or the mail host rejects the message.
+  // placement when SMTP is unavailable or the mail host rejects the message —
+  // but DO log the reason so missing invoices are diagnosable.
   if (order.email) {
     buildInvoicePdf(order)
       .then((pdf) =>
@@ -129,7 +130,7 @@ export async function POST(req: Request) {
           created_at: order.created_at,
         })
       )
-      .catch(() => {});
+      .catch((err) => console.error(`invoice email failed for ${order.id}:`, (err as Error).message));
   }
 
   // Notify staff of the new order (sends to the "email" and "purchases_email"

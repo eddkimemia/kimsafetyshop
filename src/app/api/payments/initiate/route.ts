@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getOrderById, setMpesaCheckout, setPaystackReference } from "@/lib/db";
-import { mpesaStkPush } from "@/lib/payments/mpesa";
+import { getOrderById, setMpesaCheckout, setPaystackReference, recordMpesaPushAttempt, recordMpesaResult } from "@/lib/db";
+import { mpesaStkPush, MPESA_COOLDOWN_MS, MPESA_MAX_ATTEMPTS } from "@/lib/payments/mpesa";
 import { paystackInitialize } from "@/lib/payments/paystack";
 import { siteUrl } from "@/lib/site";
 
@@ -11,6 +11,11 @@ export const dynamic = "force-dynamic";
  * - mpesa: sends the STK push to the customer's phone (confirmation arrives via callback)
  * - card:  returns a Paystack authorization_url the client redirects to
  * - po:    nothing to do — the order stays unpaid
+ *
+ * The same endpoint doubles as "resend STK push": it's token-gated (only the
+ * customer who placed the order holds the token) and the mpesa branch enforces
+ * a cooldown and an attempt cap so a stuck or spamming client can't fire an
+ * unlimited number of pushes.
  */
 export async function POST(req: Request) {
   let body: { orderId?: string; token?: string };
@@ -32,6 +37,26 @@ export async function POST(req: Request) {
       if (!order.payment_phone) {
         return NextResponse.json({ error: "Missing M-Pesa phone number" }, { status: 400 });
       }
+      const attempts = order.mpesa_push_count ?? 0;
+      const lastPushAt = order.mpesa_pushed_at ? new Date(order.mpesa_pushed_at).getTime() : 0;
+      const elapsed = Date.now() - lastPushAt;
+      const retryAfterMs = Math.max(0, MPESA_COOLDOWN_MS - elapsed);
+      if (attempts > 0 && attempts >= MPESA_MAX_ATTEMPTS) {
+        return NextResponse.json(
+          {
+            error: "Too many M-Pesa attempts for this order. Please contact us on WhatsApp for help.",
+            attempts,
+            maxAttempts: MPESA_MAX_ATTEMPTS,
+          },
+          { status: 429 }
+        );
+      }
+      if (retryAfterMs > 0) {
+        return NextResponse.json(
+          { error: "An M-Pesa push was sent recently. Please check your phone.", retryAfterMs, attempts },
+          { status: 429 }
+        );
+      }
       const { checkoutId, merchantId } = await mpesaStkPush({
         phone: order.payment_phone,
         amount: order.total,
@@ -39,7 +64,17 @@ export async function POST(req: Request) {
         callbackUrl: `${siteUrl}/api/payments/mpesa/callback`,
       });
       await setMpesaCheckout(order.id, checkoutId, merchantId);
-      return NextResponse.json({ method: "mpesa", checkoutId, paid: false });
+      await recordMpesaPushAttempt(order.id);
+      // A new push supersedes any previous decline — the checkout screen would
+      // otherwise keep showing the stale failure reason from the last attempt.
+      await recordMpesaResult(order.id, "", "");
+      return NextResponse.json({
+        method: "mpesa",
+        checkoutId,
+        paid: false,
+        attempts: attempts + 1,
+        retryAfterMs: MPESA_COOLDOWN_MS,
+      });
     }
 
     if (order.payment === "card") {

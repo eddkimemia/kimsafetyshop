@@ -482,12 +482,25 @@ export async function sendPaidInvoiceEmail(input: {
   paid: number;
   status: string;
   created_at: string;
+  mpesa_transaction_id?: string | null;
+  paystack_reference?: string | null;
+  po_ref?: string | null;
 }): Promise<boolean> {
   const cfg: SmtpConfig | null = await getSmtpConfig();
   if (!cfg || !isSmtpConfigured(cfg)) return false;
   const brand = await getBrand();
 
   const { id: orderId, email, name, phone, address, company, items, payment, status } = input;
+  const txnId =
+    input.paid === 1
+      ? payment === "mpesa"
+        ? input.mpesa_transaction_id
+        : payment === "card"
+          ? input.paystack_reference
+          : payment === "po"
+            ? input.po_ref
+            : null
+      : null;
   const pdf = await buildInvoicePdf({ ...input, paid: 1 });
   const transporter = createTransporter(cfg);
 
@@ -524,7 +537,7 @@ export async function sendPaidInvoiceEmail(input: {
       ${summaryCard([
         { label: "Order number", value: esc(orderId) },
         { label: "Order total", value: money(input.total), highlight: true },
-        { label: "Payment", value: esc(paymentLabel[payment] ?? payment) },
+        { label: "Payment", value: esc(paymentLabel[payment] ?? payment) + (txnId ? ` · Ref ${esc(txnId)}` : "") },
         { label: "Status", value: "Paid ✓" },
       ])}
       ${sectionTitle("Delivery details")}

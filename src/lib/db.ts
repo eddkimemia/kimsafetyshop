@@ -35,6 +35,11 @@ export type DbOrder = {
   payment_phone: string | null;
   mpesa_checkout_id: string | null;
   mpesa_merchant_id: string | null;
+  mpesa_push_count: number;
+  mpesa_pushed_at: string | null;
+  mpesa_last_result: string | null;
+  mpesa_last_result_desc: string | null;
+  mpesa_transaction_id: string | null;
   paystack_reference: string | null;
   payment_token: string | null;
   created_at: string;
@@ -550,6 +555,11 @@ export async function createOrder(input: { user_id?: string | null; name: string
     payment_phone: input.payment_phone ?? null,
     mpesa_checkout_id: null,
     mpesa_merchant_id: null,
+    mpesa_push_count: 0,
+    mpesa_pushed_at: null,
+    mpesa_last_result: null,
+    mpesa_last_result_desc: null,
+    mpesa_transaction_id: null,
     paystack_reference: null,
     payment_token: input.payment_token ?? null,
     created_at: new Date().toISOString(),
@@ -567,6 +577,22 @@ export async function setOrderPaid(id: string, paid: number) {
 
 export async function setMpesaCheckout(id: string, checkoutId: string, merchantId: string) {
   await qe("UPDATE orders SET mpesa_checkout_id = ?, mpesa_merchant_id = ? WHERE id = ?", checkoutId, merchantId, id);
+}
+
+export async function recordMpesaPushAttempt(id: string) {
+  await qe(
+    "UPDATE orders SET mpesa_push_count = COALESCE(mpesa_push_count, 0) + 1, mpesa_pushed_at = ? WHERE id = ?",
+    new Date().toISOString(),
+    id
+  );
+}
+
+export async function recordMpesaResult(id: string, code: string, desc: string) {
+  await qe("UPDATE orders SET mpesa_last_result = ?, mpesa_last_result_desc = ? WHERE id = ?", code, desc, id);
+}
+
+export async function setMpesaTransaction(id: string, receipt: string) {
+  await qe("UPDATE orders SET mpesa_transaction_id = ? WHERE id = ?", receipt, id);
 }
 
 export async function setPaystackReference(id: string, reference: string) {

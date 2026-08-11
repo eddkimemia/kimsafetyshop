@@ -24,6 +24,11 @@ const SANDBOX_DEFAULTS = {
   shortcode: "174379",
 };
 
+/** Minimum gap between STK pushes to the same order (no push-spam while waiting). */
+export const MPESA_COOLDOWN_MS = 30_000;
+/** Hard cap on STK push attempts per order — after this, contact support. */
+export const MPESA_MAX_ATTEMPTS = 5;
+
 type MpesaConfig = {
   env: string;
   baseUrl: string;

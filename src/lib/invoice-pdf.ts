@@ -19,6 +19,10 @@ export type InvoiceOrder = {
   payment: string;
   paid: number;
   created_at: string;
+  payment_phone?: string | null;
+  mpesa_transaction_id?: string | null;
+  paystack_reference?: string | null;
+  po_ref?: string | null;
 };
 
 const NAVY = "#0F2847";
@@ -170,6 +174,19 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
     );
 
   // ---- Meta line ----
+  // Paid invoices carry the payment gateway's transaction reference: the
+  // M-Pesa receipt number from the STK callback, the Paystack reference, or
+  // the purchase-order reference for corporate orders.
+  const txnId = paid
+    ? order.payment === "mpesa"
+      ? order.mpesa_transaction_id
+      : order.payment === "card"
+        ? order.paystack_reference
+        : order.payment === "po"
+          ? order.po_ref
+          : null
+    : null;
+  const paymentValue = `${paymentLabel[order.payment] ?? order.payment}${txnId ? ` · Ref ${txnId}` : ""}`;
   const metaY = 178;
   doc
     .font("Helvetica-Bold")
@@ -180,7 +197,7 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
     .font("Helvetica")
     .fontSize(8.5)
     .fillColor("#374151")
-    .text(`  ${paymentLabel[order.payment] ?? order.payment}`, padL + 100, metaY, { width: 160 });
+    .text(`  ${paymentValue}`, padL + 100, metaY, { width: 168 });
   doc
     .font("Helvetica-Bold")
     .fontSize(8.5)

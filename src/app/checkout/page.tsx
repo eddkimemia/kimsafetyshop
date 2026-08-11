@@ -2,13 +2,23 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Lock, Truck, ArrowRight, Package, Loader2, Download, FileUp, CircleAlert } from "lucide-react";
+import { Check, Lock, Truck, ArrowRight, Package, Loader2, Download, FileUp, CircleAlert, Smartphone } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { formatKES, bulkUnitPrice, cn } from "@/lib/utils";
 import { ProductArt } from "@/components/product/product-art";
 import { PageHeader } from "@/components/layout/page-header";
 
 const steps = ["Contact", "Delivery", "Payment", "Review"];
+
+// Common M-Pesa STK callback ResultCodes → human-friendly decline reasons.
+const MPESA_DECLINE: Record<string, string> = {
+  "1032": "The request was cancelled or timed out",
+  "1037": "The request timed out — no PIN was entered",
+  "2001": "Insufficient funds in the M-Pesa account",
+  "1035": "An invalid M-Pesa PIN was entered",
+  "1036": "The M-Pesa PIN was incorrect",
+  "1031": "Invalid M-Pesa account details",
+};
 
 export default function CheckoutPage() {
   const { cart, cartTotal, cartOldTotal, clearCart, liveProduct, refreshCatalog } = useStore();
@@ -35,6 +45,12 @@ export default function CheckoutPage() {
   const [payError, setPayError] = useState<string | null>(null);
   const [paidNow, setPaidNow] = useState(false);
   const [pollDone, setPollDone] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
+  const [pushFailed, setPushFailed] = useState<string | null>(null);
+  const [retryIn, setRetryIn] = useState(0);
+  const [pushAttempts, setPushAttempts] = useState(0);
+  const [pushBlocked, setPushBlocked] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const prefillDone = useRef(false);
@@ -162,8 +178,10 @@ export default function CheckoutPage() {
     }
   };
 
-  // Poll the M-Pesa status endpoint until the STK callback confirms payment
-  // (or give up after 2 minutes and let the customer contact us).
+  // Poll the M-Pesa status endpoint until the STK callback confirms payment.
+  // Stops early on a decline (the callback result is surfaced via the status
+  // endpoint) or after 2 minutes — either way the customer gets a "Resend STK
+  // push" option instead of a dead end.
   useEffect(() => {
     if (!placed || payment !== "mpesa" || paidNow || pollDone) return;
     let cancelled = false;
@@ -171,8 +189,19 @@ export default function CheckoutPage() {
       try {
         const r = await fetch(`/api/orders/status?orderId=${encodeURIComponent(orderId ?? "")}&token=${encodeURIComponent(paymentToken ?? "")}`);
         const j = await r.json();
-        if (!cancelled && j.paid === 1) {
+        if (cancelled) return;
+        if (j.paid === 1) {
           setPaidNow(true);
+          setPollDone(true);
+          clearInterval(iv);
+          return;
+        }
+        setPushAttempts(j.mpesaPushCount ?? 0);
+        setPushBlocked((j.mpesaPushCount ?? 0) >= 5);
+        setRetryIn(j.retryAfterMs ? Math.ceil(j.retryAfterMs / 1000) : 0);
+        const lastResult = j.mpesaLastResult && j.mpesaLastResult !== "0" ? String(j.mpesaLastResult) : null;
+        if (lastResult) {
+          setPushFailed(MPESA_DECLINE[lastResult] ?? j.mpesaLastResultDesc ?? "The payment was declined");
           setPollDone(true);
           clearInterval(iv);
         }
@@ -192,6 +221,46 @@ export default function CheckoutPage() {
       clearTimeout(timeout);
     };
   }, [placed, payment, orderId, paymentToken, paidNow, pollDone]);
+
+  // Ticks the "Resend STK push" cooldown countdown down to zero.
+  useEffect(() => {
+    if (retryIn <= 0) return;
+    const iv = setInterval(() => setRetryIn((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(iv);
+  }, [retryIn]);
+
+  const resendStk = async () => {
+    if (resending || !orderId || !paymentToken) return;
+    setResending(true);
+    setResendError(null);
+    try {
+      const res = await fetch("/api/payments/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, token: paymentToken }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 429) {
+          if (json.retryAfterMs) setRetryIn(Math.ceil(json.retryAfterMs / 1000));
+          if (json.maxAttempts) setPushBlocked(true);
+        }
+        setResendError(json.error ?? "Please try again in a moment.");
+        return;
+      }
+      // New push is on its way — clear the decline state and restart polling.
+      setPushFailed(null);
+      setResendError(null);
+      setPushAttempts(json.attempts ?? pushAttempts + 1);
+      setRetryIn(json.retryAfterMs ? Math.ceil(json.retryAfterMs / 1000) : 0);
+      setPushBlocked(false);
+      setPollDone(false);
+    } catch (err) {
+      setResendError(err instanceof Error ? err.message : "Payment could not be started. Contact us on WhatsApp for help.");
+    } finally {
+      setResending(false);
+    }
+  };
 
   const next = async () => {
     const errs: Record<string, string> = {};
@@ -255,12 +324,14 @@ export default function CheckoutPage() {
 
   if (placed) {
     const waitingMpesa = payment === "mpesa" && !paidNow && !payError;
+    const mpesaStillWaiting = waitingMpesa && !pollDone && !pushFailed;
+    const mpesaNeedsAttention = waitingMpesa && !mpesaStillWaiting;
     return (
       <div className="flex flex-col items-center gap-4 bg-surface px-4 py-24 text-center">
         <div className={cn("flex h-24 w-24 items-center justify-center rounded-full", paidNow ? "bg-emerald-50" : "bg-amber-50")}>
           {paidNow ? (
             <Check className="h-12 w-12 text-emerald-600" />
-          ) : waitingMpesa ? (
+          ) : mpesaStillWaiting ? (
             <Loader2 className="h-12 w-12 animate-spin text-amber-500" />
           ) : (
             <CircleAlert className="h-12 w-12 text-amber-500" />
@@ -274,7 +345,7 @@ export default function CheckoutPage() {
           A confirmation has been sent to <strong>{form.email || "your email"}</strong>. You&apos;ll receive
           a dispatch notification once your order leaves our Nairobi warehouse.
         </p>
-        {waitingMpesa && (
+        {mpesaStillWaiting && (
           <p className="max-w-md text-sm text-gray-600">
             An STK push was sent to <strong>{momo}</strong> for {formatKES(placedTotal)} — enter your M-Pesa PIN to
             confirm the payment.
@@ -283,16 +354,64 @@ export default function CheckoutPage() {
         {payError && (
           <p className="max-w-md rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-danger">{payError}</p>
         )}
+        {mpesaNeedsAttention && (
+          <div className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-5 text-left shadow-card">
+            <p className="text-sm font-bold text-navy-900">M-Pesa payment needs your attention</p>
+            <p className="mt-1 text-xs leading-relaxed text-gray-600">
+              {pushFailed ? (
+                <>
+                  M-Pesa responded: <strong className="text-danger">{pushFailed}</strong>. You can try once more — a
+                  new prompt will be sent to <strong>{momo}</strong>.
+                </>
+              ) : (
+                <>
+                  We haven&apos;t received confirmation from M-Pesa yet. Check your phone for the prompt, or send the
+                  push again to <strong>{momo}</strong>.
+                </>
+              )}
+            </p>
+            {pushBlocked ? (
+              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-danger">
+                All M-Pesa attempts have been used. Please contact us on WhatsApp to complete this payment — your
+                order is safe.
+              </p>
+            ) : (
+              <div className="mt-3">
+                <button
+                  onClick={resendStk}
+                  disabled={resending || retryIn > 0}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-safety-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {resending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Sending push…
+                    </>
+                  ) : retryIn > 0 ? (
+                    <>Resend STK push in {retryIn}s</>
+                  ) : (
+                    <>
+                      <Smartphone className="h-4 w-4" /> Resend STK push to {momo}
+                      {pushAttempts > 0 ? ` (${pushAttempts}/5 used)` : ""}
+                    </>
+                  )}
+                </button>
+                {resendError && (
+                  <p className="mt-2 text-center text-xs font-semibold text-danger">{resendError}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <span
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold",
             paidNow ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
           )}
         >
-          {paidNow ? <Check className="h-3.5 w-3.5" /> : waitingMpesa ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CircleAlert className="h-3.5 w-3.5" />}
+          {paidNow ? <Check className="h-3.5 w-3.5" /> : mpesaStillWaiting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CircleAlert className="h-3.5 w-3.5" />}
           {paidNow
             ? "Payment received — invoice marked PAID"
-            : waitingMpesa
+            : mpesaStillWaiting
               ? "Waiting for M-Pesa confirmation…"
               : "Payment pending — invoice marked UNPAID"}
         </span>
