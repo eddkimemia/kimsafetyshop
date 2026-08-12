@@ -610,6 +610,9 @@ export async function getOrderByPaystackReference(reference: string): Promise<Db
 export async function listOrders(): Promise<DbOrder[]> {  return (await qr("SELECT * FROM orders ORDER BY created_at DESC")) as DbOrder[];
 }
 
+export async function listOrdersCreatedBetween(from: string, to: string): Promise<DbOrder[]> {  return (await qr("SELECT * FROM orders WHERE created_at >= ? AND created_at < ? ORDER BY created_at ASC", from, to)) as DbOrder[];
+}
+
 export async function ordersForUser(userId: string): Promise<DbOrder[]> {  return (await qr("SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC", userId)) as DbOrder[];
 }
 

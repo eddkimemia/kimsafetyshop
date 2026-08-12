@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Check, Clock, Download, MapPin, Phone, Truck, X, FileText } from "lucide-react";
+import { ArrowLeft, Check, Clock, Download, Loader2, Lock, MapPin, Phone, Smartphone, Truck, X, FileText } from "lucide-react";
 import { cn, formatKES } from "@/lib/utils";
 import { AccountShell } from "@/components/account/account-shell";
 import type { AccountOrder } from "@/components/account/account-shell";
@@ -20,6 +20,9 @@ export default function AccountOrderDetailPage() {
   const [order, setOrder] = useState<AccountOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [payMsg, setPayMsg] = useState<string | null>(null);
+  const [payErr, setPayErr] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/orders?id=${encodeURIComponent(id)}`)
@@ -31,6 +34,61 @@ export default function AccountOrderDetailPage() {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const refresh = () => {
+    fetch(`/api/orders?id=${encodeURIComponent(id)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.order && setOrder(d.order))
+      .catch(() => {});
+  };
+
+  // While the M-Pesa push is pending, keep checking until the callback flips
+  // the order to paid (same behaviour as the checkout confirmation screen).
+  useEffect(() => {
+    if (!order || order.paid === 1 || order.payment !== "mpesa" || paying) return;
+    const iv = setInterval(() => {
+      fetch(`/api/orders?id=${encodeURIComponent(id)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => d?.order && setOrder(d.order))
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(iv);
+  }, [order, paying, id]);
+
+  const retryPayment = async () => {
+    if (paying) return;
+    setPaying(true);
+    setPayMsg(null);
+    setPayErr(null);
+    try {
+      const res = await fetch("/api/payments/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: id }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 429 && json.retryAfterMs) {
+          setPayErr(`Please wait ${Math.ceil(json.retryAfterMs / 1000)}s before trying again (${json.attempts ?? "-"}/5 pushes used).`);
+        } else {
+          setPayErr(json.error ?? "Payment could not be started. Contact us on WhatsApp for help.");
+        }
+        return;
+      }
+      if (json.method === "card" && json.authorizationUrl) {
+        window.location.assign(json.authorizationUrl);
+        return;
+      }
+      if (json.method === "mpesa") {
+        setPayMsg(`A new STK push has been sent — enter your M-Pesa PIN to confirm payment.`);
+        refresh();
+      }
+    } catch (err) {
+      setPayErr(err instanceof Error ? err.message : "Payment could not be started. Contact us on WhatsApp for help.");
+    } finally {
+      setPaying(false);
+    }
+  };
 
   return (
     <AccountShell>
@@ -148,6 +206,31 @@ export default function AccountOrderDetailPage() {
                   </div>
                   <p className="text-[11px] text-gray-400">Payment: {order.payment.toUpperCase()} · {order.paid === 1 ? "PAID" : "UNPAID"}</p>
                 </dl>
+                {order.paid !== 1 && (order.payment === "mpesa" || order.payment === "card") && (
+                  <div className="mt-4 border-t border-line pt-4">
+                    <button
+                      onClick={retryPayment}
+                      disabled={paying}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-safety-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {paying ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : order.payment === "card" ? (
+                        <Lock className="h-3.5 w-3.5" />
+                      ) : (
+                        <Smartphone className="h-3.5 w-3.5" />
+                      )}
+                      {order.payment === "card" ? "Retry card payment" : "Resend M-Pesa STK push"}
+                    </button>
+                    {payMsg && <p className="mt-2 text-xs font-semibold text-emerald-700">{payMsg}</p>}
+                    {payErr && <p className="mt-2 text-xs font-semibold text-danger">{payErr}</p>}
+                    <p className="mt-2 text-[11px] leading-relaxed text-gray-400">
+                      {order.payment === "card"
+                        ? "You'll be redirected to Paystack's secure page. Your order stays safe — payment is only taken once."
+                        : "A new M-Pesa prompt will be sent to your phone. Still stuck? WhatsApp us for help."}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

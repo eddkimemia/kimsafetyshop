@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Check, Download, Loader2, CircleAlert } from "lucide-react";
+import { Check, Download, Loader2, CircleAlert, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function CheckoutSuccessPage() {
@@ -22,6 +22,9 @@ function CheckoutSuccessInner() {
 
   const [status, setStatus] = useState<"checking" | "paid" | "pending" | "error">("checking");
   const [message, setMessage] = useState<string | null>(null);
+  const [payment, setPayment] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,6 +42,15 @@ function CheckoutSuccessInner() {
           if (!cancelled) {
             setStatus(json.paid ? "paid" : "pending");
           }
+          if (!json.paid) {
+            try {
+              const r = await fetch(`/api/orders/status?orderId=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`);
+              const j = await r.json();
+              if (!cancelled) setPayment(j.payment ?? null);
+            } catch {
+              /* non-fatal */
+            }
+          }
           return;
         } catch (err) {
           if (!cancelled) {
@@ -52,7 +64,10 @@ function CheckoutSuccessInner() {
         try {
           const r = await fetch(`/api/orders/status?orderId=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`);
           const j = await r.json();
-          if (!cancelled) setStatus(j.paid === 1 ? "paid" : "pending");
+          if (!cancelled) {
+            setStatus(j.paid === 1 ? "paid" : "pending");
+            setPayment(j.payment ?? null);
+          }
         } catch {
           if (!cancelled) {
             setStatus("error");
@@ -66,6 +81,28 @@ function CheckoutSuccessInner() {
       cancelled = true;
     };
   }, [orderId, token, reference]);
+
+  const retryCard = async () => {
+    if (retrying || !orderId || !token) return;
+    setRetrying(true);
+    setRetryError(null);
+    try {
+      const res = await fetch("/api/payments/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, token }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Payment could not be started");
+      if (json.method === "card" && json.authorizationUrl) {
+        window.location.assign(json.authorizationUrl);
+      }
+    } catch (err) {
+      setRetryError(err instanceof Error ? err.message : "Payment could not be started. Contact us on WhatsApp for help.");
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   const paid = status === "paid";
 
@@ -95,6 +132,26 @@ function CheckoutSuccessInner() {
               ? message
               : "Your order is placed but the payment is still pending. If you already paid, it may take a minute to confirm — or contact us on WhatsApp for help."}
       </p>
+      {status === "pending" && payment === "card" && (
+        <div className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-5 text-left shadow-card">
+          <p className="text-sm font-bold text-navy-900">Card payment not completed</p>
+          <p className="mt-1 text-xs leading-relaxed text-gray-600">
+            The payment wasn&apos;t confirmed, so your order is still unpaid. Try again — you&apos;ll be redirected to
+            Paystack&apos;s secure payment page.
+          </p>
+          <div className="mt-3">
+            <button
+              onClick={retryCard}
+              disabled={retrying}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-safety-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {retrying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+              {retrying ? "Starting payment…" : "Retry card payment"}
+            </button>
+            {retryError && <p className="mt-2 text-center text-xs font-semibold text-danger">{retryError}</p>}
+          </div>
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap justify-center gap-3">
         {orderId && (
           <a

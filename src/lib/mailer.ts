@@ -659,6 +659,45 @@ export async function newsletterHtml(input: { title: string; body: string }): Pr
   );
 }
 
+export async function sendDailyOrdersEmail(input: {
+  to: string;
+  dateLabel: string;
+  orderCount: number;
+  paidCount: number;
+  revenue: number;
+  xlsx: Buffer;
+}): Promise<boolean> {
+  const cfg = getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, dateLabel, orderCount, paidCount, revenue, xlsx } = input;
+  const pending = orderCount - paidCount;
+  await createTransporter(cfg).sendMail({
+    from: cfg.from,
+    to,
+    subject: `Daily orders — ${dateLabel} · ${orderCount} order${orderCount === 1 ? "" : "s"} · ${money(revenue)}`,
+    text: `KimSafety daily order summary for ${dateLabel}:\n\nOrders: ${orderCount}\nPaid: ${paidCount}\nUnpaid: ${pending}\nRevenue: ${money(revenue)}\n\nThe Excel spreadsheet with every order is attached.\n\n— KimSafety`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Daily order summary")}
+      <h1 style="font-size:24px;color:${NAVY};margin:0 0 14px 0;">Orders for ${esc(dateLabel)}</h1>
+      <p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 18px 0;">Here's how the store performed today. The full breakdown is attached as an Excel spreadsheet.</p>
+      ${summaryCard([
+        { label: "Orders placed", value: String(orderCount), highlight: true },
+        { label: "Paid", value: String(paidCount) },
+        { label: "Unpaid / pending", value: String(pending) },
+        { label: "Total order value", value: money(revenue) },
+      ])}
+      <p style="font-size:13px;line-height:1.7;color:#374151;margin:0 0 14px 0;">Open the attached <strong>kimsafety-orders-${esc(dateLabel)}.xlsx</strong> to see each order — customer, items, payment status and totals.</p>
+      ${btn(`${siteUrl}/admin/orders`, "Open orders in admin")}
+      `
+    ),
+    attachments: [{ filename: `kimsafety-orders-${dateLabel}.xlsx`, content: xlsx, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }],
+  });
+  return true;
+}
+
 export async function sendNewsletterBroadcast(input: {
   subject: string;
   html: string;

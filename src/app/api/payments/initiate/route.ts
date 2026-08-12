@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrderById, setMpesaCheckout, setPaystackReference, recordMpesaPushAttempt, recordMpesaResult } from "@/lib/db";
+import { getSessionUser } from "@/lib/api-helpers";
 import { mpesaStkPush, MPESA_COOLDOWN_MS, MPESA_MAX_ATTEMPTS } from "@/lib/payments/mpesa";
 import { paystackInitialize } from "@/lib/payments/paystack";
 import { siteUrl } from "@/lib/site";
@@ -27,7 +28,12 @@ export async function POST(req: Request) {
 
   const order = body.orderId ? await getOrderById(body.orderId) : undefined;
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  if (!body.token || !order.payment_token || body.token !== order.payment_token) {
+  // Access is granted by the one-time payment token (guest checkout) OR by being
+  // the signed-in user who owns the order (account pages can then retry payment).
+  const user = await getSessionUser();
+  const isOwner = user && order.user_id && order.user_id === user.id;
+  const orderToken = order.payment_token;
+  if (!isOwner && (!body.token || !orderToken || body.token !== orderToken)) {
     return NextResponse.json({ error: "Invalid payment token" }, { status: 403 });
   }
   if (order.paid === 1) return NextResponse.json({ method: order.payment, paid: true });
@@ -79,7 +85,7 @@ export async function POST(req: Request) {
 
     if (order.payment === "card") {
       const reference = `${order.id.replace(/[^A-Za-z0-9]/g, "")}-${Date.now()}`;
-      const callbackUrl = `${siteUrl}/checkout/success?order=${encodeURIComponent(order.id)}&token=${encodeURIComponent(order.payment_token)}`;
+      const callbackUrl = `${siteUrl}/checkout/success?order=${encodeURIComponent(order.id)}&token=${encodeURIComponent(orderToken ?? "")}`;
       const { authorizationUrl, reference: savedRef } = await paystackInitialize({
         email: order.email,
         amount: order.total,

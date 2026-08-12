@@ -7,10 +7,10 @@
 // The layout enhances PRESENTATION only — the physical product is never
 // filtered or recoloured, only cropped/resized to fit the composition.
 
-const SIZE = 1200;
+const SIZE = 1920;
 const FILL_RATIO = 0.95;
-const QUALITY = 0.92;
-const MAX_WORKING = 2000;
+const QUALITY = 0.95;
+const MAX_WORKING = 2560;
 const TEMPLATE_URL = "/images/products/product_template.jpg";
 
 export const CLIENT_WEBSITE = "www.kimsafety.co.ke";

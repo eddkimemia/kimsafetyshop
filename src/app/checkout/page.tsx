@@ -52,6 +52,8 @@ export default function CheckoutPage() {
   const [pushAttempts, setPushAttempts] = useState(0);
   const [pushBlocked, setPushBlocked] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isStaff, setIsStaff] = useState(false);
+  const [waiveFee, setWaiveFee] = useState(false);
 
   const prefillDone = useRef(false);
   useEffect(() => {
@@ -62,7 +64,8 @@ export default function CheckoutPage() {
       fetch("/api/addresses").then((r) => (r.ok ? r.json() : { addresses: [] })).catch(() => ({ addresses: [] })),
       fetch("/api/orders").then((r) => (r.ok ? r.json() : { orders: [] })).catch(() => ({ orders: [] })),
     ]).then(([sess, addrData, ordData]) => {
-      const user = (sess as { user?: { name?: string; email?: string; phone?: string | null } }).user;
+      const user = (sess as { user?: { name?: string; email?: string; phone?: string | null; role?: string } }).user;
+      if (user?.role === "admin" || user?.role === "superadmin") setIsStaff(true);
       const rawAddresses = (addrData as { addresses?: unknown }).addresses;
       const addresses = Array.isArray(rawAddresses) ? (rawAddresses as { is_default: number; name: string; phone: string; address_line: string; city: string; county: string }[]) : [];
       const orders = (ordData as { orders?: { address?: string }[] }).orders ?? [];
@@ -105,7 +108,7 @@ export default function CheckoutPage() {
 
   const savings = cartOldTotal - cartTotal;
   const freeDelivery = cartTotal >= 10000;
-  const shipping = cart.length === 0 ? 0 : freeDelivery ? 0 : 350;
+  const shipping = cart.length === 0 ? 0 : waiveFee || freeDelivery ? 0 : 350;
   const total = cartTotal + shipping;
 
   const field =
@@ -135,6 +138,7 @@ export default function CheckoutPage() {
           po_file: poFile,
           momo: momo.trim(),
           total,
+          delivery_fee: !waiveFee,
           items: cart.map((i) => {
             const p = liveProduct(i.productId);
             return { productId: i.productId, name: p?.name ?? i.productId, qty: i.qty, price: p?.price ?? 0 };
@@ -262,6 +266,25 @@ export default function CheckoutPage() {
     }
   };
 
+  const retryCard = async () => {
+    if (!orderId || !paymentToken) return;
+    setPayError(null);
+    try {
+      const res = await fetch("/api/payments/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, token: paymentToken }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Payment could not be started");
+      if (json.method === "card" && json.authorizationUrl) {
+        window.location.assign(json.authorizationUrl);
+      }
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : "Payment could not be started. Contact us on WhatsApp for help.");
+    }
+  };
+
   const next = async () => {
     const errs: Record<string, string> = {};
     if (step === 0) {
@@ -353,6 +376,23 @@ export default function CheckoutPage() {
         )}
         {payError && (
           <p className="max-w-md rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-danger">{payError}</p>
+        )}
+        {payment === "card" && !paidNow && (
+          <div className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-5 text-left shadow-card">
+            <p className="text-sm font-bold text-navy-900">Card payment not completed</p>
+            <p className="mt-1 text-xs leading-relaxed text-gray-600">
+              Your order is placed but the card payment hasn&apos;t been confirmed yet. Try again below — you&apos;ll be
+              redirected to Paystack&apos;s secure payment page.
+            </p>
+            <div className="mt-3">
+              <button
+                onClick={retryCard}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-safety-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Lock className="h-4 w-4" /> Retry card payment · {formatKES(placedTotal)}
+              </button>
+            </div>
+          </div>
         )}
         {mpesaNeedsAttention && (
           <div className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-5 text-left shadow-card">
@@ -513,9 +553,35 @@ export default function CheckoutPage() {
                 {errMsg("town")}
                 {errMsg("address")}
               </div>
+              {isStaff && (
+                <div className="mt-5 space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setWaiveFee((v) => !v)}
+                    className="flex w-full items-center gap-2.5 rounded-xl border-2 border-line bg-white px-4 py-3 text-left transition-colors hover:border-safety-300"
+                  >
+                    <span
+                      className={cn(
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2",
+                        waiveFee ? "border-safety-500 bg-safety-500" : "border-gray-300 bg-white"
+                      )}
+                    >
+                      {waiveFee && <Check className="h-3 w-3 text-white" />}
+                    </span>
+                    <span className="text-xs font-bold text-navy-900">
+                      {waiveFee ? "Delivery fee waived (pickup / account rate)" : "Include delivery fee (KES 350)"}
+                    </span>
+                  </button>
+                  <p className="text-[11px] text-gray-400">Staff checkout — choose whether to charge the delivery fee on this order.</p>
+                </div>
+              )}
               <div className="mt-5 flex items-center gap-2.5 rounded-xl bg-safety-50 px-4 py-3 text-xs font-semibold text-safety-700">
                 <Truck className="h-4 w-4" />
-                {freeDelivery ? "Free same-day delivery within Nairobi unlocked" : "Same-day delivery within Nairobi (KES 350) · Free over KES 10,000"}
+                {waiveFee
+                  ? "Delivery fee waived for this order"
+                  : freeDelivery
+                    ? "Free same-day delivery within Nairobi unlocked"
+                    : "Same-day delivery within Nairobi (KES 350) · Free over KES 10,000"}
               </div>
             </section>
           )}

@@ -56,7 +56,7 @@ async function computeTotals(items: OrderItem[]) {
 }
 
 export async function POST(req: Request) {
-  let body: { name?: string; email?: string; phone?: string; address?: string; items?: unknown[]; total?: number; payment?: string; po_ref?: string; company?: string; po_file?: string; momo?: string };
+  let body: { name?: string; email?: string; phone?: string; address?: string; items?: unknown[]; total?: number; payment?: string; po_ref?: string; company?: string; po_file?: string; momo?: string; delivery_fee?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -73,9 +73,21 @@ export async function POST(req: Request) {
   if (found.some((p) => !p)) {
     return NextResponse.json({ error: "One or more products could not be found" }, { status: 400 });
   }
-  const { subtotal, discount, shipping, total } = await computeTotals(items);
+  const totals = await computeTotals(items);
+  const { subtotal, discount } = totals;
+  let shipping = totals.shipping;
+  let total = totals.total;
 
+  // Staff (admin/superadmin) may waive the delivery fee when checking out —
+  // e.g. when placing an order for a customer who picks up or has an account
+  // rate. The waiver is only honoured for authenticated staff, never for the
+  // public.
   const user = await getSessionUser();
+  if (user && ["admin", "superadmin"].includes(user.role) && body.delivery_fee === false) {
+    shipping = 0;
+    total = subtotal;
+  }
+
   const order = await createOrder({
     user_id: user?.id ?? null,
     name: body.name,
