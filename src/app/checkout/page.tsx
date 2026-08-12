@@ -65,7 +65,12 @@ export default function CheckoutPage() {
       fetch("/api/orders").then((r) => (r.ok ? r.json() : { orders: [] })).catch(() => ({ orders: [] })),
     ]).then(([sess, addrData, ordData]) => {
       const user = (sess as { user?: { name?: string; email?: string; phone?: string | null; role?: string } }).user;
-      if (user?.role === "admin" || user?.role === "superadmin") setIsStaff(true);
+      if (user?.role === "admin" || user?.role === "superadmin") {
+        setIsStaff(true);
+        // Staff checkouts default to NO delivery fee — it's the exception for
+        // staff-placed (pickup / corporate) orders. Flip the toggle to include it.
+        setWaiveFee(true);
+      }
       const rawAddresses = (addrData as { addresses?: unknown }).addresses;
       const addresses = Array.isArray(rawAddresses) ? (rawAddresses as { is_default: number; name: string; phone: string; address_line: string; city: string; county: string }[]) : [];
       const orders = (ordData as { orders?: { address?: string }[] }).orders ?? [];
@@ -700,6 +705,7 @@ export default function CheckoutPage() {
                 <div className="flex justify-between"><dt className="text-gray-500">Contact</dt><dd className="font-bold text-navy-900">{form.first} {form.last} · {form.phone}</dd></div>
                 <div className="flex justify-between"><dt className="text-gray-500">Deliver to</dt><dd className="text-right font-bold text-navy-900">{form.town}, {form.county}<br /><span className="text-xs font-normal text-gray-400">{form.address}</span></dd></div>
                 <div className="flex justify-between"><dt className="text-gray-500">Payment</dt><dd className="font-bold text-navy-900 capitalize">{payment === "mpesa" ? `M-Pesa ${momo || ""}` : payment === "po" ? `Purchase Order${form.po ? ` · ${form.po}` : ""}` : payment.replace("-", " ")}</dd></div>
+                <div className="flex justify-between text-emerald-600"><dt>Delivery fee</dt><dd className="font-bold">{shipping === 0 ? "FREE" : formatKES(shipping)}</dd></div>
                 {payment === "po" && form.company && (
                   <div className="flex justify-between"><dt className="text-gray-500">Company</dt><dd className="font-bold text-navy-900">{form.company}</dd></div>
                 )}
@@ -777,6 +783,31 @@ export default function CheckoutPage() {
             <div className="flex justify-between"><dt className="text-gray-500">Delivery</dt><dd className="font-bold">{shipping === 0 ? "FREE" : formatKES(shipping)}</dd></div>
             <div className="flex justify-between border-t border-line pt-3"><dt className="font-bold text-navy-900">Total (after discount)</dt><dd className="font-display text-xl font-extrabold text-navy-900">{formatKES(total)}</dd></div>
           </dl>
+          {isStaff && (
+            <div className="mt-4 rounded-xl border border-line bg-surface p-3">
+              <button
+                type="button"
+                onClick={() => setWaiveFee((v) => !v)}
+                className="flex w-full items-center justify-between gap-2 text-left"
+              >
+                <span className="flex items-center gap-2.5 text-xs font-bold text-navy-900">
+                  <span
+                    className={cn(
+                      "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border-2",
+                      waiveFee ? "border-safety-500 bg-safety-500" : "border-gray-300 bg-white"
+                    )}
+                  >
+                    {waiveFee && <Check className="h-3 w-3 text-white" />}
+                  </span>
+                  {waiveFee ? "Delivery fee waived" : "Include delivery fee (KES 350)"}
+                </span>
+                <Truck className={cn("h-4 w-4", waiveFee ? "text-gray-300" : "text-safety-600")} />
+              </button>
+              <p className="mt-1.5 pl-[30px] text-[10px] leading-relaxed text-gray-400">
+                Staff checkout — fee is applied to the final total, M-Pesa push, Paystack charge and PO invoice only when included.
+              </p>
+            </div>
+          )}
           <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
             <Lock className="h-3 w-3" /> Encrypted & secure checkout · PCI-DSS compliant
           </p>
