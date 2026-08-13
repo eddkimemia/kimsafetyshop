@@ -54,17 +54,25 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isStaff, setIsStaff] = useState(false);
   const [waiveFee, setWaiveFee] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const [marketing, setMarketing] = useState(false);
+  const [wantAccount, setWantAccount] = useState(false);
+  const [guestPassword, setGuestPassword] = useState("");
+  const [referral, setReferral] = useState("");
 
   const prefillDone = useRef(false);
   useEffect(() => {
     if (prefillDone.current) return;
     prefillDone.current = true;
+    const urlRef = new URLSearchParams(window.location.search).get("ref");
+    if (urlRef?.trim()) setReferral(urlRef.trim());
     Promise.all([
       fetch("/api/auth/session").then((r) => r.json()).catch(() => ({})),
       fetch("/api/addresses").then((r) => (r.ok ? r.json() : { addresses: [] })).catch(() => ({ addresses: [] })),
       fetch("/api/orders").then((r) => (r.ok ? r.json() : { orders: [] })).catch(() => ({ orders: [] })),
     ]).then(([sess, addrData, ordData]) => {
       const user = (sess as { user?: { name?: string; email?: string; phone?: string | null; role?: string } }).user;
+      if (user) setSignedIn(true);
       if (user?.role === "admin" || user?.role === "superadmin") {
         setIsStaff(true);
         // Staff checkouts default to NO delivery fee — it's the exception for
@@ -144,6 +152,9 @@ export default function CheckoutPage() {
           momo: momo.trim(),
           total,
           delivery_fee: !waiveFee,
+          marketing_opt_in: marketing,
+          guest_password: wantAccount && !signedIn ? guestPassword : undefined,
+          referral_code: referral,
           items: cart.map((i) => {
             const p = liveProduct(i.productId);
             return { productId: i.productId, name: p?.name ?? i.productId, qty: i.qty, price: p?.price ?? 0 };
@@ -538,6 +549,55 @@ export default function CheckoutPage() {
                   {errMsg("phone")}
                 </div>
               </div>
+
+              {!signedIn && (
+                <div className="mt-5 space-y-4 rounded-xl bg-surface p-4">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={wantAccount}
+                      onChange={(e) => setWantAccount(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-safety-500"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="text-sm font-bold text-navy-900">Create an account with this checkout</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-gray-500">
+                        Track every order, download invoices and request quotations — your guest orders
+                        (past and future) are attached to the new account automatically.
+                      </span>
+                    </span>
+                  </label>
+                  {wantAccount && (
+                    <input
+                      type="password"
+                      minLength={6}
+                      placeholder="Choose a password (min 6 characters)"
+                      value={guestPassword}
+                      onChange={(e) => setGuestPassword(e.target.value)}
+                      className={field}
+                    />
+                  )}
+                </div>
+              )}
+
+              <label className="mt-5 flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={marketing}
+                  onChange={(e) => setMarketing(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-safety-500"
+                />
+                <span className="min-w-0 flex-1 text-xs leading-relaxed text-gray-500">
+                  <span className="font-bold text-navy-900">Keep me updated</span> — occasional safety
+                  briefings, product news and offers from KimSafety. Unsubscribe anytime.
+                </span>
+              </label>
+
+              {referral && (
+                <p className="mt-4 flex items-center gap-1.5 rounded-lg bg-safety-50 px-3.5 py-2.5 text-xs font-semibold text-safety-700">
+                  <Check className="h-3.5 w-3.5" /> Referral code {referral} applied — thanks for shopping with a friend.
+                </p>
+              )}
             </section>
           )}
 

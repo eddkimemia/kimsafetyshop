@@ -1,9 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { getStoredFile } from "@/lib/file-store";
+import { getStoredFile, sniffType } from "@/lib/file-store";
 
-const SAFE_NAME = /^[\w .-]+\.(pdf|jpe?g|png|webp|docx?|xlsx?|pptx?|zip|txt)$/i;
+const SAFE_NAME = /^[\w .-]+\.(pdf|jpe?g|png|webp)$/i;
 
 export async function GET(_req: Request, { params }: { params: { file: string } }) {
   const file = params.file;
@@ -14,19 +14,22 @@ export async function GET(_req: Request, { params }: { params: { file: string } 
   if (!stored) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const mime =
-    stored.mime ??
-    (/\.pdf$/i.test(file) ? "application/pdf"
-    : /\.jpe?g$/i.test(file) ? "image/jpeg"
-    : /\.png$/i.test(file) ? "image/png"
-    : /\.webp$/i.test(file) ? "image/webp"
-    : "application/octet-stream");
+  // Content-Type comes from the actual bytes (sniffed), never from a
+  // client-supplied MIME — and files are served as an attachment so nothing
+  // stored here can ever execute inline in a browser.
+  const sniffed = sniffType(Buffer.from(stored.data));
+  const mime = sniffed === "pdf" ? "application/pdf"
+    : sniffed === "jpg" ? "image/jpeg"
+    : sniffed === "png" ? "image/png"
+    : sniffed === "webp" ? "image/webp"
+    : "application/octet-stream";
   return new NextResponse(new Uint8Array(stored.data), {
     headers: {
       "Content-Type": mime,
       "Content-Length": String(stored.data.length),
-      "Content-Disposition": `inline; filename="${encodeURIComponent(file)}"`,
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(file)}"`,
       "Cache-Control": "public, max-age=31536000, immutable",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

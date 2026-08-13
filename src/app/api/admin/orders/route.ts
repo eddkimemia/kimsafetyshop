@@ -4,7 +4,7 @@ import { createNotification, getOrderById, listOrders, setOrderPaid, setOrderSta
 import { liveGetProduct } from "@/lib/catalog";
 import { productImages } from "@/lib/data/product-images";
 import { bulkUnitPrice } from "@/lib/utils";
-import { sendPaidInvoiceEmail } from "@/lib/mailer";
+import { sendOrderStatusEmail, sendPaidInvoiceEmail } from "@/lib/mailer";
 
 const VALID = ["Processing", "In transit", "Delivered", "Cancelled"];
 
@@ -95,6 +95,19 @@ export async function PATCH(req: Request) {
       message: `Your order status changed to ${body.status}.`,
       link: "/account/orders",
     });
+  }
+  // Email the customer the status change — awaited so the SMTP send completes
+  // before the serverless function returns.
+  try {
+    await sendOrderStatusEmail({
+      to: order.email,
+      name: order.name,
+      orderId: order.id,
+      status: body.status as string,
+      orderTotal: order.total,
+    });
+  } catch (err) {
+    console.error(`[admin] status email failed for ${order.id}:`, (err as Error).message);
   }
   return NextResponse.json({ ok: true });
 }

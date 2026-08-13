@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Package, ShoppingCart, Users, ClipboardList, Building2, BookOpen, Newspaper, LogOut, ShieldCheck, Menu, X, ArrowLeft, Truck, Store, Settings, FileText, Megaphone, LifeBuoy, Star, Mail, KeyRound } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, ClipboardList, Building2, BookOpen, Newspaper, LogOut, ShieldCheck, Menu, X, ArrowLeft, Truck, Store, Settings, FileText, Megaphone, LifeBuoy, Star, Mail, KeyRound, Undo2, MessagesSquare, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/logo";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
@@ -22,12 +22,18 @@ const nav = [
   ["/admin/reviews", "Reviews", Star],
   ["/admin/marketing", "Marketing", Megaphone],
   ["/admin/tickets", "Tickets", LifeBuoy],
+  ["/admin/returns", "Returns", Undo2],
+  ["/admin/questions", "Q&A", MessagesSquare],
+  ["/admin/contact-messages", "Messages", Inbox],
 ] as const;
 
 const badgeHrefs: Record<string, string> = {
   "/admin/orders": "orders",
   "/admin/tickets": "tickets",
   "/admin/quotes": "quotes",
+  "/admin/returns": "returns",
+  "/admin/questions": "questions",
+  "/admin/contact-messages": "messages",
 };
 
 function isActive(pathname: string, href: string) {
@@ -48,7 +54,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { whatsapp } = useSettings();
   const [role, setRole] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
-  const [badges, setBadges] = useState<{ orders: number; tickets: number; quotes: number }>({ orders: 0, tickets: 0, quotes: 0 });
+  const [badges, setBadges] = useState<{ orders: number; tickets: number; quotes: number; returns: number; questions: number; messages: number }>({ orders: 0, tickets: 0, quotes: 0, returns: 0, questions: 0, messages: 0 });
 
   useEffect(() => {
     let alive = true;

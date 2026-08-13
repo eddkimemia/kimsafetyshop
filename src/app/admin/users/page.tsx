@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Crown, Download, KeyRound, Pencil, ShieldPlus, Trash2, User, UserPlus } from "lucide-react";
+import { BadgeCheck, Crown, Download, Gift, KeyRound, Pencil, ShieldPlus, Trash2, User, UserPlus } from "lucide-react";
 import { useFetch, AdminCard, Modal, adminField } from "@/components/admin/ui";
 
 type AdminUser = {
@@ -13,6 +13,9 @@ type AdminUser = {
   company: string | null;
   phone: string | null;
   verified: number;
+  referral_code?: string | null;
+  referred_by?: string | null;
+  referred_by_name?: string | null;
   created_at: string;
 };
 
@@ -478,6 +481,7 @@ export default function AdminUsersPage() {
                       <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                         <th className="pb-3">User</th>
                         <th className="hidden pb-3 lg:table-cell">Company</th>
+                        <th className="hidden pb-3 xl:table-cell">Referred by</th>
                         <th className="hidden pb-3 lg:table-cell">Joined</th>
                         <th className="pb-3">Status</th>
                         <th className="pb-3 text-right">Actions</th>
@@ -498,6 +502,15 @@ export default function AdminUsersPage() {
                             </div>
                           </td>
                           <td className="hidden py-3.5 text-gray-500 lg:table-cell">{u.company ?? "—"}</td>
+                          <td className="hidden py-3.5 xl:table-cell">
+                            {u.referred_by_name ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-safety-50 px-2.5 py-1 text-[11px] font-bold text-safety-700">
+                                <Gift className="h-3 w-3" /> {u.referred_by_name}
+                              </span>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </td>
                           <td className="hidden py-3.5 text-gray-500 lg:table-cell">{new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</td>
                           <td className="py-3.5">
                             {u.verified ? (

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createCorporateApplication } from "@/lib/db";
+import { createCorporateApplication, getSetting } from "@/lib/db";
+import { sendCorporateApplicationConfirmation, sendNewCorporateApplicationAlert } from "@/lib/mailer";
 
 export async function POST(req: Request) {
   let body: {
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
     ? body.documents.filter((d): d is string => typeof d === "string" && d.startsWith("/uploads/documents/"))
     : [];
 
-  const app = createCorporateApplication({
+  const app = await createCorporateApplication({
     company: body.company.trim(),
     kra_pin: body.kra_pin.trim(),
     industry: body.industry.trim(),
@@ -41,6 +42,30 @@ export async function POST(req: Request) {
     notes: body.notes?.trim() || null,
     documents,
   });
+
+  // Acknowledge the applicant + alert staff — both awaited so the SMTP sends
+  // complete before the serverless function returns.
+  try {
+    await sendCorporateApplicationConfirmation({
+      to: app.email,
+      name: app.contact_name,
+      company: app.company,
+    });
+  } catch (err) {
+    console.error(`[corporate] confirmation email failed for ${app.id}:`, (err as Error).message);
+  }
+  try {
+    const staffEmail = await getSetting("email");
+    if (staffEmail) {
+      await sendNewCorporateApplicationAlert({
+        to: staffEmail,
+        company: app.company,
+        contact: `${app.contact_name} <${app.email}>`,
+      });
+    }
+  } catch (err) {
+    console.error(`[corporate] staff alert email failed for ${app.id}:`, (err as Error).message);
+  }
 
   return NextResponse.json({ application: app }, { status: 201 });
 }

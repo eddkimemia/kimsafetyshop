@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   if (!body.name || !body.address_line) {
     return NextResponse.json({ error: "Name and address are required" }, { status: 400 });
   }
-  const address = createAddress({
+  const address = await createAddress({
     user_id: user.id,
     label: body.label ?? "Home",
     name: body.name,

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Download, Mail, MapPin, Package, Phone, Receipt, Truck, User } from "lucide-react";
+import { ArrowLeft, Download, Gift, Mail, MapPin, Package, Phone, Receipt, Truck, User } from "lucide-react";
 import { useFetch, AdminCard, StatusBadge, orderStatusTones } from "@/components/admin/ui";
 import { formatKES } from "@/lib/utils";
 
@@ -27,6 +27,7 @@ type Order = {
   payment_phone?: string | null;
   mpesa_checkout_id?: string | null;
   paystack_reference?: string | null;
+  referrer_code?: string | null;
   created_at: string;
 };
 
@@ -126,6 +127,11 @@ export default function AdminOrderDetailPage() {
                       <span className="rounded-full bg-safety-50 px-2 py-0.5 text-[10px] font-bold text-safety-700">Registered account</span>
                     ) : (
                       <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">Guest checkout</span>
+                    )}
+                    {order.referrer_code && (
+                      <span className="rounded-full bg-safety-50 px-2 py-0.5 text-[10px] font-bold text-safety-700" title="Referred via">
+                        <Gift className="mr-0.5 inline h-3 w-3" /> Referred via {order.referrer_code}
+                      </span>
                     )}
                   </p>
                   <p className="flex items-center gap-2.5 text-sm text-gray-600">

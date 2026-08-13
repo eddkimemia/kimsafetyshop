@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import {
   addTicketReply,
   getTicket,
+  getUserById,
   listAllTickets,
   listTicketReplies,
   setTicketStatus,
 } from "@/lib/db";
 import { getSessionUser, requireAdmin } from "@/lib/api-helpers";
+import { sendTicketReplyEmail } from "@/lib/mailer";
 
 export async function GET(req: Request) {
   const denied = await requireAdmin();
@@ -50,6 +52,24 @@ export async function POST(req: Request) {
     staff_name: user?.name ?? "KimSafety Support",
     message: body.message.trim(),
   });
+
+  // Email the customer so the reply is not missed — awaited so the SMTP send
+  // completes before the serverless function returns.
+  try {
+    const account = ticket.user_id ? await getUserById(ticket.user_id) : undefined;
+    if (account?.email) {
+      await sendTicketReplyEmail({
+        to: account.email,
+        name: account.name,
+        ticketId: ticket.id,
+        message: body.message.trim(),
+        staffName: user?.name ?? "KimSafety Support",
+      });
+    }
+  } catch (err) {
+    console.error(`[tickets] reply email failed for ${ticket.id}:`, (err as Error).message);
+  }
+
   return NextResponse.json({ reply }, { status: 201 });
 }
 
@@ -68,6 +88,6 @@ export async function PATCH(req: Request) {
   }
   const ticket = await getTicket(body.id);
   if (!ticket) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
-  setTicketStatus(body.id, body.status as string);
+  await setTicketStatus(body.id, body.status as string);
   return NextResponse.json({ ok: true });
 }

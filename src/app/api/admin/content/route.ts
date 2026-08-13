@@ -62,7 +62,10 @@ export async function PATCH(req: Request) {
   if (!slug) return NextResponse.json({ error: "Missing slug" }, { status: 400 });
   const existing = (await getAdminGuide(slug)) ?? (await mergedGuides()).find((g) => g.slug === slug) as unknown as Record<string, unknown>;
   if (!existing) return NextResponse.json({ error: "Guide not found" }, { status: 404 });
-  const isStatic = Boolean((existing as { static?: boolean }).static) || Boolean((await mergedGuides()).find((g) => g.slug === slug));
+  // `static` comes from the DB record only — checking membership in
+  // mergedGuides() is always true (it includes admin-created guides too) and
+  // would stamp every guide as a seed guide, blocking deletion.
+  const isStatic = Boolean((existing as { static?: boolean }).static);
   const merged = { ...existing, ...body, slug, static: isStatic };
   await upsertAdminGuide(slug, merged);
   return NextResponse.json({ guide: merged });

@@ -14,6 +14,9 @@ export async function GET(_req: Request, { params }: { params: { file: string } 
   if (!stored) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  // Admin-only uploads (see api/admin/documents), but the stored MIME is
+  // client-supplied — serve as attachment with nosniff so nothing can execute
+  // inline, regardless of what Content-Type was claimed at upload time.
   const mime =
     stored.mime ??
     (/\.pdf$/i.test(file) ? "application/pdf"
@@ -25,8 +28,9 @@ export async function GET(_req: Request, { params }: { params: { file: string } 
     headers: {
       "Content-Type": mime,
       "Content-Length": String(stored.data.length),
-      "Content-Disposition": `inline; filename="${encodeURIComponent(file)}"`,
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(file)}"`,
       "Cache-Control": "public, max-age=31536000, immutable",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

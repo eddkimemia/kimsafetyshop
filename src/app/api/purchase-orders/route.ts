@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createPurchaseOrder } from "@/lib/db";
+import { createPurchaseOrder, getSetting } from "@/lib/db";
+import { sendNewPOAlert } from "@/lib/mailer";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,23 @@ export async function POST(req: Request) {
       email: body.email ? String(body.email).trim() : null,
       po_file: poFile,
     });
+
+    // Alert staff a guest PO was uploaded — awaited so the SMTP send completes
+    // before the serverless function returns.
+    try {
+      const staffEmail = await getSetting("email");
+      if (staffEmail) {
+        await sendNewPOAlert({
+          to: staffEmail,
+          poId: po.id,
+          company,
+          contact: String(body.contact_name ?? body.email ?? "").trim() || "—",
+        });
+      }
+    } catch (err) {
+      console.error(`[purchase-orders] staff alert email failed for ${po.id}:`, (err as Error).message);
+    }
+
     return NextResponse.json({ ok: true, id: po.id, created_at: po.created_at }, { status: 201 });
   } catch (err) {
     console.error("Failed to submit purchase order:", err);

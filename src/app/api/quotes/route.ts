@@ -26,18 +26,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing required quote details" }, { status: 400 });
   }
 
-  const items = body.items as QuoteItem[];
+const items = body.items as QuoteItem[];
   const found = await Promise.all(items.map((i) => liveGetProduct(i.productId)));
-  const known = found.every(Boolean);
-  if (!known) {
-    return NextResponse.json({ error: "One or more products could not be found" }, { status: 400 });
-  }
+  // Lines that are not in the live catalog (e.g. the free-text "quote-request"
+  // line from the quote form) are kept as custom lines — the requester's
+  // description and price are preserved so a quotation can still be built.
   let total = 0;
-  for (const i of items) {
-    const qty = typeof i.qty === "number" && i.qty > 0 ? Math.floor(i.qty) : 0;
-    const p = await liveGetProduct(i.productId);
-    total += p ? bulkUnitPrice(p, qty) * qty : 0;
-  }
+  const normalized = items.map((i, idx) => {
+    const qty = typeof i.qty === "number" && i.qty > 0 ? Math.floor(i.qty) : 1;
+    const p = found[idx];
+    const price = p ? bulkUnitPrice(p, qty) : (i.price ?? 0);
+    total += price * qty;
+    return { productId: i.productId, name: (i as { name?: string }).name ?? p?.name ?? i.productId, qty, price };
+  });
 
   const user = await getSessionUser();
   const quote = await createQuote({
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
     company: body.company ?? null,
     email: body.email ?? null,
     phone: body.phone ?? null,
-    items: JSON.stringify(items),
+    items: JSON.stringify(normalized),
     total: Math.round(total),
     attachment: body.attachment ?? null,
   });

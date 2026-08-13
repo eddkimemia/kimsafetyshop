@@ -7,7 +7,10 @@ datasource db {
   provider = "postgresql"
 }
 
-// Starter models — replace with your own
+// Prisma is used purely as the migration runner (`prisma migrate deploy` in
+// the build). Application data access goes through src/lib/db.ts (pg driver);
+// these models exist only to satisfy the Prisma CLI and do not reflect the
+// application schema, which is defined by the raw SQL in prisma/migrations/.
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique

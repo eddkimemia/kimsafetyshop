@@ -2,7 +2,10 @@
 const nextConfig = {
   images: {
     remotePatterns: [
-      { protocol: "http", hostname: "**" },
+      // Admin-entered product/gallery/logo image URLs are arbitrary (stored in
+      // the DB), so a per-domain allowlist would break them. Tightened to
+      // HTTPS-only — the optimizer refuses plain-HTTP sources, and the only
+      // people who can add remote URLs are staff via the admin console.
       { protocol: "https", hostname: "**" },
     ],
     // AVIF is ~30–50% smaller than WebP on modern browsers; WebP stays as the

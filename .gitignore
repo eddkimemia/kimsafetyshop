@@ -28,7 +28,6 @@ yarn-error.log*
 # local env files
 .env
 .env*.local
-.env*.example
 
 # vercel
 .vercel
@@ -37,6 +36,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# sqlite runtime artifacts (postgres migration in progress)
+# sqlite runtime artifacts (legacy — never commit)
+/data/*.db
 /data/*.db-wal
 /data/*.db-shm
+
+# generated prisma client (starter scaffolding, not used)
+/generated/

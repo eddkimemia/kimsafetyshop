@@ -133,9 +133,16 @@ const localUrl = env.DATABASE_URL;
 const remoteEnv = { ...process.env, ...loadEnv(".env") };
 const remoteUrl = remoteEnv.DATABASE_URL;
 
+// Deliberately explicit: this writes FABRICATED reviews, so the database must
+// be named on the command line. It never defaults to the remote (production)
+// database — pass --remote only if you really mean it.
 const args = process.argv.slice(2);
-const doLocal = args.includes("--local") || (!args.includes("--remote"));
-const doRemote = args.includes("--remote") || (!args.includes("--local"));
+if (!args.includes("--local") && !args.includes("--remote")) {
+  console.error("Usage: node scripts/seed-reviews.mjs --local [--remote]\n--remote writes fabricated reviews to PRODUCTION — use with care.");
+  process.exit(1);
+}
+const doLocal = args.includes("--local");
+const doRemote = args.includes("--remote");
 
 // Bundle the static catalog (products.ts) via esbuild into a temp CJS file.
 import { execSync } from "child_process";

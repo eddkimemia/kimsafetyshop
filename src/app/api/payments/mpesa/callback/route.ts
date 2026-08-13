@@ -36,6 +36,18 @@ export async function POST(req: Request) {
       if (order.mpesa_checkout_id !== cb.CheckoutRequestID) {
         console.warn(`[mpesa] ignoring stale callback for superseded push ${cb.CheckoutRequestID} on ${order.id}`);
       } else if (cb.ResultCode === 0) {
+        // Anti-forgery: the callback is unsigned, so never trust a success
+        // alone. The Amount recorded by Safaricom must equal the order total
+        // computed server-side at checkout; otherwise treat it as a failure
+        // and never flip the order to paid.
+        const amount = Number(cb.CallbackMetadata?.Item?.find((i) => i.Name === "Amount")?.Value);
+        if (!Number.isFinite(amount) || amount <= 0 || Number(amount.toFixed(2)) !== Number(order.total)) {
+          console.warn(
+            `[mpesa] SECURITY: amount mismatch for ${order.id} — callback ${amount}, expected ${order.total}. Not marking paid.`
+          );
+          await recordMpesaResult(order.id, "amount_mismatch", `Amount mismatch: callback ${amount} vs ${order.total}`);
+          return new Response("0", { headers: { "Content-Type": "text/plain" } });
+        }
         if (order.paid !== 1) {
           const receipt = cb.CallbackMetadata?.Item?.find((i) => i.Name === "MpesaReceiptNumber")?.Value;
           if (receipt) await setMpesaTransaction(order.id, String(receipt));

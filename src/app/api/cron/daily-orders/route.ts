@@ -27,16 +27,20 @@ function kenyaTimestamp(d: string): string {
  * Sends the "orders placed today" summary to the owner at 11:00 PM Kenya time.
  *
  * Scheduled via vercel.json cron: "0 20 * * *" (UTC) = 23:00 EAT (UTC+3).
- * Protected by the CRON_SECRET bearer token (Vercel injects
- * `Authorization: Bearer $CRON_SECRET` on cron invocations when the env var is
- * set) or the x-vercel-cron header Vercel always sends.
+ * Auth: ONLY the `Authorization: Bearer $CRON_SECRET` token Vercel injects on
+ * cron invocations when CRON_SECRET is set. The `x-vercel-cron` header is
+ * spoofable by any caller and is NOT accepted — set CRON_SECRET in Vercel env.
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    console.error("[cron] CRON_SECRET is not set — refusing to run. Set it in Vercel env.");
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 503 });
+  }
   const auth = req.headers.get("authorization") ?? "";
-  const vercelCron = req.headers.get("x-vercel-cron");
-  const authorized = vercelCron === "1" || (secret ? auth === `Bearer ${secret}` : false);
-  if (!authorized) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   // "Today" in the Kenyan calendar runs 21:00 UTC (yesterday) → until now.
   const now = new Date();

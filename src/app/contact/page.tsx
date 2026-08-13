@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { MapPin, Phone, Mail, Clock, Send } from "lucide-react";
+import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
+import { ContactForm } from "@/components/contact/contact-form";
 import { getAllSettings } from "@/lib/db";
 
 export const metadata: Metadata = {
@@ -12,8 +13,6 @@ export const metadata: Metadata = {
 
 export default async function ContactPage() {
   const s = await getAllSettings();
-  const field =
-    "w-full rounded-xl border border-line bg-white px-3.5 py-3 text-sm outline-none transition-all focus:border-safety-400 focus:ring-4 focus:ring-safety-500/10";
   return (
     <div className="bg-surface pb-20">
       <PageHeader
@@ -59,29 +58,7 @@ export default async function ContactPage() {
 
         <div className="rounded-2xl border border-line bg-white p-7 shadow-card lg:col-span-2">
           <h2 className="font-display text-xl font-extrabold text-navy-900">Send us a message</h2>
-          <form className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <input required placeholder="Full name *" className={field} />
-            <input required type="email" placeholder="Email address *" className={field} />
-            <input type="tel" placeholder="Phone number" className={field} />
-            <select required className={field} defaultValue="">
-              <option value="" disabled>Topic *</option>
-              {["Sales & quotations", "Order status", "Bulk / corporate", "Technical advice", "Returns", "Other"].map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-            <textarea
-              required
-              rows={5}
-              placeholder="How can we help? *"
-              className={`${field} sm:col-span-2`}
-            />
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-safety-500 px-8 py-3.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(245,124,0,0.35)] transition-colors hover:bg-safety-600 sm:col-span-2"
-            >
-              <Send className="h-4 w-4" /> Send Message
-            </button>
-          </form>
+          <ContactForm />
         </div>
       </div>
     </div>

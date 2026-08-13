@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { Building2, Eye, EyeOff, Loader2, Lock, Mail, Phone, User } from "lucide-react";
+import { Building2, Eye, EyeOff, Loader2, Lock, Mail, Phone, User, Gift } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { useSettings } from "@/lib/settings";
@@ -13,9 +14,25 @@ const field =
   "w-full rounded-xl border border-line bg-white px-3.5 py-3 pl-11 text-sm outline-none transition-all focus:border-safety-400 focus:ring-4 focus:ring-safety-500/10";
 
 export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterInner />
+    </Suspense>
+  );
+}
+
+function RegisterInner() {
   const router = useRouter();
+  const params = useSearchParams();
   const { whatsapp } = useSettings();
-  const [form, setForm] = useState({ name: "", email: "", company: "", phone: "", password: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    company: "",
+    phone: "",
+    password: "",
+    referral: params.get("ref") ?? "",
+  });
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +113,15 @@ export default function RegisterPage() {
                 >
                   {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
+              </div>
+              <div className="relative">
+                <Gift className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  placeholder="Referral code (optional, e.g. KS-1234EDW)"
+                  className={field}
+                  value={form.referral}
+                  onChange={(e) => setForm({ ...form, referral: e.target.value })}
+                />
               </div>
               <button
                 type="submit"

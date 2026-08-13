@@ -384,13 +384,17 @@ export async function sendOrderInvoiceEmail(input: {
   paid: number;
   status: string;
   created_at: string;
+  payment_token?: string | null;
 }): Promise<boolean> {
   const cfg: SmtpConfig | null = await getSmtpConfig();
   if (!cfg || !isSmtpConfigured(cfg)) return false;
   const brand = await getBrand();
 
-  const { to, orderId, orderTotal, pdf, name, phone, address, company, items, payment, paid, status } = input;
+  const { to, orderId, orderTotal, pdf, name, phone, address, company, items, payment, paid, status, payment_token } = input;
   const transporter = createTransporter(cfg);
+  const trackUrl = payment_token
+    ? `${siteUrl}/track?id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(payment_token)}`
+    : `${siteUrl}/account/orders`;
 
   const orderStatuses = ["Order Confirmed", "Processing", "Dispatched", "Delivered"];
   const statusIndex = Math.max(orderStatuses.indexOf(status), 0);
@@ -419,7 +423,7 @@ export async function sendOrderInvoiceEmail(input: {
     from: cfg.from,
     to,
     subject: `Order confirmed — ${orderId} · KES ${Math.round(orderTotal).toLocaleString("en-KE")}`,
-    text: `Hi ${name},\n\nThank you for your order! Your order ${orderId} (total KES ${Math.round(orderTotal).toLocaleString("en-KE")}) has been received and is being processed.\n\nTrack it anytime at ${siteUrl}/account/orders\n\nYour invoice is attached to this email.\n\n— KimSafety Team`,
+    text: `Hi ${name},\n\nThank you for your order! Your order ${orderId} (total KES ${Math.round(orderTotal).toLocaleString("en-KE")}) has been received and is being processed.\n\nTrack it anytime at ${trackUrl}\n\nYour invoice is attached to this email.\n\n— KimSafety Team`,
     html: renderShell(
       brand,
       `
@@ -450,8 +454,8 @@ export async function sendOrderInvoiceEmail(input: {
       <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px 0;">
         ${itemRows}
       </table>
-      <p style="font-size:13px;line-height:1.7;color:#374151;margin:0 0 14px 0;text-align:center;">Track your order anytime from your <a href="${siteUrl}/account/orders" style="color:${SAFETY};font-weight:bold;">order history</a> — your invoice PDF is attached to this email.</p>
-      ${btn(`${siteUrl}/account/orders`, "View your order")}
+      <p style="font-size:13px;line-height:1.7;color:#374151;margin:0 0 14px 0;text-align:center;">Track your order anytime from your <a href="${trackUrl}" style="color:${SAFETY};font-weight:bold;">order history</a> — your invoice PDF is attached to this email.</p>
+      ${btn(trackUrl, "View your order")}
       ${deliveredNote}
       `
     ),
@@ -485,12 +489,16 @@ export async function sendPaidInvoiceEmail(input: {
   mpesa_transaction_id?: string | null;
   paystack_reference?: string | null;
   po_ref?: string | null;
+  payment_token?: string | null;
 }): Promise<boolean> {
   const cfg: SmtpConfig | null = await getSmtpConfig();
   if (!cfg || !isSmtpConfigured(cfg)) return false;
   const brand = await getBrand();
 
-  const { id: orderId, email, name, phone, address, company, items, payment, status } = input;
+  const { id: orderId, email, name, phone, address, company, items, payment, status, payment_token } = input;
+  const trackUrl = payment_token
+    ? `${siteUrl}/track?id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(payment_token)}`
+    : `${siteUrl}/account/orders`;
   const txnId =
     input.paid === 1
       ? payment === "mpesa"
@@ -527,7 +535,7 @@ export async function sendPaidInvoiceEmail(input: {
     from: cfg.from,
     to: email,
     subject: `Payment received — ${orderId} · KES ${Math.round(input.total).toLocaleString("en-KE")}`,
-    text: `Hi ${name},\n\nWe've received your payment of KES ${Math.round(input.total).toLocaleString("en-KE")} for order ${orderId}. Thank you!\n\nTrack it anytime at ${siteUrl}/account/orders\n\nYour paid invoice is attached to this email.\n\n— KimSafety Team`,
+    text: `Hi ${name},\n\nWe've received your payment of KES ${Math.round(input.total).toLocaleString("en-KE")} for order ${orderId}. Thank you!\n\nTrack it anytime at ${trackUrl}\n\nYour paid invoice is attached to this email.\n\n— KimSafety Team`,
     html: renderShell(
       brand,
       `
@@ -554,8 +562,8 @@ export async function sendPaidInvoiceEmail(input: {
       <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px 0;">
         ${itemRows}
       </table>
-      <p style="font-size:13px;line-height:1.7;color:#374151;margin:0 0 14px 0;text-align:center;">Track your order anytime from your <a href="${siteUrl}/account/orders" style="color:${SAFETY};font-weight:bold;">order history</a> — your paid invoice PDF is attached to this email.</p>
-      ${btn(`${siteUrl}/account/orders`, "View your order")}
+      <p style="font-size:13px;line-height:1.7;color:#374151;margin:0 0 14px 0;text-align:center;">Track your order anytime from your <a href="${trackUrl}" style="color:${SAFETY};font-weight:bold;">order history</a> — your paid invoice PDF is attached to this email.</p>
+      ${btn(trackUrl, "View your order")}
       <p style="font-size:12px;color:${GRAY};margin:12px 0 0 0;text-align:center;">Status: ${esc(status)}</p>
       `
     ),
@@ -624,6 +632,315 @@ export async function sendNewQuoteAlert(input: {
         { label: "Estimated total", value: money(total), highlight: true },
       ])}
       ${btn(`${siteUrl}/admin/quotes`, "Open in admin")}
+      `
+    ),
+  });
+  return true;
+}
+
+export async function sendContactAlert(input: {
+  to: string;
+  name: string;
+  email: string;
+  phone: string;
+  topic: string;
+  message: string;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, name, email, phone, topic, message } = input;
+  await createTransporter(cfg).sendMail({
+    from: cfg.from,
+    to,
+    subject: `New contact message — ${topic}`,
+    text: `New KimSafety contact form message (${topic}) from ${name} <${email}>${phone ? ` · ${phone}` : ""}:\n\n${message}\n\nReply at ${siteUrl}/admin/contact-messages.`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Staff alert · contact form")}
+      <h1 style="font-size:22px;color:${NAVY};margin:0 0 14px 0;">${esc(topic)}</h1>
+      ${summaryCard([
+        { label: "From", value: `${esc(name)} · <a href="mailto:${esc(email)}" style="color:${NAVY};">${esc(email)}</a>${phone ? ` · ${esc(phone)}` : ""}` },
+      ])}
+      <p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 18px 0;white-space:pre-wrap;">${esc(message)}</p>
+      ${btn(`mailto:${esc(email)}`, "Reply by email", true)}
+      `
+    ),
+  });
+  return true;
+}
+
+export async function sendNewTicketAlert(input: {
+  to: string;
+  ticketId: string;
+  subject: string;
+  customer: string;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, ticketId, subject, customer } = input;
+  await createTransporter(cfg).sendMail({
+    from: cfg.from,
+    to,
+    subject: `New support ticket ${ticketId} — ${subject}`,
+    text: `New KimSafety support ticket ${ticketId} from ${customer}: "${subject}". Manage it at ${siteUrl}/admin/tickets.`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Staff alert · support ticket")}
+      <h1 style="font-size:22px;color:${NAVY};margin:0 0 14px 0;">Ticket ${esc(ticketId)} — ${esc(subject)}</h1>
+      ${summaryCard([{ label: "Customer", value: esc(customer) }])}
+      ${btn(`${siteUrl}/admin/tickets`, "Open in admin")}
+      `
+    ),
+  });
+  return true;
+}
+
+export async function sendTicketReplyEmail(input: {
+  to: string;
+  name: string;
+  ticketId: string;
+  message: string;
+  staffName: string;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, name, ticketId, message, staffName } = input;
+  const firstName = (name ?? "").split(" ")[0] || "there";
+  await createTransporter(cfg).sendMail({
+    from: cfg.from,
+    to,
+    subject: `Re: your support ticket ${ticketId} — KimSafety`,
+    text: `Hi ${firstName},\n\n${staffName} replied to your support ticket ${ticketId}:\n\n${message}\n\nView the full thread at ${siteUrl}/account/tickets\n\n— KimSafety Team`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Support reply")}
+      <h1 style="font-size:24px;color:${NAVY};margin:0 0 8px 0;">Hi ${esc(firstName)}, we replied to your ticket</h1>
+      <p style="font-size:13px;color:${GRAY};margin:0 0 18px 0;">Ticket ${esc(ticketId)} · ${esc(staffName)}</p>
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 20px 0;">
+        <tr><td style="background:#fafafa;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;font-size:14px;line-height:1.7;color:#374151;white-space:pre-wrap;">${esc(message)}</td></tr>
+      </table>
+      ${btn(`${siteUrl}/account/tickets`, "View the conversation")}
+      <p style="font-size:12px;color:${GRAY};margin:14px 0 0 0;text-align:center;">Questions answered within the hour during business time.</p>
+      `
+    ),
+  });
+  return true;
+}
+
+export async function sendNewReturnAlert(input: {
+  to: string;
+  returnId: string;
+  customer: string;
+  orderId: string;
+  productName: string;
+  reason: string;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, returnId, customer, orderId, productName, reason } = input;
+  await createTransporter(cfg).sendMail({
+    from: cfg.from,
+    to,
+    subject: `New return request ${returnId}`,
+    text: `New KimSafety return request ${returnId} from ${customer} (order ${orderId}): ${productName} — "${reason}". Manage it at ${siteUrl}/admin/returns.`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Staff alert · return request")}
+      <h1 style="font-size:22px;color:${NAVY};margin:0 0 14px 0;">Return ${esc(returnId)}</h1>
+      ${summaryCard([
+        { label: "Customer", value: esc(customer) },
+        { label: "Order", value: esc(orderId) },
+        { label: "Product", value: esc(productName) },
+      ])}
+      <p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 18px 0;">Reason: ${esc(reason)}</p>
+      ${btn(`${siteUrl}/admin/returns`, "Open in admin")}
+      `
+    ),
+  });
+  return true;
+}
+
+export async function sendReturnStatusEmail(input: {
+  to: string;
+  name: string;
+  returnId: string;
+  status: string;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, name, returnId, status } = input;
+  const firstName = (name ?? "").split(" ")[0] || "there";
+  await createTransporter(cfg).sendMail({
+    from: cfg.from,
+    to,
+    subject: `Return ${returnId} is now "${status}" — KimSafety`,
+    text: `Hi ${firstName},\n\nYour return request ${returnId} is now: ${status}.\n\nTrack it in your account at ${siteUrl}/account\n\n— KimSafety Team`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Return update")}
+      <h1 style="font-size:24px;color:${NAVY};margin:0 0 14px 0;">Your return is now "${esc(status)}"</h1>
+      ${summaryCard([{ label: "Return reference", value: esc(returnId), highlight: true }])}
+      <p style="font-size:13px;line-height:1.7;color:${GRAY};margin:0 0 18px 0;">Keep an eye on your account for the latest updates.</p>
+      ${btn(`${siteUrl}/account`, "View your account", true)}
+      `
+    ),
+  });
+  return true;
+}
+
+export async function sendNewPOAlert(input: {
+  to: string;
+  poId: string;
+  company: string;
+  contact: string;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, poId, company, contact } = input;
+  await createTransporter(cfg).sendMail({
+    from: cfg.from,
+    to,
+    subject: `New purchase order ${poId} — ${company}`,
+    text: `A new guest purchase order ${poId} was uploaded by ${company} (${contact}). Manage it at ${siteUrl}/admin/purchase-orders.`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Staff alert · purchase order")}
+      <h1 style="font-size:22px;color:${NAVY};margin:0 0 14px 0;">Purchase order ${esc(poId)}</h1>
+      ${summaryCard([
+        { label: "Company", value: esc(company) },
+        { label: "Contact", value: esc(contact) },
+      ])}
+      ${btn(`${siteUrl}/admin/purchase-orders`, "Open in admin")}
+      `
+    ),
+  });
+  return true;
+}
+
+export async function sendNewCorporateApplicationAlert(input: {
+  to: string;
+  company: string;
+  contact: string;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, company, contact } = input;
+  await createTransporter(cfg).sendMail({
+    from: cfg.from,
+    to,
+    subject: `New corporate application — ${company}`,
+    text: `A new KimSafety corporate application was submitted by ${company} (${contact}). Review it at ${siteUrl}/admin/corporate.`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Staff alert · corporate application")}
+      <h1 style="font-size:22px;color:${NAVY};margin:0 0 14px 0;">${esc(company)}</h1>
+      ${summaryCard([{ label: "Contact", value: esc(contact) }])}
+      ${btn(`${siteUrl}/admin/corporate`, "Review application")}
+      `
+    ),
+  });
+  return true;
+}
+
+export async function sendCorporateApplicationConfirmation(input: {
+  to: string;
+  name: string;
+  company: string;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, name, company } = input;
+  const firstName = (name ?? "").split(" ")[0] || "there";
+  await createTransporter(cfg).sendMail({
+    from: cfg.from,
+    to,
+    subject: `We received your ${company} corporate application — KimSafety`,
+    text: `Hi ${firstName},\n\nThank you — we received the corporate account application for ${company}. Our team will review it within 1-2 business days and email you the outcome.\n\n— KimSafety Team`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Application received")}
+      <h1 style="font-size:24px;color:${NAVY};margin:0 0 14px 0;">Application received — ${esc(company)}</h1>
+      <p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 18px 0;">Thank you for applying for a corporate account. Our team reviews every application within <strong>1-2 business days</strong> — you'll hear from us at this email address.</p>
+      <p style="font-size:13px;line-height:1.7;color:${GRAY};margin:0;">Questions? WhatsApp us on ${esc(brand.phone)}</p>
+      `
+    ),
+  });
+  return true;
+}
+
+export async function sendOrderStatusEmail(input: {
+  to: string;
+  name: string;
+  orderId: string;
+  status: string;
+  orderTotal: number;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, name, orderId, status, orderTotal } = input;
+  const firstName = (name ?? "").split(" ")[0] || "there";
+  await createTransporter(cfg).sendMail({
+    from: cfg.from,
+    to,
+    subject: `Your order ${orderId} is now "${status}" — KimSafety`,
+    text: `Hi ${firstName},\n\nYour order ${orderId} (KES ${Math.round(orderTotal).toLocaleString("en-KE")}) is now: ${status}.\n\nTrack it at ${siteUrl}/account/orders\n\n— KimSafety Team`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Order update")}
+      <h1 style="font-size:24px;color:${NAVY};margin:0 0 14px 0;">Your order is now "${esc(status)}"</h1>
+      ${summaryCard([
+        { label: "Order number", value: esc(orderId) },
+        { label: "Order total", value: money(orderTotal) },
+        { label: "Status", value: esc(status), highlight: true },
+      ])}
+      ${btn(`${siteUrl}/account/orders`, "Track your order")}
+      `
+    ),
+  });
+  return true;
+}
+
+export async function sendQuoteStatusEmail(input: {
+  to: string;
+  name: string;
+  quoteId: string;
+  status: string;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, name, quoteId, status } = input;
+  const firstName = (name ?? "").split(" ")[0] || "there";
+  await createTransporter(cfg).sendMail({
+    from: cfg.from,
+    to,
+    subject: `Your quote ${quoteId} is now "${status}" — KimSafety`,
+    text: `Hi ${firstName},\n\nYour quotation request ${quoteId} is now: ${status}.\n\n— KimSafety Team`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Quote update")}
+      <h1 style="font-size:24px;color:${NAVY};margin:0 0 14px 0;">Your quote is now "${esc(status)}"</h1>
+      ${summaryCard([{ label: "Quote reference", value: esc(quoteId), highlight: true }])}
+      ${btn(`${siteUrl}/account/quotes`, "View your quotes", true)}
       `
     ),
   });

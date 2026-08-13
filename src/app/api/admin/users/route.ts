@@ -19,9 +19,17 @@ export async function GET() {
       company: u.company,
       phone: u.phone,
       verified: u.verified,
+      referral_code: u.referral_code,
+      referred_by: u.referred_by,
       created_at: u.created_at,
     }));
-  return NextResponse.json({ users });
+  // Resolve the referrer's name for every user that was referred.
+  const byId = new Map(all.map((u) => [u.id, u.name]));
+  const usersWithReferrer = users.map((u) => ({
+    ...u,
+    referred_by_name: u.referred_by ? (byId.get(u.referred_by) ?? null) : null,
+  }));
+  return NextResponse.json({ users: usersWithReferrer });
 }
 
 export async function POST(req: Request) {

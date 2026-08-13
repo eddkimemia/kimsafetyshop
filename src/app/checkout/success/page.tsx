@@ -161,9 +161,14 @@ function CheckoutSuccessInner() {
             <Download className="h-3.5 w-3.5" /> Download Invoice
           </a>
         )}
-        <Link href="/account" className="rounded-xl border border-line bg-white px-7 py-3.5 text-sm font-bold text-navy-900 hover:bg-surface">
-          Track Order
-        </Link>
+        {orderId && token && (
+          <Link
+            href={`/track?id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`}
+            className="rounded-xl border border-line bg-white px-7 py-3.5 text-sm font-bold text-navy-900 hover:bg-surface"
+          >
+            Track Order
+          </Link>
+        )}
         <Link href="/search" className="rounded-xl border border-line bg-white px-7 py-3.5 text-sm font-bold text-navy-900 hover:bg-surface">
           Continue Shopping
         </Link>

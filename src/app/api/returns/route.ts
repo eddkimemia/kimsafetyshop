@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { createReturn, getOrderById, listReturnsForUser } from "@/lib/db";
+import { createReturn, getOrderById, getSetting, listReturnsForUser } from "@/lib/db";
 import { getSessionUser } from "@/lib/api-helpers";
 import { liveGetProduct } from "@/lib/catalog";
+import { sendNewReturnAlert } from "@/lib/mailer";
 
 type OrderItem = { productId: string; name?: string; qty: number };
 
@@ -45,5 +46,24 @@ export async function POST(req: Request) {
     qty: body.qty,
     reason: body.reason.trim(),
   });
+
+  // Alert staff a return was requested — awaited so the SMTP send completes
+  // before the serverless function returns.
+  try {
+    const staffEmail = await getSetting("email");
+    if (staffEmail) {
+      await sendNewReturnAlert({
+        to: staffEmail,
+        returnId: ret.id,
+        customer: user.name ?? "Customer",
+        orderId: order.id,
+        productName: ret.product_name,
+        reason: ret.reason,
+      });
+    }
+  } catch (err) {
+    console.error(`[returns] staff alert email failed for ${ret.id}:`, (err as Error).message);
+  }
+
   return NextResponse.json({ return: ret }, { status: 201 });
 }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
-import { ChevronRight, Download } from "lucide-react";
+import { ChevronRight, Download, Gift } from "lucide-react";
 import { useFetch, AdminCard, StatusBadge, orderStatusTones } from "@/components/admin/ui";
 import { formatKES } from "@/lib/utils";
 
@@ -24,6 +24,7 @@ type Order = {
   po_ref: string | null;
   company: string | null;
   po_file: string | null;
+  referrer_code?: string | null;
   created_at: string;
 };
 
@@ -447,6 +448,11 @@ export default function AdminOrdersPage() {
                             <span className="mt-1 inline-block rounded-full bg-safety-50 px-2 py-0.5 text-[10px] font-bold text-safety-700">Registered</span>
                           ) : (
                             <span className="mt-1 inline-block rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">Guest</span>
+                          )}
+                          {o.referrer_code && (
+                            <span className="mt-1 inline-block rounded-full bg-safety-50 px-2 py-0.5 text-[10px] font-bold text-safety-700" title={`Referred via ${o.referrer_code}`}>
+                              <Gift className="mr-0.5 inline h-3 w-3" />Ref {o.referrer_code}
+                            </span>
                           )}
                         </td>
                         <td className="hidden py-3.5 text-gray-500 md:table-cell">

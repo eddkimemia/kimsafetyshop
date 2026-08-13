@@ -11,6 +11,8 @@ export type DbUser = {
   company: string | null;
   phone: string | null;
   verified: number;
+  referral_code: string | null;
+  referred_by: string | null;
   created_at: string;
 };
 
@@ -42,6 +44,7 @@ export type DbOrder = {
   mpesa_transaction_id: string | null;
   paystack_reference: string | null;
   payment_token: string | null;
+  referrer_code: string | null;
   created_at: string;
 };
 
@@ -148,6 +151,27 @@ export type DbReturn = {
   status: string;
   created_at: string;
   updated_at: string;
+};
+
+export type DbContactMessage = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  topic: string;
+  message: string;
+  created_at: string;
+};
+
+export type DbProductQuestion = {
+  id: string;
+  product_id: string;
+  name: string;
+  email: string;
+  question: string;
+  answer: string | null;
+  answered_at: string | null;
+  created_at: string;
 };
 
 export type DbNotification = {
@@ -448,7 +472,7 @@ export async function getUserByEmail(email: string): Promise<DbUser | undefined>
 export async function getUserById(id: string): Promise<DbUser | undefined> {  return (await q1("SELECT * FROM users WHERE id = ?", id)) as DbUser | undefined;
 }
 
-export async function createUser(input: { name: string; email: string; password: string; company?: string; phone?: string; role?: "user" | "admin"; verified?: number }): Promise<DbUser> {  const user: DbUser = {
+export async function createUser(input: { name: string; email: string; password: string; company?: string; phone?: string; role?: "user" | "admin"; verified?: number; referred_by?: string | null }): Promise<DbUser> {  const user: DbUser = {
     id: randomUUID(),
     name: input.name,
     email: input.email.toLowerCase(),
@@ -457,10 +481,30 @@ export async function createUser(input: { name: string; email: string; password:
     company: input.company ?? null,
     phone: input.phone ?? null,
     verified: input.verified ?? 1,
+    referral_code: null,
+    referred_by: input.referred_by ?? null,
     created_at: new Date().toISOString(),
   };
-  await qe("INSERT INTO users (id, name, email, password_hash, role, company, phone, verified, created_at) VALUES (@id, @name, @email, @password_hash, @role, @company, @phone, @verified, @created_at)", user);
+  // Generate a short, unique referral code (retry on the vanishing chance of a collision).
+  const initials = user.name.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = attempt === 0 ? `KS-${Math.floor(1000 + Math.random() * 8999)}${initials}` : `KS-${Math.floor(10000 + Math.random() * 89999)}`;
+    const clash = await q1("SELECT id FROM users WHERE referral_code = ?", code);
+    if (!clash) {
+      user.referral_code = code;
+      break;
+    }
+  }
+  await qe("INSERT INTO users (id, name, email, password_hash, role, company, phone, verified, referral_code, referred_by, created_at) VALUES (@id, @name, @email, @password_hash, @role, @company, @phone, @verified, @referral_code, @referred_by, @created_at)", user);
   return user;
+}
+
+/**
+ * Attaches all of a user's guest orders (placed with the same email before the
+ * account existed) so order history is not lost when they register.
+ */
+export async function attachGuestOrdersToUser(userId: string, email: string) {
+  await qe("UPDATE orders SET user_id = ? WHERE email = ? AND user_id IS NULL", userId, email.toLowerCase());
 }
 
 export async function listUsers(): Promise<DbUser[]> {  return (await qr("SELECT * FROM users ORDER BY created_at DESC")) as DbUser[];
@@ -532,7 +576,7 @@ export async function provisionUserLogin(input: {
 
 // ---- Orders ----
 
-export async function createOrder(input: { user_id?: string | null; name: string; email: string; phone: string; address: string; items: string; total: number; subtotal?: number; discount?: number; shipping?: number; payment: string; po_ref?: string; company?: string; po_file?: string; payment_phone?: string | null; payment_token?: string | null }): Promise<DbOrder> {  const order: DbOrder = {
+export async function createOrder(input: { user_id?: string | null; name: string; email: string; phone: string; address: string; items: string; total: number; subtotal?: number; discount?: number; shipping?: number; payment: string; po_ref?: string; company?: string; po_file?: string; payment_phone?: string | null; payment_token?: string | null; referrer_code?: string | null }): Promise<DbOrder> {  const order: DbOrder = {
     id: `KS-${Math.floor(10000 + Math.random() * 89999)}`,
     user_id: input.user_id ?? null,
     name: input.name,
@@ -562,9 +606,10 @@ export async function createOrder(input: { user_id?: string | null; name: string
     mpesa_transaction_id: null,
     paystack_reference: null,
     payment_token: input.payment_token ?? null,
+    referrer_code: input.referrer_code ?? null,
     created_at: new Date().toISOString(),
   };
-  await qe("INSERT INTO orders (id, user_id, name, email, phone, address, items, total, subtotal, discount, shipping, status, payment, paid, po_ref, company, po_file, payment_phone, mpesa_checkout_id, mpesa_merchant_id, paystack_reference, payment_token, created_at) VALUES (@id, @user_id, @name, @email, @phone, @address, @items, @total, @subtotal, @discount, @shipping, @status, @payment, @paid, @po_ref, @company, @po_file, @payment_phone, @mpesa_checkout_id, @mpesa_merchant_id, @paystack_reference, @payment_token, @created_at)", order);
+  await qe("INSERT INTO orders (id, user_id, name, email, phone, address, items, total, subtotal, discount, shipping, status, payment, paid, po_ref, company, po_file, payment_phone, mpesa_checkout_id, mpesa_merchant_id, paystack_reference, payment_token, referrer_code, created_at) VALUES (@id, @user_id, @name, @email, @phone, @address, @items, @total, @subtotal, @discount, @shipping, @status, @payment, @paid, @po_ref, @company, @po_file, @payment_phone, @mpesa_checkout_id, @mpesa_merchant_id, @paystack_reference, @payment_token, @referrer_code, @created_at)", order);
   return order;
 }
 
@@ -1458,6 +1503,58 @@ export async function createReturn(input: {
 
 export async function setReturnStatus(id: string, status: string) {
   await qe("UPDATE returns SET status = ?, updated_at = ? WHERE id = ?", status, new Date().toISOString(), id);
+}
+
+// ---- Contact messages ----
+
+export async function createContactMessage(input: { name: string; email: string; phone?: string; topic: string; message: string }): Promise<DbContactMessage> {  const msg: DbContactMessage = {
+    id: `MSG-${Math.floor(10000 + Math.random() * 89999)}`,
+    name: input.name,
+    email: input.email.toLowerCase(),
+    phone: input.phone ?? "",
+    topic: input.topic,
+    message: input.message,
+    created_at: new Date().toISOString(),
+  };
+  await qe("INSERT INTO contact_messages (id, name, email, phone, topic, message, created_at) VALUES (@id, @name, @email, @phone, @topic, @message, @created_at)", msg);
+  return msg;
+}
+
+export async function listContactMessages(): Promise<DbContactMessage[]> {  return (await qr("SELECT * FROM contact_messages ORDER BY created_at DESC")) as DbContactMessage[];
+}
+
+export async function deleteContactMessage(id: string) {
+  await qe("DELETE FROM contact_messages WHERE id = ?", id);
+}
+
+// ---- Product Q&A ----
+
+export async function createProductQuestion(input: { product_id: string; name: string; email: string; question: string }): Promise<DbProductQuestion> {  const q: DbProductQuestion = {
+    id: `Q-${Math.floor(10000 + Math.random() * 89999)}`,
+    product_id: input.product_id,
+    name: input.name,
+    email: input.email.toLowerCase(),
+    question: input.question,
+    answer: null,
+    answered_at: null,
+    created_at: new Date().toISOString(),
+  };
+  await qe("INSERT INTO product_questions (id, product_id, name, email, question, answer, answered_at, created_at) VALUES (@id, @product_id, @name, @email, @question, @answer, @answered_at, @created_at)", q);
+  return q;
+}
+
+export async function listQuestionsForProduct(productId: string): Promise<DbProductQuestion[]> {  return (await qr("SELECT * FROM product_questions WHERE product_id = ? ORDER BY created_at DESC", productId)) as DbProductQuestion[];
+}
+
+export async function listAllQuestions(): Promise<DbProductQuestion[]> {  return (await qr("SELECT * FROM product_questions ORDER BY (answer IS NULL) DESC, created_at DESC")) as DbProductQuestion[];
+}
+
+export async function answerQuestion(id: string, answer: string) {
+  await qe("UPDATE product_questions SET answer = ?, answered_at = ? WHERE id = ?", answer, new Date().toISOString(), id);
+}
+
+export async function deleteQuestion(id: string) {
+  await qe("DELETE FROM product_questions WHERE id = ?", id);
 }
 
 // ---- Notifications ----

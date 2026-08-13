@@ -2,69 +2,60 @@
 
 ## Fixed (2026-08-13)
 
-### Paid invoice emails not sending automatically (M-Pesa + Paystack) — ROOT CAUSE FOUND
+### Security
 
-The email code was correct; the **fire-and-forget send pattern was broken on Vercel**: every handler called
-`sendPaidInvoiceEmail(order).catch(...)` without awaiting, then returned its response. Vercel serverless freezes
-the event loop the moment the handler responds, so the SMTP send never completes. (Emails that DID work — cron
-digest, password reset, admin newsletter — were all awaited.) Paystack/admin paths also emailed the **stale
-pre-payment row**, so the PDF/email omitted the transaction reference.
+- [x] **M-Pesa callback forgery (critical)** — `api/payments/mpesa/callback` now verifies the `Amount` recorded by Safaricom against the server-computed `order.total` before marking an order paid. A forged `ResultCode: 0` with no/incorrect amount is recorded as `amount_mismatch` and never flips the order to paid.
+- [x] **`data/kimsafety.db` committed to git** — removed from the tree + gitignore (`/data/*.db*`); purged from git history (pack dropped from ~320 MB). `.env`/`.env.local` remain gitignored.
+- [x] **Daily-orders cron unauthenticated** — `api/cron/daily-orders` now accepts **only** `Authorization: Bearer $CRON_SECRET`; the spoofable `x-vercel-cron` header is ignored and the endpoint refuses to run (503) when `CRON_SECRET` is unset. **Action: set `CRON_SECRET` in Vercel env** — Vercel then injects the bearer token automatically.
+- [x] **Upload endpoints** — `api/uploads/documents` (public by design — customers upload POs) now **sniffs magic bytes** and rejects any file whose content doesn't match its extension; both `/uploads/documents/[file]` and `/documents/[file]` serve with `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff`, and the served MIME comes from the bytes, never the client-supplied value (stored-XSS vector closed).
+- [x] **`next.config.mjs` remotePatterns** — tightened to HTTPS-only (admin-entered image URLs are arbitrary, so a per-domain allowlist would break the admin console; the optimizer now refuses plain-HTTP sources).
 
-- [x] **`src/app/api/payments/mpesa/callback/route.ts`** — `sendPaidInvoiceEmail` is now **awaited** (Safaricom tolerates the extra ~2-4 s before the `"0"`); keeps the fresh-row re-fetch so the PDF carries the receipt number.
-- [x] **`src/app/api/payments/paystack/webhook/route.ts`** — awaited + re-fetch fresh row after `setOrderPaid` (was: stale row, un-awaited).
-- [x] **`src/app/api/payments/paystack/verify/route.ts`** — awaited + re-fetch fresh row.
-- [x] **`src/app/api/admin/orders/route.ts`** (mark-paid PATCH) — awaited + re-fetch fresh row; still only emails on the unpaid→paid transition.
-- [x] Same latent bug fixed in the other un-awaited sends: `api/orders` (customer invoice + staff alert), `api/quotes` (confirmation + staff alert), `api/auth/register` (welcome), `api/admin/corporate` + `api/admin/corporate/accounts` (corporate welcome).
-- [x] All sends now `try/await/catch` with `console.error` — failures are visible in Vercel function logs.
+### Broken features
 
-### Delivery fee for staff checkout — still charged despite waiver
+- [x] Quote form now submits (server accepts custom lines instead of rejecting them as unknown products).
+- [x] Contact form rebuilt (`components/contact/contact-form.tsx` + `api/contact` + admin Messages tab) — stored + staff email alert.
+- [x] Un-awaited DB writes (`api/tickets`, `api/corporate/applications`, `api/addresses`, `api/posts/[slug]`) now `await` — responses no longer drop.
+- [x] Admin guides can be deleted (`isStatic` read from the DB record, not merged-guides membership).
+- [x] `api/admin/tickets` — `setTicketStatus` awaited.
 
-- [x] Server waiver verified working live (superadmin session + `delivery_fee: false` → `shipping: 0`). The bug was UX: the toggle was buried in checkout step 1 and **defaulted to charging the fee** (`src/app/checkout/page.tsx`).
-- [x] Staff checkouts now **default to fee waived** (`setWaiveFee(true)` when role is admin/superadmin).
-- [x] Toggle moved into the sticky **Order Summary sidebar** (visible on every step) + "Delivery fee" row added to the Review step.
+### Missing features
+
+- [x] **Guest order tracking** — public `/track` page (id + token), linked from checkout success, order/paid emails and the footer ("Track My Order").
+- [x] **Admin returns workflow** — `/admin/returns` (view/enrich/update status) + customer email on status change.
+- [x] **Staff alerting** — new tickets, returns, POs, corporate applications, quote requests → staff email; ticket replies, return status, order status, quote status → customer email (`src/lib/mailer.ts`).
+- [x] **Referral codes** — auto-generated `KS-XXXXAAA` per user; register/checkout accept a code (`?ref=` prefills), orders store `referrer_code`; account dashboard shows share link + copy button; admin orders/users show referral info.
+- [x] **Checkout consent + guest account** — marketing-consent checkbox (newsletter subscribe), "create an account with this checkout" (password → login provisioned + guest orders attached to the new account).
+- [x] **Footer** — Track My Order → `/track`, Returns → `/account/returns`, social icons no longer `href="#"` (point to WhatsApp with a prefilled message; swap in real profile URLs when available).
+- [x] **Product Q&A** — `/api/questions` + admin Q&A moderation + per-product Q&A tab (replaces the static FAQ).
+- [x] **Fake reviews removed** — `STATIC_REVIEWS`, the fabricated rating bars (78/15/4/2/1) and dead "Helpful" buttons are gone; products with no real reviews show an honest empty state. `seed-reviews.mjs` now requires `--local`/`--remote` explicitly (never defaults to production).
+
+### Cleanup / ops
+
+- [x] `npm run build` no longer seeds demo data into production (seed script deleted; build = `next build`).
+- [x] Stale scaffolding removed: `generated/prisma/` (starter Prisma client), `src/lib/prisma.ts`, `prisma/seed.ts`, `scripts/verify-prisma.ts`, `scripts/migrate-to-postgres.mjs`, `better-sqlite3` + `@types/better-sqlite3` deps. Prisma remains only as the migration runner (`npm run deploy:db`).
+- [x] `.env.example` rewritten with every key documented.
+- [x] README.md rewritten (setup, env table, Vercel email gotcha, deploy, cron, scripts).
+- [x] `deploy.yml` — stale "no lockfile" comment removed (`npm ci`); migrations run exactly once per deploy (CI `deploy-db.mjs` only — build no longer runs `prisma migrate deploy`).
+- [x] Stale `.env` entries removed (`MPESA_CALLBACK_URL` ngrok URL, duplicate placeholder `DATABASE_URL` that overrode the real one via dotenv last-wins).
+
+### Paid invoice emails + delivery fee (earlier session)
+
+- [x] Root cause of paid invoices not sending: fire-and-forget SMTP sends froze on Vercel serverless — every send is now awaited (all payment paths + invoice/quote/register/corporate emails).
+- [x] Staff checkout now defaults to waived delivery fee + toggle in the order summary sidebar.
 
 ---
 
-## OPEN — Security (fix first)
+## OPEN — Action items for the owner
 
-- [ ] **M-Pesa callback payment forgery (critical)** — `api/payments/mpesa/callback` is unsigned, `checkoutId` is returned to the client, and **no amount/order verification** exists. A customer could POST a forged `ResultCode: 0` callback and mark an order paid for free. Fix: verify amount server-side against `order.total` (and ideally a real Daraja confirmation/query), never trust the callback alone.
-- [ ] **`data/kimsafety.db` committed to git** — old SQLite with real users/password hashes. Remove from repo + history. (`.env`/`.env.local` are gitignored, but `.env:1` holds the live Postgres URL and `.env:54` a live Paystack `sk_live_…` key — keep them out of any shared exports.)
-- [ ] **Daily-orders cron effectively unauthenticated** — `api/cron/daily-orders` accepts the spoofable `x-vercel-cron: 1` header and `CRON_SECRET` is never set. Set `CRON_SECRET` in Vercel env and require the bearer token.
-- [ ] **Public upload endpoint** (`api/uploads/documents`) — unauthenticated, no rate limit, served inline with client-spoofed MIME (`uploads/documents/[file]`) → stored-XSS vector. Restrict to staff, sniff content, force `attachment`.
-- [ ] **`next.config.mjs` `images.remotePatterns: "**"`** — allowlist domains (SSRF/abuse surface).
-
-## OPEN — Broken features
-
-- [ ] **Quote form always fails** — `quote-form.tsx` sends fake `productId: "quote-request"`, `api/quotes` rejects it ("One or more products could not be found"). Align the form with the API (real product ids + free-text description field).
-- [ ] **Contact form is dead** — `src/app/contact/page.tsx` has uncontrolled inputs and no `onSubmit`; nothing is sent/stored/emailed.
-- [ ] **Un-awaited DB writes return `{}`** — `api/tickets` (`createTicket`), `api/corporate/applications` (`createCorporateApplication`), `api/addresses` (`createAddress`), `api/posts/[slug]` (`getPostBySlug`). Client flows break/drop response data.
-- [ ] **Admin guides can't be deleted** — `api/admin/content` computes `isStatic` from `mergedGuides()` which is always true, so DELETE is blocked for admin-created guides.
-- [ ] **`api/admin/tickets`** — `setTicketStatus` not awaited.
-
-## OPEN — Missing features
-
-- [ ] **Guest order tracking** — guest orders (`user_id: null`) are untrackable and never attach to a later account, but emails/success page link to login-gated `/account`. Add token-based tracking (order already has a one-time `payment_token`).
-- [ ] **Fake reviews on every product** — `STATIC_REVIEWS` ("Verified Purchase" badges) + dead "Helpful" buttons; rating bars show fabricated percentages. Remove fakes or gate badges on real data.
-- [ ] **`scripts/seed-reviews.mjs` writes fabricated reviews to PRODUCTION by default** — require `--remote` explicitly / drop the script.
-- [ ] **No admin workflow for returns** — `listAllReturns`/`setReturnStatus` exist in `db.ts` but are dead; no admin returns page/route → customer returns unactionable.
-- [ ] **No staff alerting for support channels** — new tickets, returns, POs, corporate applications → no staff email. No order status-change emails to customers. Quote status changes don't email.
-- [ ] **No referral codes** anywhere (register/checkout/account/admin).
-- [ ] **Checkout lacks** marketing-consent checkbox and guest password creation.
-- [ ] **Footer social icons** are `href="#"` placeholders; "Track My Order" points to login-only `/account`.
-- [ ] **Product Q&A tab is a static FAQ** — no customer questions/admin moderation.
-
-## OPEN — Cleanup / ops
-
-- [ ] **`npm run build` seeds demo data into production** — `prisma db seed` upserts `alice@/brian@/carol@example.com` + starter posts, and can crash the build where the starter `User` table was never created. Remove seed from the build script.
-- [ ] **Remove stale scaffolding**: `generated/prisma/` (starter Prisma client), `data/kimsafety.db` (committed SQLite), broken `scripts/migrate-to-postgres.mjs`, unused `better-sqlite3` dep.
-- [ ] **`.env.example` is empty** — document the real keys (`DATABASE_URL`, `AUTH_SECRET`, `SMTP_*`, `PAYSTACK_SECRET_KEY`, `MPESA_*`, `CRON_SECRET`, `DAILY_ORDERS_EMAIL`, `NEXT_PUBLIC_GA_ID`, `PYTHON`).
-- [ ] **README.md is boilerplate** — document setup, env, cron, deploy.
-- [ ] **Stale comments**: `.github/workflows/deploy.yml` "No lockfile is committed" (lockfile IS tracked); `MPESA_CALLBACK_URL` and `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` in `.env` are never read by code.
-- [ ] **Migrations run twice per deploy** — `deploy-db.mjs` (CI) + `prisma migrate deploy` in `package.json` build.
-- [ ] **Local dev**: `.env:10` placeholder `DATABASE_URL` (host:5432) overrides the real URL at `.env:1` (dotenv last-wins) — local scripts must pass the URL explicitly; local Postgres is missing migrated columns (e.g. `payment_phone`).
+- [ ] **Set `CRON_SECRET` in Vercel env** — the daily-orders cron refuses to run until it exists.
+- [ ] **M-Pesa: enable a real Daraja confirmation query** (optional hardening) — the amount check closes trivial forgery; querying the STK status API before marking paid would make it fully tamper-proof. Callbacks alone can still be replayed if a checkout ID ever leaks.
+- [ ] **Admin-entered image URLs are the image-optimizer trust boundary** (`remotePatterns` is https-only wildcard because product/gallery images can be any URL pasted by staff). If this ever bothers you: proxy admin-entered URLs through `/api/uploads` instead.
+- [ ] **Card rating/review counts on product cards/compare are admin-set display values** (`products.rating`/`reviews`), not derived from the reviews table — decide whether to compute them from real reviews.
+- [ ] **Local dev**: `.env` in this repo contains live production secrets (Postgres URL, Paystack `sk_live_…`); keep it out of any shared export/backup. Vercel-hosted env remains the canonical config.
 
 ## Notes
 
 - Delivery fee is hardcoded KES 350 (free over KES 10,000) — no admin setting. Staff waiver is enforced server-side for `["admin","superadmin"]` sessions only.
 - M-Pesa paid orders: order flips to `paid=1` via the callback; STK resend has 30 s cooldown / 5-attempt cap.
 - Daily orders email: `vercel.json` cron `0 20 * * *` UTC (23:00 EAT) → `/api/cron/daily-orders`; sends Excel to `DAILY_ORDERS_EMAIL` (default `edwinkimemia21@gmail.com`).
+- Migration `20260816000000_features` (contact_messages, product_questions, referral columns) applies automatically on next CI deploy.

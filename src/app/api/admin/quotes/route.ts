@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, getSessionUser } from "@/lib/api-helpers";
 import { createQuote, createNotification, deleteQuote, getQuoteById, getUserById, listQuotes, setQuoteStatus } from "@/lib/db";
+import { sendQuoteStatusEmail } from "@/lib/mailer";
 
 const VALID = ["Open", "Pending", "Sent", "Accepted", "Expired", "Declined"];
 
@@ -107,6 +108,23 @@ export async function PATCH(req: Request) {
       message: `Your quotation status changed to ${body.status}.`,
       link: "/account/quotes",
     });
+  }
+  // Email the customer the status change — awaited so the SMTP send completes
+  // before the serverless function returns. Resolve the email from the quote
+  // itself or the linked account.
+  try {
+    const account = quote.user_id ? await getUserById(quote.user_id) : undefined;
+    const to = quote.email ?? account?.email ?? null;
+    if (to) {
+      await sendQuoteStatusEmail({
+        to,
+        name: account?.name ?? quote.name,
+        quoteId: quote.id,
+        status: body.status as string,
+      });
+    }
+  } catch (err) {
+    console.error(`[quotes] status email failed for ${quote.id}:`, (err as Error).message);
   }
   return NextResponse.json({ ok: true });
 }

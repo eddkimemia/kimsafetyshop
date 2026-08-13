@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { createUser, getUserByEmail } from "@/lib/db";
+import { createUser, getUserByEmail, q1 } from "@/lib/db";
 import { sendWelcomeEmail } from "@/lib/mailer";
 
 export async function POST(req: Request) {
-  let body: { name?: string; email?: string; password?: string; company?: string; phone?: string };
+  let body: { name?: string; email?: string; password?: string; company?: string; phone?: string; referral?: string };
   try {
     body = await req.json();
   } catch {
@@ -28,6 +28,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
   }
 
+  // Referral codes are validated (but never blocked on) — an unknown or empty
+  // code simply records no referrer.
+  const referralCode = body.referral?.trim().toUpperCase() || null;
+  let referredBy: string | null = null;
+  if (referralCode) {
+    const referrer = await q1<{ id: string }>("SELECT id FROM users WHERE UPPER(referral_code) = ?", referralCode);
+    if (referrer) referredBy = referrer.id;
+  }
+
   const user = await createUser({
     name,
     email,
@@ -35,6 +44,7 @@ export async function POST(req: Request) {
     company: body.company?.trim() || undefined,
     phone,
     verified: 0,
+    referred_by: referredBy,
   });
 
   // Best-effort welcome email — never blocks registration when SMTP is unset.

@@ -9,6 +9,19 @@ import { q1, qr, qe } from "@/lib/db";
 
 export type StoredFile = { filename: string; data: Buffer; mime: string | null; size: number };
 
+/** Magic-byte sniff — the extension and any client-supplied MIME are never trusted. */
+export function sniffType(data: Buffer): string | null {
+  if (data.length >= 4 && data[0] === 0x25 && data[1] === 0x50 && data[2] === 0x44 && data[3] === 0x46) return "pdf";
+  if (data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "jpg";
+  if (data.length >= 8 && data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) return "png";
+  if (
+    data.length >= 12 &&
+    data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46 &&
+    data[8] === 0x57 && data[9] === 0x45 && data[10] === 0x42 && data[11] === 0x50
+  ) return "webp";
+  return null;
+}
+
 export async function saveStoredFile(filename: string, data: Buffer, mime?: string | null): Promise<void> {
   await qe(
     "INSERT INTO upload_files (filename, data, mime, size, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(filename) DO UPDATE SET data = excluded.data, mime = excluded.mime, size = excluded.size",

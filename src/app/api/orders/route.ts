@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createOrder, createNotification, getOrderById, ordersForUser } from "@/lib/db";
+import { attachGuestOrdersToUser, createOrder, createNotification, getOrderById, ordersForUser, provisionUserLogin, subscribeNewsletter } from "@/lib/db";
 import { getSessionUser } from "@/lib/api-helpers";
 import { liveGetProduct } from "@/lib/catalog";
 import { bulkUnitPrice, formatKES } from "@/lib/utils";
@@ -56,7 +56,7 @@ async function computeTotals(items: OrderItem[]) {
 }
 
 export async function POST(req: Request) {
-  let body: { name?: string; email?: string; phone?: string; address?: string; items?: unknown[]; total?: number; payment?: string; po_ref?: string; company?: string; po_file?: string; momo?: string; delivery_fee?: boolean };
+  let body: { name?: string; email?: string; phone?: string; address?: string; items?: unknown[]; total?: number; payment?: string; po_ref?: string; company?: string; po_file?: string; momo?: string; delivery_fee?: boolean; marketing_opt_in?: boolean; guest_password?: string; referral_code?: string };
   try {
     body = await req.json();
   } catch {
@@ -105,10 +105,43 @@ export async function POST(req: Request) {
     po_file: body.po_file,
     // The M-Pesa number the STK push is sent to — may differ from the delivery phone.
     payment_phone: body.payment === "mpesa" ? body.momo : null,
+    referrer_code: body.referral_code?.trim() || null,
     // One-time token returned to the client so it can start the payment and
     // check its status without needing a login (works for guest checkout too).
     payment_token: randomBytes(24).toString("hex"),
   });
+
+  // Guest checkout extras — only for customers without an account:
+  // 1. "Create an account" with a chosen password: provision the login and
+  //    attach ALL previous guest orders (same email) so history is never lost.
+  // 2. Marketing consent: add to the newsletter subscribers list.
+  if (!user) {
+    const guestPassword = body.guest_password?.trim();
+    if (guestPassword) {
+      if (guestPassword.length < 6) {
+        return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+      }
+      try {
+        const provision = await provisionUserLogin({
+          name: body.name,
+          email: body.email,
+          phone: body.phone,
+          company: body.company?.trim() || null,
+          password: guestPassword,
+        });
+        await attachGuestOrdersToUser(provision.user_id, body.email);
+      } catch (err) {
+        console.error(`[orders] guest account creation failed for ${order.id}:`, (err as Error).message);
+      }
+    }
+    if (body.marketing_opt_in) {
+      try {
+        await subscribeNewsletter({ email: body.email, name: body.name });
+      } catch (err) {
+        console.error(`[orders] newsletter subscribe failed for ${order.id}:`, (err as Error).message);
+      }
+    }
+  }
 
   if (user) {
     await createNotification({
@@ -142,6 +175,7 @@ export async function POST(req: Request) {
         paid: order.paid,
         status: order.status,
         created_at: order.created_at,
+        payment_token: order.payment_token,
       });
     } catch (err) {
       console.error(`invoice email failed for ${order.id}:`, (err as Error).message);

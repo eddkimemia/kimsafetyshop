@@ -26,6 +26,7 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           company: user.company,
           phone: user.phone,
+          referral_code: user.referral_code,
         };
       },
     }),
@@ -37,6 +38,7 @@ export const authOptions: NextAuthOptions = {
         token.uid = user.id;
         token.company = (user as { company?: string | null }).company ?? null;
         token.phone = (user as { phone?: string | null }).phone ?? null;
+        token.referral_code = (user as { referral_code?: string | null }).referral_code ?? null;
       }
       return token;
     },
@@ -46,6 +48,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = (token.role as "user" | "admin" | "superadmin") ?? "user";
         session.user.company = (token.company as string | null) ?? null;
         session.user.phone = (token.phone as string | null) ?? null;
+        session.user.referral_code = (token.referral_code as string | null) ?? null;
       }
       return session;
     },

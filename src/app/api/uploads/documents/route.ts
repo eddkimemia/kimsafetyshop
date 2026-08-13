@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-import { saveStoredFile } from "@/lib/file-store";
+import { saveStoredFile, sniffType } from "@/lib/file-store";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +27,9 @@ function uniqueName(dir: string, name: string): string {
 }
 
 export async function POST(req: Request) {
+  // Deliberately public: customers upload PO files during checkout, quotes and
+  // corporate applications. Security relies on strict magic-byte sniffing
+  // below (extension is never trusted) plus attachment-only serving.
   let form: FormData;
   try {
     form = await req.formData();
@@ -50,9 +53,14 @@ export async function POST(req: Request) {
     if (file.size > MAX_SIZE) {
       return NextResponse.json({ error: `File too large (max 10MB): ${file.name}` }, { status: 400 });
     }
+    const data = Buffer.from(await file.arrayBuffer());
+    // Verify the content matches the claimed extension — a renamed HTML/JS
+    // payload named "report.pdf" is rejected outright.
+    if (sniffType(data) === null) {
+      return NextResponse.json({ error: `File content does not match ${path.extname(file.name)}: ${file.name}` }, { status: 400 });
+    }
     const name = uniqueName(dir, file.name);
     const dest = path.join(dir, name);
-    const data = Buffer.from(await file.arrayBuffer());
     await saveStoredFile(name, data, file.type);
     try {
       fs.mkdirSync(dir, { recursive: true });

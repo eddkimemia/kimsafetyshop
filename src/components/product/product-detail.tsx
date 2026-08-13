@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   RotateCcw,
   FileText,
-  ChevronDown,
   Star,
   Boxes,
   Clock,
@@ -36,6 +35,7 @@ import { productGalleries } from "@/lib/data/product-images";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { ProductCard } from "@/components/product/product-card";
 import { ProductReviews } from "@/components/product/product-reviews";
+import { ProductQA } from "@/components/product/product-qa";
 import { RatingStars } from "@/components/ui/rating";
 import { Button } from "@/components/ui/button";
 
@@ -104,7 +104,7 @@ export function ProductDetail({
     ["description", "Description", ScrollText],
     ["specifications", "Specifications", Boxes],
     ["downloads", "Downloads & Documents", FileText],
-    ["reviews", `Reviews (${product.reviews})`, Star],
+    ["reviews", "Reviews", Star],
     ["qa", "Questions & Answers", Users],
   ] as const;
 
@@ -482,47 +482,7 @@ export function ProductDetail({
 
             {tab === "reviews" && <ProductReviews product={product} />}
 
-            {tab === "qa" && (
-              <div>
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  {[
-                    {
-                      q: "Is this certified for use in Kenya?",
-                      a: "Yes. All KimSafety products are imported through authorized channels with certificates of conformance and meet the relevant EN/ISO standards referenced on this page.",
-                    },
-                    {
-                      q: "Can I get an invoice for corporate procurement?",
-                      a: "Absolutely — we issue ETR-compliant tax invoices for every order. Corporate clients can also access monthly statements and negotiated pricing via the Corporate Portal.",
-                    },
-                    {
-                      q: "How long does delivery take outside Nairobi?",
-                      a: "We dispatch from our Industrial Area warehouse within 24 hours. Deliveries to major towns take 24–48 hours and to remote counties up to 72 hours.",
-                    },
-                  ].map((item) => (
-                    <details key={item.q} className="group rounded-2xl border border-line bg-surface open:bg-white">
-                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 text-sm font-bold text-navy-900">
-                        {item.q}
-                        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180" />
-                      </summary>
-                      <p className="px-5 pb-5 text-sm leading-relaxed text-gray-600">{item.a}</p>
-                    </details>
-                  ))}
-                </div>
-                <div className="mt-4 flex flex-col items-center gap-3 rounded-2xl bg-surface p-6 text-center sm:flex-row sm:text-left">
-                  <p className="flex-1 text-sm text-gray-600">
-                    Still have a question? Our safety specialists reply within the hour.
-                  </p>
-                  <a
-                    href="https://wa.me/254715135141"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-xl bg-[#25D366] px-5 py-2.5 text-sm font-bold text-white"
-                  >
-                    <WhatsAppIcon className="h-4 w-4 text-white" /> Ask on WhatsApp
-                  </a>
-                </div>
-              </div>
-            )}
+            {tab === "qa" && <ProductQA productId={product.id} />}
           </div>
         </div>
 

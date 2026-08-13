@@ -24,9 +24,9 @@ const company: [string, string][] = [
 
 const support: [string, string][] = [
   ["Help Center", "/support"],
-  ["Track My Order", "/account"],
+  ["Track My Order", "/track"],
   ["Delivery & Pickup", "/support"],
-  ["Returns & Refunds", "/support"],
+  ["Returns & Refunds", "/account/returns"],
   ["Product Certifications", "/knowledge"],
   ["Contact Us", "/contact"],
 ];
@@ -98,8 +98,10 @@ export function Footer() {
               ].map(([key, label, path]) => (
                 <a
                   key={key as string}
-                  href="#"
-                  aria-label={label as string}
+                  href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(`Hi KimSafety! Please share your ${label} page link.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${label} (via WhatsApp)`}
                   className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 transition-colors hover:bg-safety-500"
                 >
                   <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>

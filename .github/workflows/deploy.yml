@@ -30,8 +30,7 @@ jobs:
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Install dependencies
-        # No lockfile is committed, so use `npm install` (same as Vercel would).
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Apply database migrations before deploy
         # Uses the production env pulled from Vercel. Adopts the raw-SQL-built
