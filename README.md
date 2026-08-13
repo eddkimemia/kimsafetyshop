@@ -59,8 +59,8 @@ Push to `master` → GitHub Actions deploys to Vercel. The workflow:
 2. `npm run deploy:db` — adopts the DB for Prisma if needed, then applies pending migrations (fail-closed)
 3. `vercel build --prod` then `vercel deploy --prebuilt --prod`
 
-Because migrations run in CI (not in the build script), direct dashboard deploys will **not**
-migrate — run `npm run deploy:db` first or use the CI path.
+The build script also runs `prisma migrate deploy` (idempotent), so direct Vercel/dashboard
+deploys migrate as well — CI and build may both run it, which is harmless when nothing is pending.
 
 ## Cron
 

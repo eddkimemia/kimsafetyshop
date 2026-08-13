@@ -35,7 +35,7 @@
 - [x] Stale scaffolding removed: `generated/prisma/` (starter Prisma client), `src/lib/prisma.ts`, `prisma/seed.ts`, `scripts/verify-prisma.ts`, `scripts/migrate-to-postgres.mjs`, `better-sqlite3` + `@types/better-sqlite3` deps. Prisma remains only as the migration runner (`npm run deploy:db`).
 - [x] `.env.example` rewritten with every key documented.
 - [x] README.md rewritten (setup, env table, Vercel email gotcha, deploy, cron, scripts).
-- [x] `deploy.yml` — stale "no lockfile" comment removed (`npm ci`); migrations run exactly once per deploy (CI `deploy-db.mjs` only — build no longer runs `prisma migrate deploy`).
+- [x] `deploy.yml` — stale "no lockfile" comment removed (`npm ci`); `prisma migrate deploy` restored to the build script (idempotent) so direct Vercel builds always migrate — the "runs twice" concern is a harmless no-op second pass.
 - [x] Stale `.env` entries removed (`MPESA_CALLBACK_URL` ngrok URL, duplicate placeholder `DATABASE_URL` that overrode the real one via dotenv last-wins).
 
 ### Paid invoice emails + delivery fee (earlier session)
