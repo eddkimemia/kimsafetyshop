@@ -64,12 +64,18 @@ export async function PATCH(req: Request) {
           notes: app.notes,
         });
         if (provision.createdLogin) {
-          sendCorporateWelcomeEmail({
-            to: app.email,
-            name: app.contact_name || null,
-            company: app.company,
-            tempPassword: provision.tempPassword,
-          }).catch((err) => console.error("[corporate] welcome email failed:", err));
+          // AWAITED — on Vercel serverless un-awaited SMTP sends are frozen
+          // mid-flight and the welcome email never leaves the function.
+          try {
+            await sendCorporateWelcomeEmail({
+              to: app.email,
+              name: app.contact_name || null,
+              company: app.company,
+              tempPassword: provision.tempPassword,
+            });
+          } catch (err) {
+            console.error("[corporate] welcome email failed:", err);
+          }
         }
         accountCreated = true;
         if (provision.createdLogin) tempPassword = provision.tempPassword;

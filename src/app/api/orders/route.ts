@@ -122,38 +122,49 @@ export async function POST(req: Request) {
 
   // Email the invoice PDF to the customer. Best-effort: never fail the order
   // placement when SMTP is unavailable or the mail host rejects the message —
-  // but DO log the reason so missing invoices are diagnosable.
+  // but DO log the reason so missing invoices are diagnosable. AWAITED so the
+  // SMTP send completes before the serverless function returns (un-awaited
+  // sends are frozen mid-flight on Vercel).
   if (order.email) {
-    buildInvoicePdf(order)
-      .then((pdf) =>
-        sendOrderInvoiceEmail({
-          to: order.email,
-          orderId: order.id,
-          orderTotal: order.total,
-          pdf,
-          name: order.name,
-          phone: order.phone,
-          address: order.address,
-          company: order.company,
-          items: order.items,
-          payment: order.payment,
-          paid: order.paid,
-          status: order.status,
-          created_at: order.created_at,
-        })
-      )
-      .catch((err) => console.error(`invoice email failed for ${order.id}:`, (err as Error).message));
+    try {
+      const pdf = await buildInvoicePdf(order);
+      await sendOrderInvoiceEmail({
+        to: order.email,
+        orderId: order.id,
+        orderTotal: order.total,
+        pdf,
+        name: order.name,
+        phone: order.phone,
+        address: order.address,
+        company: order.company,
+        items: order.items,
+        payment: order.payment,
+        paid: order.paid,
+        status: order.status,
+        created_at: order.created_at,
+      });
+    } catch (err) {
+      console.error(`invoice email failed for ${order.id}:`, (err as Error).message);
+    }
   }
 
   // Notify staff of the new order (sends to the "email" and "purchases_email"
-  // settings; silently skipped when SMTP is not configured).
-  Promise.all([getSetting("email"), getSetting("purchases_email")])
-    .then(([email, purchasesEmail]) => {
-      const alert = { orderId: order.id, orderTotal: order.total, customer: order.name, company: order.company, payment: order.payment };
-      const targets = [email, purchasesEmail].filter(Boolean);
-      for (const t of targets) sendNewOrderAlert({ to: t as string, ...alert }).catch(() => {});
-    })
-    .catch(() => {});
+  // settings; silently skipped when SMTP is not configured). Awaited so the
+  // alerts actually leave the serverless function.
+  try {
+    const [email, purchasesEmail] = await Promise.all([getSetting("email"), getSetting("purchases_email")]);
+    const alert = { orderId: order.id, orderTotal: order.total, customer: order.name, company: order.company, payment: order.payment };
+    const targets = [email, purchasesEmail].filter(Boolean);
+    for (const t of targets) {
+      try {
+        await sendNewOrderAlert({ to: t as string, ...alert });
+      } catch {
+        /* per-recipient failure is not fatal */
+      }
+    }
+  } catch {
+    /* settings lookup failure is not fatal */
+  }
 
   return NextResponse.json({ order: { ...order, items: JSON.parse(order.items) } }, { status: 201 });
 }

@@ -42,11 +42,15 @@ export async function POST(req: Request) {
           await setOrderPaid(order.id, 1);
           // Re-fetch so the paid-invoice email/PDF carries the receipt number
           // captured above (the previously fetched row predates the update).
-          // Fire-and-forget so Safaricom gets its "0" reply instantly.
+          // MUST be awaited: on Vercel serverless the event loop is frozen the
+          // moment this handler returns, and an un-awaited SMTP send never
+          // completes. Safaricom tolerates the extra ~2-4s before the "0".
           const fresh = (await getOrderByMpesaCheckout(cb.CheckoutRequestID)) ?? order;
-          sendPaidInvoiceEmail(fresh).catch((err) =>
-            console.error(`[mpesa] paid invoice email failed for ${order.id}:`, (err as Error).message)
-          );
+          try {
+            await sendPaidInvoiceEmail(fresh);
+          } catch (err) {
+            console.error(`[mpesa] paid invoice email failed for ${order.id}:`, (err as Error).message);
+          }
         }
       } else {
         // Record the decline so the checkout screen can explain it, and the

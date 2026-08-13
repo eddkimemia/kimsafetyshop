@@ -51,29 +51,37 @@ export async function POST(req: Request) {
     attachment: body.attachment ?? null,
   });
 
-  // Best-effort confirmation email to the requester.
+  // Best-effort confirmation email to the requester — AWAITED so the SMTP
+  // send completes before the serverless function returns (un-awaited sends
+  // are frozen mid-flight on Vercel).
   if (quote.email) {
-    sendQuoteConfirmationEmail({
-      to: quote.email,
-      name: quote.name,
-      quoteId: quote.id,
-      total: quote.total,
-    }).catch((err) => console.error("[quotes] confirmation email failed:", err));
+    try {
+      await sendQuoteConfirmationEmail({
+        to: quote.email,
+        name: quote.name,
+        quoteId: quote.id,
+        total: quote.total,
+      });
+    } catch (err) {
+      console.error("[quotes] confirmation email failed:", err);
+    }
   }
 
-  // Notify staff of the new quote request.
-  getSetting("email")
-    .then((email) => {
-      if (!email) return;
-      sendNewQuoteAlert({
-        to: email,
+  // Notify staff of the new quote request (awaited for the same reason).
+  try {
+    const staffEmail = await getSetting("email");
+    if (staffEmail) {
+      await sendNewQuoteAlert({
+        to: staffEmail,
         quoteId: quote.id,
         total: quote.total,
         customer: quote.name,
         company: quote.company,
-      }).catch(() => {});
-    })
-    .catch(() => {});
+      });
+    }
+  } catch (err) {
+    console.error("[quotes] staff alert email failed:", err);
+  }
 
   return NextResponse.json({ quote: { ...quote, items: JSON.parse(quote.items) } }, { status: 201 });
 }

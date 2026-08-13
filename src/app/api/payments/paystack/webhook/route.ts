@@ -22,9 +22,16 @@ export async function POST(req: Request) {
     const order = await getOrderByPaystackReference(event.data.reference);
     if (order && order.paid !== 1) {
       await setOrderPaid(order.id, 1);
-      sendPaidInvoiceEmail(order).catch((err) =>
-        console.error(`[paystack] paid invoice email failed for ${order.id}:`, (err as Error).message)
-      );
+      // Re-fetch the fresh row so the paid-invoice email/PDF carries the
+      // payment reference, then AWAIT the send — on Vercel serverless the
+      // event loop freezes when this handler returns, so a fire-and-forget
+      // SMTP send never completes.
+      const fresh = (await getOrderByPaystackReference(event.data.reference)) ?? order;
+      try {
+        await sendPaidInvoiceEmail(fresh);
+      } catch (err) {
+        console.error(`[paystack] paid invoice email failed for ${order.id}:`, (err as Error).message);
+      }
     }
   }
   return NextResponse.json({ ok: true });

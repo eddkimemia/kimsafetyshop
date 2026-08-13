@@ -60,10 +60,16 @@ export async function PATCH(req: Request) {
     await setOrderPaid(body.id, body.paid ? 1 : 0);
     if (order.paid !== 1 && body.paid) {
       // Only email on the unpaid → paid transition (re-marking a paid order
-      // must not spam the customer with another invoice).
-      sendPaidInvoiceEmail(order).catch((err) =>
-        console.error(`[admin] paid invoice email failed for ${order.id}:`, (err as Error).message)
-      );
+      // must not spam the customer with another invoice). Re-fetch the fresh
+      // row (txn reference) and AWAIT the send — on Vercel serverless the
+      // event loop freezes once this handler returns, so a fire-and-forget
+      // SMTP send never completes.
+      const fresh = (await getOrderById(body.id)) ?? order;
+      try {
+        await sendPaidInvoiceEmail(fresh);
+      } catch (err) {
+        console.error(`[admin] paid invoice email failed for ${order.id}:`, (err as Error).message);
+      }
     }
     if (order.user_id && body.paid) {
       await createNotification({

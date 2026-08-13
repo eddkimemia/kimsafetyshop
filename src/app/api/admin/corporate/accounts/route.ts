@@ -80,14 +80,19 @@ export async function POST(req: Request) {
   });
 
   // Best-effort welcome email with credentials; the temp password is still
-  // returned so the superadmin can share it if SMTP is unavailable.
+  // returned so the superadmin can share it if SMTP is unavailable. AWAITED —
+  // on Vercel serverless un-awaited SMTP sends are frozen mid-flight.
   if (email) {
-    sendCorporateWelcomeEmail({
-      to: email,
-      name: body.contact_name?.trim() || null,
-      company,
-      tempPassword,
-    }).catch((err) => console.error("[corporate/accounts] welcome email failed:", err));
+    try {
+      await sendCorporateWelcomeEmail({
+        to: email,
+        name: body.contact_name?.trim() || null,
+        company,
+        tempPassword,
+      });
+    } catch (err) {
+      console.error("[corporate/accounts] welcome email failed:", err);
+    }
   }
 
   return NextResponse.json({ account, tempPassword, createdLogin: !!tempPassword }, { status: 201 });

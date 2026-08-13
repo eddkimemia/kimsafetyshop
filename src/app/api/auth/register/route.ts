@@ -38,7 +38,13 @@ export async function POST(req: Request) {
   });
 
   // Best-effort welcome email — never blocks registration when SMTP is unset.
-  sendWelcomeEmail({ to: email, name }).catch((err) => console.error("[register] welcome email failed:", err));
+  // Awaited (not fire-and-forget): on Vercel serverless the event loop freezes
+  // the moment the handler returns, and un-awaited SMTP sends never complete.
+  try {
+    await sendWelcomeEmail({ to: email, name });
+  } catch (err) {
+    console.error("[register] welcome email failed:", err);
+  }
 
   return NextResponse.json(
     { user: { id: user.id, name: user.name, email: user.email, role: user.role } },
