@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
-import { createNotification, getOrderById, listOrders, setOrderPaid, setOrderStatus } from "@/lib/db";
+import {
+  createNotification,
+  getOrderById,
+  listOrders,
+  setMpesaTransaction,
+  setOrderPaid,
+  setOrderStatus,
+  setPaystackReference,
+} from "@/lib/db";
 import { liveGetProduct } from "@/lib/catalog";
 import { productImages } from "@/lib/data/product-images";
 import { bulkUnitPrice } from "@/lib/utils";
@@ -46,7 +54,7 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
-  let body: { id?: string; status?: string; paid?: number };
+  let body: { id?: string; status?: string; paid?: number; txn_ref?: string };
   try {
     body = await req.json();
   } catch {
@@ -57,6 +65,13 @@ export async function PATCH(req: Request) {
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
   if (body.paid !== undefined) {
+    // Record the payment reference BEFORE flagging paid and re-fetching —
+    // the paid invoice PDF and receipt must show it.
+    const ref = body.txn_ref?.trim();
+    if (ref) {
+      if (order.payment === "mpesa") await setMpesaTransaction(body.id, ref);
+      else if (order.payment === "card") await setPaystackReference(body.id, ref);
+    }
     await setOrderPaid(body.id, body.paid ? 1 : 0);
     if (order.paid !== 1 && body.paid) {
       // Only email on the unpaid → paid transition (re-marking a paid order

@@ -44,6 +44,9 @@ export default function AdminOrderDetailPage() {
   const id = decodeURIComponent(params.id ?? "");
   const { data, loading, refresh } = useFetch<{ order: Order }>(`/api/admin/orders?id=${encodeURIComponent(id)}`);
   const [notice, setNotice] = useState<string | null>(null);
+  const [payOpen, setPayOpen] = useState(false);
+  const [txnRef, setTxnRef] = useState("");
+  const [marking, setMarking] = useState(false);
 
   const setStatus = async (status: string) => {
     const res = await fetch("/api/admin/orders", {
@@ -56,15 +59,23 @@ export default function AdminOrderDetailPage() {
     refresh();
   };
 
-  const markPaid = async () => {
-    const res = await fetch("/api/admin/orders", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, paid: 1 }),
-    });
-    const json = await res.json().catch(() => ({}));
-    setNotice(res.ok ? `Order #${id} marked as paid.` : json.error ?? "Update failed");
-    refresh();
+  const confirmMarkPaid = async () => {
+    if (order?.payment === "mpesa" && !txnRef.trim()) return;
+    setMarking(true);
+    try {
+      const res = await fetch("/api/admin/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, paid: 1, txn_ref: txnRef.trim() || undefined }),
+      });
+      const json = await res.json().catch(() => ({}));
+      setNotice(res.ok ? `Order #${id} marked as paid.` : json.error ?? "Update failed");
+      setPayOpen(false);
+      setTxnRef("");
+      refresh();
+    } finally {
+      setMarking(false);
+    }
   };
 
   const order = data?.order;
@@ -125,6 +136,49 @@ export default function AdminOrderDetailPage() {
       ) : (
         <>
           {notice && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{notice}</p>}
+
+          {payOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-900/50 p-4" role="dialog" aria-modal="true">
+              <div className="w-full max-w-md rounded-2xl border border-line bg-white p-6 shadow-xl">
+                <h3 className="font-display text-lg font-extrabold text-navy-900">Mark order #{id} as paid</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {order?.payment === "mpesa"
+                    ? "Enter the M-Pesa transaction / receipt number from the confirmation SMS (e.g. QGH7XYZ1K2). It will be printed on the paid invoice and receipt."
+                    : "Optionally enter the payment reference — it will be printed on the paid invoice and receipt."}
+                </p>
+                <input
+                  autoFocus
+                  value={txnRef}
+                  onChange={(e) => setTxnRef(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") confirmMarkPaid();
+                    if (e.key === "Escape") setPayOpen(false);
+                  }}
+                  placeholder={order?.payment === "mpesa" ? "M-Pesa receipt number *" : "Payment reference (optional)"}
+                  className="mt-4 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm outline-none transition-all focus:border-safety-400 focus:bg-white focus:ring-4 focus:ring-safety-500/10"
+                />
+                {order?.payment === "mpesa" && !txnRef.trim() && (
+                  <p className="mt-2 text-[11px] font-semibold text-danger">M-Pesa receipt number is required.</p>
+                )}
+                <div className="mt-5 flex justify-end gap-2">
+                  <button
+                    onClick={() => setPayOpen(false)}
+                    disabled={marking}
+                    className="rounded-xl border border-line px-4 py-2.5 text-xs font-bold text-gray-500 hover:text-navy-900 disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmMarkPaid}
+                    disabled={marking || (order?.payment === "mpesa" && !txnRef.trim())}
+                    className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    {marking ? "Saving…" : "Confirm payment"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-2">
@@ -274,7 +328,10 @@ export default function AdminOrderDetailPage() {
                   </p>
                   {order.paid !== 1 && (
                     <button
-                      onClick={markPaid}
+                      onClick={() => {
+                        setTxnRef("");
+                        setPayOpen(true);
+                      }}
                       className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700"
                     >
                       Mark as paid

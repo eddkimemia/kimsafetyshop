@@ -46,8 +46,9 @@ function drawImageHQ(
 ) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  const sw = Number((img as HTMLCanvasElement).width ?? (img as HTMLImageElement).naturalWidth ?? dw);
-  const sh = Number((img as HTMLCanvasElement).height ?? (img as HTMLImageElement).naturalHeight ?? dh);
+  const dims = img as unknown as { width?: number; height?: number; naturalWidth?: number; naturalHeight?: number };
+  const sw = Math.max(1, Math.round(dims.naturalWidth ?? dims.width ?? dw));
+  const sh = Math.max(1, Math.round(dims.naturalHeight ?? dims.height ?? dh));
   let cw = sw;
   let ch = sh;
   if (dw < sw / 2 || dh < sh / 2) {
@@ -225,18 +226,16 @@ function productBBox(cutout: HTMLCanvasElement): { left: number; top: number; wi
 
 function cropProduct(cutout: HTMLCanvasElement): HTMLCanvasElement {
   // Crop to the product bounding box — does NOT paste onto a white canvas,
-  // so the layout keeps the product's natural aspect ratio.
+  // so the layout keeps the product's natural aspect ratio. The extraction
+  // itself is a pixel-exact 1:1 copy (no resampling).
   const { left, top, width, height } = productBBox(cutout);
-  const out = document.createElement("canvas");
-  out.width = width;
-  out.height = height;
-  drawImageHQ(out.getContext("2d")!, cutout, 0, 0, width, height);
-  return out;
+  return cropHQ(cutout, left, top, width, height);
 }
 
 function cropAndCenter(cutout: HTMLCanvasElement, size: number): HTMLCanvasElement {
   // Plain white-square fallback (used when branding is disabled).
   const { left, top, width: cropW, height: cropH } = productBBox(cutout);
+  const cropped = cropHQ(cutout, left, top, cropW, cropH);
 
   const target = Math.round(size * FILL_RATIO);
   const scale = Math.min(1, target / Math.max(cropW, cropH));
@@ -249,7 +248,7 @@ function cropAndCenter(cutout: HTMLCanvasElement, size: number): HTMLCanvasEleme
   const ctx2 = canvas.getContext("2d")!;
   ctx2.fillStyle = "#ffffff";
   ctx2.fillRect(0, 0, size, size);
-  drawImageHQ(ctx2, cutout, (size - drawW) / 2, (size - drawH) / 2, drawW, drawH);
+  drawImageHQ(ctx2, cropped, (size - drawW) / 2, (size - drawH) / 2, drawW, drawH);
   return canvas;
 }
 
