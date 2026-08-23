@@ -63,11 +63,13 @@ export async function POST(req: Request) {
           { status: 429 }
         );
       }
+      const callbackUrl = mpesaCallbackUrl(siteUrl);
+      console.info(`[mpesa] STK push for ${order.id} (KES ${order.total}) → callback: ${callbackUrl}`);
       const { checkoutId, merchantId } = await mpesaStkPush({
         phone: order.payment_phone,
         amount: order.total,
         accountRef: order.id,
-        callbackUrl: mpesaCallbackUrl(siteUrl),
+        callbackUrl,
       });
       await setMpesaCheckout(order.id, checkoutId, merchantId);
       await recordMpesaPushAttempt(order.id);

@@ -93,6 +93,49 @@ export function mpesaCallbackUrl(siteUrlFallback: string): string {
   return fromEnv || `${siteUrlFallback}/api/payments/mpesa/callback`;
 }
 
+/**
+ * Actively asks Daraja for the status of an STK push (transaction status query).
+ * Used as a FALLBACK when the webhook-style callback never arrives (dead tunnel,
+ * misconfigured callback URL, network hiccup): the checkout screen polls
+ * /api/orders/status, which calls this — so a completed payment is detected
+ * even without the callback.
+ */
+export async function mpesaQueryCheckout(
+  checkoutId: string
+): Promise<{ paid: boolean; resultCode: string | null; resultDesc: string | null }> {
+  const c = config();
+  if (!mpesaConfigured() || !checkoutId) {
+    return { paid: false, resultCode: null, resultDesc: "M-Pesa not configured" };
+  }
+  const token = await getToken();
+  const ts = new Date()
+    .toISOString()
+    .replace(/[-T:.Z]/g, "")
+    .slice(0, 14);
+  const password = Buffer.from(`${c.shortcode}${c.passkey}${ts}`).toString("base64");
+  const res = await fetch(`${c.baseUrl}/mpesa/stkpushquery/v1/query`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      BusinessShortCode: c.shortcode,
+      Password: password,
+      Timestamp: ts,
+      CheckoutRequestID: checkoutId,
+    }),
+  });
+  const json = (await res.json().catch(() => ({}))) as {
+    ResultCode?: string;
+    ResultDesc?: string;
+    errorMessage?: string;
+  };
+  return {
+    // ResultCode "0" === the customer completed the payment.
+    paid: String(json.ResultCode) === "0",
+    resultCode: json.ResultCode != null ? String(json.ResultCode) : null,
+    resultDesc: json.ResultDesc || json.errorMessage || null,
+  };
+}
+
 export async function mpesaStkPush(input: {
   phone: string;
   amount: number;
