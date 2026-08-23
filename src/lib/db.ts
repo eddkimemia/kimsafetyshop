@@ -739,6 +739,21 @@ export function invalidateSettingsCache() {
   settingsCache = null;
 }
 
+/**
+ * Monotonic version of the settings table (max updated_at). Exposed through
+ * /api/settings and used as a cache-busting query param on branding assets —
+ * when the admin changes the logo, every client fetches a NEW url instead of
+ * serving its cached copy.
+ */
+export async function getSettingsVersion(): Promise<string> {
+  try {
+    const row = (await q1("SELECT MAX(updated_at) AS v FROM settings")) as { v: string | null } | undefined;
+    return row?.v ?? "0";
+  } catch {
+    return "0";
+  }
+}
+
 export async function setSetting(key: string, value: string) {
   const now = new Date().toISOString();
   await qe("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", key, value, now);

@@ -135,6 +135,8 @@ export function ProductDetail({
                   name={product.name}
                   src={overrides === null ? undefined : galleryVariants[view]}
                   className="aspect-square"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  quality={90}
                 />
               </motion.div>
               <div className="absolute left-4 top-4 flex gap-2">

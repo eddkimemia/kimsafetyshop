@@ -5,6 +5,8 @@ import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import { StorefrontChrome } from "@/components/layout/storefront-chrome";
 import { siteUrl } from "@/lib/site";
+import { getAllSettings } from "@/lib/db";
+import { resolveLogoUrl, DEFAULT_LOGO } from "@/lib/logo";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -18,39 +20,30 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-const organizationJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "@id": `${siteUrl}/#organization`,
-  name: "KimSafety",
-  url: siteUrl,
-  logo: `${siteUrl}/images/logo/logoy.jpg`,
-  description:
-    "Kenya's trusted marketplace for certified industrial PPE, medical safety, fire safety, road safety and laboratory equipment.",
-  email: "sales@kimsafety.co.ke",
-  telephone: "+254715135141",
-  address: { "@type": "PostalAddress", addressLocality: "Nairobi", addressCountry: "KE" },
-  contactPoint: {
-    "@type": "ContactPoint",
-    telephone: "+254715135141",
-    contactType: "sales",
-    availableLanguage: ["en"],
-  },
-};
+// Branding comes from the `settings` table (Admin -> Settings) so a logo or
+// site-name change reflects everywhere, including structured data. The DB call
+// is guarded so a static build without a live database still falls back to the
+// bundled defaults instead of failing.
+async function loadBrand(): Promise<{ site_name: string; logo: string; email: string; phone: string }> {
+  try {
+    const s = await getAllSettings();
+    return {
+      site_name: (s.site_name || "KimSafety").trim(),
+      logo: resolveLogoUrl(s),
+      email: s.email || "sales@kimsafety.co.ke",
+      phone: s.phone || "+254 715135141",
+    };
+  } catch {
+    return {
+      site_name: "KimSafety",
+      logo: DEFAULT_LOGO,
+      email: "sales@kimsafety.co.ke",
+      phone: "+254 715135141",
+    };
+  }
+}
 
-const websiteJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": `${siteUrl}/#website`,
-  url: siteUrl,
-  name: "KimSafety",
-  publisher: { "@id": `${siteUrl}/#organization` },
-  potentialAction: {
-    "@type": "SearchAction",
-    target: { "@type": "EntryPoint", urlTemplate: `${siteUrl}/search?q={search_term_string}` },
-    "query-input": "required name=search_term_string",
-  },
-};
+const absoluteUrl = (p: string) => (p.startsWith("http") ? p : `${siteUrl}${p}`);
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -105,11 +98,47 @@ export const viewport: Viewport = {
   themeColor: "#0F2847",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const brand = await loadBrand();
+
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${siteUrl}/#organization`,
+    name: brand.site_name,
+    url: siteUrl,
+    logo: absoluteUrl(brand.logo),
+    description:
+      "Kenya's trusted marketplace for certified industrial PPE, medical safety, fire safety, road safety and laboratory equipment.",
+    email: brand.email,
+    telephone: brand.phone,
+    address: { "@type": "PostalAddress", addressLocality: "Nairobi", addressCountry: "KE" },
+    contactPoint: {
+      "@type": "ContactPoint",
+      telephone: brand.phone,
+      contactType: "sales",
+      availableLanguage: ["en"],
+    },
+  };
+
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${siteUrl}/#website`,
+    url: siteUrl,
+    name: brand.site_name,
+    publisher: { "@id": `${siteUrl}/#organization` },
+    potentialAction: {
+      "@type": "SearchAction",
+      target: { "@type": "EntryPoint", urlTemplate: `${siteUrl}/search?q={search_term_string}` },
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   return (
     <html lang="en">
       <body className={`${inter.variable} ${jakarta.variable} font-sans antialiased`}>

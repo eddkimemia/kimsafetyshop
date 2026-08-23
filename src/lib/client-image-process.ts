@@ -10,7 +10,11 @@
 const SIZE = 1920;
 const FILL_RATIO = 0.95;
 const QUALITY = 0.95;
-const MAX_WORKING = 2560;
+// Working resolution for background removal. Must stay comfortably ABOVE the
+// output size (1920) so the composed image is never upsampled; 3200 keeps
+// fine product detail (textures, labels) through the cutout + crop stages
+// without exhausting browser memory on large uploads.
+const MAX_WORKING = 3200;
 const TEMPLATE_URL = "/images/products/product_template.jpg";
 
 export const CLIENT_WEBSITE = "www.kimsafety.co.ke";
@@ -25,8 +29,64 @@ export interface ClientProcessOptions {
   brand?: boolean;
 }
 
+/**
+ * Draws `img` into the destination rect with high-quality resampling.
+ * Canvas2D defaults to imageSmoothingQuality "low" in some browsers, which is
+ * a major source of blurry product photos after processing. For large
+ * downscale factors we also step down by halves — single-pass big downscales
+ * alias and soften; halving keeps edges crisp.
+ */
+function drawImageHQ(
+  ctx: CanvasRenderingContext2D,
+  img: CanvasImageSource,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number
+) {
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  const sw = Number((img as HTMLCanvasElement).width ?? (img as HTMLImageElement).naturalWidth ?? dw);
+  const sh = Number((img as HTMLCanvasElement).height ?? (img as HTMLImageElement).naturalHeight ?? dh);
+  let cw = sw;
+  let ch = sh;
+  if (dw < sw / 2 || dh < sh / 2) {
+    // Step down by halves on an offscreen canvas until close to target.
+    let stage: HTMLCanvasElement | CanvasImageSource = img;
+    while (cw / 2 >= dw && ch / 2 >= dh && cw > 2 && ch > 2) {
+      const half = document.createElement("canvas");
+      half.width = Math.max(1, Math.floor(cw / 2));
+      half.height = Math.max(1, Math.floor(ch / 2));
+      const hctx = half.getContext("2d")!;
+      hctx.imageSmoothingEnabled = true;
+      hctx.imageSmoothingQuality = "high";
+      hctx.drawImage(stage as CanvasImageSource, 0, 0, half.width, half.height);
+      stage = half;
+      cw = half.width;
+      ch = half.height;
+    }
+    ctx.drawImage(stage, dx, dy, dw, dh);
+    return;
+  }
+  ctx.drawImage(img, dx, dy, dw, dh);
+}
+
 function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+}
+
+/**
+ * Pixel-exact 1:1 extraction of a sub-region (no resampling — lossless).
+ */
+function cropHQ(cutout: HTMLCanvasElement, left: number, top: number, width: number, height: number): HTMLCanvasElement {
+  const out = document.createElement("canvas");
+  out.width = width;
+  out.height = height;
+  const ctx = out.getContext("2d")!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(cutout, left, top, width, height, 0, 0, width, height);
+  return out;
 }
 
 async function loadImage(file: File): Promise<HTMLCanvasElement> {
@@ -39,7 +99,7 @@ async function loadImage(file: File): Promise<HTMLCanvasElement> {
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(bitmap, 0, 0, w, h);
+    drawImageHQ(ctx, bitmap, 0, 0, w, h);
     return canvas;
   } finally {
     bitmap.close();
@@ -170,7 +230,7 @@ function cropProduct(cutout: HTMLCanvasElement): HTMLCanvasElement {
   const out = document.createElement("canvas");
   out.width = width;
   out.height = height;
-  out.getContext("2d")!.drawImage(cutout, left, top, width, height, 0, 0, width, height);
+  drawImageHQ(out.getContext("2d")!, cutout, 0, 0, width, height);
   return out;
 }
 
@@ -189,7 +249,7 @@ function cropAndCenter(cutout: HTMLCanvasElement, size: number): HTMLCanvasEleme
   const ctx2 = canvas.getContext("2d")!;
   ctx2.fillStyle = "#ffffff";
   ctx2.fillRect(0, 0, size, size);
-  ctx2.drawImage(cutout, left, top, cropW, cropH, (size - drawW) / 2, (size - drawH) / 2, drawW, drawH);
+  drawImageHQ(ctx2, cutout, (size - drawW) / 2, (size - drawH) / 2, drawW, drawH);
   return canvas;
 }
 
@@ -211,7 +271,7 @@ async function composeTemplateLayout(
     tpl.onload = () => resolve();
     tpl.onerror = () => reject(new Error("template load failed"));
   });
-  ctx.drawImage(tpl, 0, 0, S, S);
+  drawImageHQ(ctx, tpl, 0, 0, S, S);
 
   // Product keeps its natural aspect ratio, is centered and gets a soft shadow.
   const pw = img.width;
@@ -228,7 +288,7 @@ async function composeTemplateLayout(
   ctx.shadowColor = "rgba(15,40,71,0.16)";
   ctx.shadowBlur = Math.max(6, Math.round(S * 0.014));
   ctx.shadowOffsetY = Math.round(S * 0.012);
-  ctx.drawImage(img, px, py, dw, dh);
+  drawImageHQ(ctx, img, px, py, dw, dh);
   ctx.restore();
 
   return canvas;

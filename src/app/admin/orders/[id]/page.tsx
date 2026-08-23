@@ -104,6 +104,15 @@ export default function AdminOrderDetailPage() {
           >
             <Download className="h-4 w-4" /> Invoice
           </a>
+          {order?.paid === 1 && (
+            <a
+              href={`/api/orders/${encodeURIComponent(id)}/receipt`}
+              download={`receipt-${id}.pdf`}
+              className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+            >
+              <Receipt className="h-4 w-4" /> Receipt
+            </a>
+          )}
         </div>
       </div>
 

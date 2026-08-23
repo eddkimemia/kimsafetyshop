@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
-import { getAllSettings } from "@/lib/db";
+import { getAllSettings, getSettingsVersion } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
-  return NextResponse.json({ settings: await getAllSettings() });
+  const [settings, version] = await Promise.all([getAllSettings(), getSettingsVersion()]);
+  return NextResponse.json(
+    { settings, version },
+    { headers: { "Cache-Control": "no-store, max-age=0" } }
+  );
 }

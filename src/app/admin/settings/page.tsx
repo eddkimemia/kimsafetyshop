@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ImagePlus, Save, Settings as SettingsIcon, Phone, Mail, MapPin, Clock, MessageCircle } from "lucide-react";
+import { ImagePlus, Save, Settings as SettingsIcon, Phone, Mail, MapPin, Clock, MessageCircle, Smartphone } from "lucide-react";
 import { AdminCard } from "@/components/admin/ui";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
+import { fetchSettings, invalidateClientSettings } from "@/lib/settings";
 
 const field =
   "w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm outline-none transition-all focus:border-safety-400 focus:bg-white focus:ring-4 focus:ring-safety-500/10";
@@ -61,6 +62,16 @@ export default function AdminSettingsPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Failed to save");
+      // Propagate instantly: drop this tab's memo, bump the version so other
+      // tabs (storage event) and branding asset cache-busters pick the new
+      // logo/details up without waiting for the TTL.
+      invalidateClientSettings();
+      try {
+        localStorage.setItem("kimsafety-settings-version", String(Date.now()));
+      } catch {
+        /* private mode */
+      }
+      await fetchSettings(true).catch(() => {});
       setNotice("Settings saved — logo, name and contact details now apply across the storefront and PDFs.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -192,6 +203,16 @@ export default function AdminSettingsPage() {
                 Working hours
               </label>
               <input id="hours" value={form.hours} onChange={(e) => set("hours", e.target.value)} className={field} />
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Smartphone className="mt-2.5 h-4 w-4 shrink-0 text-safety-600" />
+            <div className="flex-1">
+              <label htmlFor="mpesa_till" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                M-Pesa Till Number (manual payments)
+              </label>
+              <input id="mpesa_till" value={form.mpesa_till ?? ""} onChange={(e) => set("mpesa_till", e.target.value.replace(/\D/g, ""))} className={field} />
+              <p className="mt-1 text-[11px] text-gray-400">Printed on unpaid invoice PDFs and order emails so clients can pay via M-Pesa Buy Goods.</p>
             </div>
           </div>
         </div>

@@ -58,6 +58,7 @@ export function CampaignStrip({ campaigns }: { campaigns: CampaignCard[] }) {
                   alt={c.name}
                   fill
                   sizes="(max-width: 1024px) 100vw, 33vw"
+                  quality={85}
                   className="object-cover transition-transform duration-300 group-hover:scale-105"
                 />
               ) : (

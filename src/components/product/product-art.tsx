@@ -145,6 +145,8 @@ export function ProductArt({
   icon,
   src,
   alt,
+  sizes = "(max-width: 768px) 48vw, (max-width: 1200px) 33vw, 25vw",
+  quality = 85,
 }: {
   tags?: string[];
   categoryName?: string;
@@ -155,6 +157,8 @@ export function ProductArt({
   icon?: LucideIcon;
   src?: string;
   alt?: string;
+  sizes?: string;
+  quality?: number;
 }) {
   const [failed, setFailed] = useState(false);
   const overrides = useAdminImageOverrides();
@@ -182,7 +186,8 @@ export function ProductArt({
           src={imageSrc}
           alt={alt ?? defaultAlt}
           fill
-          sizes="(max-width: 768px) 48vw, (max-width: 1200px) 33vw, 25vw"
+          sizes={sizes}
+          quality={quality}
           className="object-cover"
           onError={() => setFailed(true)}
         />

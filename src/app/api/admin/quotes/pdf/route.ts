@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import { requireAdmin, getSessionUser } from "@/lib/api-helpers";
 import { getQuoteById, getAllSettings } from "@/lib/db";
+import { readLogoBytes } from "@/lib/logo";
 import { join } from "path";
 import fs from "fs";
 
@@ -107,9 +108,9 @@ export async function GET(req: Request) {
   drawPageChrome();
 
   // ---- Header: logo + QUOTATION (page 1 only) ----
-  const logoPath = join(process.cwd(), "public", s.logo || "/images/logo/logoy.jpg");
+  const logoBuf = await readLogoBytes(s.logo);
   const logoH = 62;
-  if (fs.existsSync(logoPath)) doc.image(logoPath, padL, 32, { height: logoH });
+  if (logoBuf) doc.image(logoBuf, padL, 32, { height: logoH });
   doc
     .font("Helvetica-Bold")
     .fontSize(30)

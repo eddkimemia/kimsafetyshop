@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Clock, Download } from "lucide-react";
+import { Check, Clock, Download, ReceiptText } from "lucide-react";
 import { cn, formatKES } from "@/lib/utils";
 import { AccountShell, useAccountStats } from "@/components/account/account-shell";
 
@@ -38,12 +38,22 @@ function Invoices() {
                 </p>
                 <p className="text-xs text-gray-400">{new Date(o.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })} · {formatKES(o.total)} incl. VAT</p>
               </div>
-              <a
-                href={`/api/orders/${o.id}/invoice`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-line px-4 py-2 text-xs font-bold text-navy-900 hover:bg-surface"
-              >
-                <Download className="h-3.5 w-3.5" /> Download PDF
-              </a>
+              <div className="flex gap-2">
+                {o.paid === 1 && (
+                  <a
+                    href={`/api/orders/${o.id}/receipt`}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-line px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <ReceiptText className="h-3.5 w-3.5" /> Receipt
+                  </a>
+                )}
+                <a
+                  href={`/api/orders/${o.id}/invoice`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-line px-4 py-2 text-xs font-bold text-navy-900 hover:bg-surface"
+                >
+                  <Download className="h-3.5 w-3.5" /> Invoice PDF
+                </a>
+              </div>
             </div>
           ))
         )}

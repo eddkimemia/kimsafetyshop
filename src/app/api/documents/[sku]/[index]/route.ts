@@ -6,7 +6,8 @@ import path from "path";
 import PDFDocument from "pdfkit";
 import { mergedCatalog } from "@/lib/admin-products";
 import { htmlToBlocks, TextRun, Block } from "@/lib/html-blocks";
-import { getSetting } from "@/lib/db";
+import { getAllSettings, getSetting } from "@/lib/db";
+import { readLogoBytes, getLogoSize } from "@/lib/logo";
 import { getStoredFile, readPublicFile } from "@/lib/file-store";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { productImages, productGalleries } from "@/lib/data/product-images";
@@ -141,11 +142,12 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
   drawPageChrome();
 
   // ---- Letterhead ----
-  const logoPath = path.join(process.cwd(), "public", "images", "logo", "logoy.jpg");
+  const logoBuf = await readLogoBytes((await getAllSettings()).logo);
   let logoWidth = 0;
-  if (fs.existsSync(logoPath)) {
-    pdf.image(logoPath, padL, 30, { height: 50 });
-    logoWidth = 50 * 3.34;
+  if (logoBuf) {
+    pdf.image(logoBuf, padL, 30, { height: 50 });
+    const size = getLogoSize(logoBuf);
+    logoWidth = size ? Math.round((size.width / size.height) * 50) : 50 * 3.34;
   }
   const textLeft = padL + Math.max(logoWidth, 140) + 14;
   pdf.font("Helvetica-Bold").fontSize(12).fillColor(NAVY).text((await getSetting("tagline")) || DEFAULT_SETTINGS.tagline || "", textLeft, 34, { width: padR - textLeft });

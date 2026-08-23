@@ -5,6 +5,7 @@ import { getAllSettings } from "@/lib/db";
 import { liveGetProduct } from "@/lib/catalog";
 import { bulkUnitPrice } from "@/lib/utils";
 import { buildInvoicePdf } from "@/lib/invoice-pdf";
+import { buildReceiptPdf } from "@/lib/receipt-pdf";
 
 export type SmtpConfig = {
   host: string;
@@ -63,9 +64,17 @@ type Brand = {
   website: string;
 };
 
+/** Settings lookup that never throws (SMTP emails must be best-effort). */
+async function getSettingSafe(key: string): Promise<string> {
+  try {
+    return (await getAllSettings())[key] ?? "";
+  } catch {
+    return "";
+  }
+}
+
 async function getBrand(): Promise<Brand> {
-  const s = await getAllSettings();
-  const logo = s.logo || "/images/logo/logoy.jpg";
+  const s = await getAllSettings();  const logo = s.logo || "/images/logo/logoy.jpg";
   const whatsapp = (s.whatsapp || "254715135141").replace(/\D/g, "");
   return {
     logo: logo.startsWith("http") ? logo : `${siteUrl}${logo}`,
@@ -404,6 +413,7 @@ export async function sendOrderInvoiceEmail(input: {
     po: "Purchase Order (30-day terms)",
   };
   const rows = await resolveItems(items);
+  const till = (await getSettingSafe("mpesa_till")) || "4178866";
   const itemRows = rows
     .map(
       (r) => `
@@ -417,7 +427,10 @@ export async function sendOrderInvoiceEmail(input: {
     )
     .join("");
 
-  const deliveredNote = paid === 1 ? "" : `<p style="font-size:12px;color:${GRAY};margin:12px 0 0 0;text-align:center;">Payment: ${esc(paymentLabel[payment] ?? payment)} — your invoice shows the payment details.</p>`;
+  const unpaidNote =
+    paid === 1
+      ? ""
+      : `<p style="font-size:12px;color:${GRAY};margin:12px 0 0 0;text-align:center;">Payment: ${esc(paymentLabel[payment] ?? payment)} — or pay manually via M-Pesa <strong>Buy Goods · Till ${esc(till)}</strong> using your order number as the reference. Your invoice PDF shows the full details.</p>`;
 
   await transporter.sendMail({
     from: cfg.from,
@@ -456,7 +469,7 @@ export async function sendOrderInvoiceEmail(input: {
       </table>
       <p style="font-size:13px;line-height:1.7;color:#374151;margin:0 0 14px 0;text-align:center;">Track your order anytime from your <a href="${trackUrl}" style="color:${SAFETY};font-weight:bold;">order history</a> — your invoice PDF is attached to this email.</p>
       ${btn(trackUrl, "View your order")}
-      ${deliveredNote}
+      ${unpaidNote}
       `
     ),
     attachments: [{ filename: `kimsafety-invoice-${orderId}.pdf`, content: pdf, contentType: "application/pdf" }],
@@ -510,6 +523,7 @@ export async function sendPaidInvoiceEmail(input: {
             : null
       : null;
   const pdf = await buildInvoicePdf({ ...input, paid: 1 });
+  const receiptPdf = await buildReceiptPdf(input);
   const transporter = createTransporter(cfg);
 
   const paymentLabel: Record<string, string> = {
@@ -535,13 +549,13 @@ export async function sendPaidInvoiceEmail(input: {
     from: cfg.from,
     to: email,
     subject: `Payment received — ${orderId} · KES ${Math.round(input.total).toLocaleString("en-KE")}`,
-    text: `Hi ${name},\n\nWe've received your payment of KES ${Math.round(input.total).toLocaleString("en-KE")} for order ${orderId}. Thank you!\n\nTrack it anytime at ${trackUrl}\n\nYour paid invoice is attached to this email.\n\n— KimSafety Team`,
+    text: `Hi ${name},\n\nWe've received your payment of KES ${Math.round(input.total).toLocaleString("en-KE")} for order ${orderId}. Thank you!\n\nTrack it anytime at ${trackUrl}\n\nYour paid invoice and official receipt are attached to this email.\n\n— KimSafety Team`,
     html: renderShell(
       brand,
       `
       ${eyebrow("Payment received")}
       <h1 style="font-size:24px;color:${NAVY};margin:0 0 8px 0;">Payment received — thank you!</h1>
-      <p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 22px 0;">We've received your payment of ${money(input.total)} for order ${orderId}. Your paid invoice is attached below — keep it for your records.</p>
+      <p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 22px 0;">We've received your payment of ${money(input.total)} for order ${orderId}. Your <strong>paid invoice</strong> and <strong>official receipt</strong> are attached below — keep both for your records.</p>
       ${summaryCard([
         { label: "Order number", value: esc(orderId) },
         { label: "Order total", value: money(input.total), highlight: true },
@@ -562,12 +576,15 @@ export async function sendPaidInvoiceEmail(input: {
       <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px 0;">
         ${itemRows}
       </table>
-      <p style="font-size:13px;line-height:1.7;color:#374151;margin:0 0 14px 0;text-align:center;">Track your order anytime from your <a href="${trackUrl}" style="color:${SAFETY};font-weight:bold;">order history</a> — your paid invoice PDF is attached to this email.</p>
+      <p style="font-size:13px;line-height:1.7;color:#374151;margin:0 0 14px 0;text-align:center;">Track your order anytime from your <a href="${trackUrl}" style="color:${SAFETY};font-weight:bold;">order history</a> — your paid invoice and receipt PDFs are attached to this email.</p>
       ${btn(trackUrl, "View your order")}
       <p style="font-size:12px;color:${GRAY};margin:12px 0 0 0;text-align:center;">Status: ${esc(status)}</p>
       `
     ),
-    attachments: [{ filename: `kimsafety-invoice-${orderId}.pdf`, content: pdf, contentType: "application/pdf" }],
+    attachments: [
+      { filename: `kimsafety-invoice-${orderId}.pdf`, content: pdf, contentType: "application/pdf" },
+      { filename: `kimsafety-receipt-${orderId}.pdf`, content: receiptPdf, contentType: "application/pdf" },
+    ],
   });
   return true;
 }

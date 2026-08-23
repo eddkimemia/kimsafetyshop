@@ -2,6 +2,7 @@ import PDFDocument from "pdfkit";
 import { getAllSettings } from "@/lib/db";
 import { liveGetProduct } from "@/lib/catalog";
 import { bulkUnitPrice } from "@/lib/utils";
+import { readLogoBytes } from "@/lib/logo";
 import { join } from "path";
 import fs from "fs";
 
@@ -19,6 +20,7 @@ export type InvoiceOrder = {
   payment: string;
   paid: number;
   created_at: string;
+  company?: string | null;
   payment_phone?: string | null;
   mpesa_transaction_id?: string | null;
   paystack_reference?: string | null;
@@ -121,9 +123,9 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
   drawPageChrome();
 
   // ---- Header: logo + INVOICE (page 1 only) ----
-  const logoPath = join(process.cwd(), "public", s.logo || "/images/logo/logoy.jpg");
+  const logoBuf = await readLogoBytes(s.logo);
   const logoH = 62;
-  if (fs.existsSync(logoPath)) doc.image(logoPath, padL, 32, { height: logoH });
+  if (logoBuf) doc.image(logoBuf, padL, 32, { height: logoH });
   doc
     .font("Helvetica-Bold")
     .fontSize(30)
@@ -326,6 +328,42 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
       ty,
       { width: totalW }
     );
+  ty += 18;
+
+  // ---- HOW TO PAY (unpaid invoices only) ----
+  // Clients without a payment link (or whose STK push expired) can pay the
+  // invoice manually via the KimSafety M-Pesa Buy Goods till and quote the
+  // invoice number.
+  if (!paid) {
+    const till = s.mpesa_till || "4178866";
+    const boxH = 64;
+    // Keep clear of the date stamp zone on the last page (bottom-right).
+    if (ty + boxH > pageH - 210) {
+      doc.addPage();
+      ty = tableTopNext + 10;
+    }
+    doc.roundedRect(padL, ty, padR - padL, boxH, 6).fillAndStroke("#FFF7ED", SAFETY);
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(9.5)
+      .fillColor(NAVY)
+      .text("HOW TO PAY THIS INVOICE", padL + 14, ty + 8, { width: padR - padL - 28 });
+    doc
+      .font("Helvetica")
+      .fontSize(8.5)
+      .fillColor("#374151")
+      .text(
+        [
+          `1. Go to M-PESA on your phone  →  Lipa na M-Pesa  →  Buy Goods and Services.`,
+          `2. Till Number: ${till}  (KimSafety Ltd)  ·  Amount: ${fmt(order.total)}.`,
+          `3. Enter the invoice number "${order.id}" as the account/reference, then send us the confirmation SMS.`,
+        ].join("\n"),
+        padL + 14,
+        ty + 22,
+        { width: padR - padL - 28, lineGap: 2.5 }
+      );
+    ty += boxH;
+  }
 
   // ---- Stamp on the last page, above the footer ----
   const stampPath = join(process.cwd(), "public", "images", "logo", "stamp.png");

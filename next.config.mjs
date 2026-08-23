@@ -1,5 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async rewrites() {
+    return [
+      {
+        // DB-backed document/logo uploads are stored under
+        // /uploads/documents/<name> (the path returned by the upload API).
+        // On serverless the public/ mirror doesn't exist, so rewrite these to
+        // the dynamic route that serves them from Postgres. Keeps every
+        // previously stored logo/PO path resolvable in production.
+        source: "/uploads/documents/:name",
+        destination: "/api/uploads/documents/:name",
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       // Admin-entered product/gallery/logo image URLs are arbitrary (stored in

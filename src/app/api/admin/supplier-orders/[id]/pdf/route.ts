@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import { getSupplierOrder, getAllSettings } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-helpers";
+import { readLogoBytes } from "@/lib/logo";
 import { join } from "path";
 import fs from "fs";
 
@@ -94,9 +95,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   drawPageChrome();
 
   // ---- Header: logo + PURCHASE ORDER (page 1 only) ----
-  const logoPath = join(process.cwd(), "public", s.logo || "/images/logo/logoy.jpg");
+  const logoBuf = await readLogoBytes(s.logo);
   const logoH = 62;
-  if (fs.existsSync(logoPath)) doc.image(logoPath, padL, 32, { height: logoH });
+  if (logoBuf) doc.image(logoBuf, padL, 32, { height: logoH });
   doc
     .font("Helvetica-Bold")
     .fontSize(26)

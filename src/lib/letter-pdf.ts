@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import fs from "fs";
 import { join } from "path";
+import { readLogoBytes, getLogoSize } from "@/lib/logo";
 import { htmlToBlocks, Block, TextRun } from "./html-blocks";
 
 export type LetterInput = {
@@ -54,7 +55,7 @@ type Token = {
   strike?: boolean;
 };
 
-export function renderLetterPdf(letter: LetterInput, settings: LetterSettings): Promise<Buffer> {
+export async function renderLetterPdf(letter: LetterInput, settings: LetterSettings): Promise<Buffer> {
   const COMPANY = {
     name: settings.site_name || FALLBACK_COMPANY.name,
     address: settings.address || FALLBACK_COMPANY.address,
@@ -108,12 +109,13 @@ export function renderLetterPdf(letter: LetterInput, settings: LetterSettings): 
   drawPageChrome();
 
   // ---- Letterhead ----
-  const logoPath = join(process.cwd(), "public", settings.logo || "images/logo/logoy.jpg");
+  const logoBuf = await readLogoBytes(settings.logo);
   const logoHeight = 50;
   let logoWidth = 0;
-  if (fs.existsSync(logoPath)) {
-    doc.image(logoPath, padL, 30, { height: logoHeight });
-    logoWidth = logoHeight * 3.34;
+  if (logoBuf) {
+    doc.image(logoBuf, padL, 30, { height: logoHeight });
+    const size = getLogoSize(logoBuf);
+    logoWidth = size ? Math.round((size.width / size.height) * logoHeight) : logoHeight * 3.34;
   }
   const textLeft = padL + Math.max(logoWidth, 140) + 14;
 

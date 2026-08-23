@@ -8,4 +8,5 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   purchases_email: "purchases@kimsafety.co.ke",
   address: "KimSafety House, Enterprise Road, Industrial Area, Nairobi, Kenya",
   hours: "Mon–Sat, 8:00–18:00",
+  mpesa_till: "4178866",
 };
