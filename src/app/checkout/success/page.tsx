@@ -164,7 +164,7 @@ function CheckoutSuccessInner() {
       <div className="mt-2 flex flex-wrap justify-center gap-3">
         {orderId && (
           <a
-            href={`/api/orders/${encodeURIComponent(orderId)}/invoice`}
+            href={`/api/orders/${encodeURIComponent(orderId)}/invoice?token=${encodeURIComponent(token ?? "")}`}
             className="inline-flex items-center gap-1.5 rounded-lg border border-line px-4 py-2 text-xs font-bold text-navy-900 hover:bg-surface"
           >
             <Download className="h-3.5 w-3.5" /> Download Invoice

@@ -20,14 +20,17 @@ async function withItems(o: Awaited<ReturnType<typeof listOrders>>[number]) {
   const items = JSON.parse(o.items) as { productId: string; qty: number; name?: string; price?: number }[];
   return {
     ...o,
+    // Admin views show what the customer paid: the stored per-item price wins,
+    // live lookup only fills gaps for legacy orders saved without prices.
     items: await Promise.all(
       items.map(async (i) => {
         const p = await liveGetProduct(i.productId);
+        const price = typeof i.price === "number" && i.price > 0 ? i.price : p ? bulkUnitPrice(p, i.qty) : (i.price ?? 0);
         return {
           ...i,
-          name: p?.name ?? i.name ?? i.productId,
+          name: i.name || ((p?.name ?? i.name) ?? i.productId),
           sku: p?.sku ?? i.productId,
-          price: p ? bulkUnitPrice(p, i.qty) : (i.price ?? 0),
+          price,
           image: p?.image ?? (p?.sku ? productImages[p.sku] : undefined) ?? null,
         };
       })

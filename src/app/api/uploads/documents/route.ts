@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { saveStoredFile, sniffType } from "@/lib/file-store";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,9 @@ function uniqueName(dir: string, name: string): string {
 }
 
 export async function POST(req: Request) {
+  const rl = rateLimit(req, "uploads-documents", 10, 600000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
+
   // Deliberately public: customers upload PO files during checkout, quotes and
   // corporate applications. Security relies on strict magic-byte sniffing
   // below (extension is never trusted) plus attachment-only serving.

@@ -20,10 +20,10 @@ import { ProductArt } from "@/components/product/product-art";
 import { PageHeader } from "@/components/layout/page-header";
 
 export default function CartPage() {
-  const { cart, setQty, removeFromCart, clearCart, cartTotal, cartOldTotal, liveProduct, refreshCatalog } = useStore();
+  const { cart, setQty, removeFromCart, clearCart, cartTotal, cartOldTotal, liveProduct, refreshCatalog, delivery } = useStore();
   const savings = cartOldTotal - cartTotal;
-  const freeDelivery = cartTotal >= 10000;
-  const shipping = cart.length === 0 ? 0 : freeDelivery ? 0 : 350;
+  const freeDelivery = delivery.threshold > 0 && cartTotal >= delivery.threshold;
+  const shipping = cart.length === 0 || freeDelivery ? 0 : delivery.fee;
 
   // Always re-sync prices with the live catalog when the cart is opened, so
   // admin price changes are reflected even if this page was open before the change.
@@ -64,8 +64,10 @@ export default function CartPage() {
           <div className="mb-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
             <Truck className="h-4 w-4" />
             {freeDelivery
-              ? "Free delivery unlocked — Nairobi orders over KES 10,000"
-              : `Add ${formatKES(10000 - cartTotal)} more for free delivery within Nairobi`}
+              ? "Free delivery unlocked"
+              : delivery.threshold > 0
+                ? `Add ${formatKES(delivery.threshold - cartTotal)} more for free delivery within Nairobi`
+                : `Delivery fee: ${formatKES(delivery.fee)} within Nairobi`}
           </div>
           <ul className="space-y-5">
                 {cart.map((item) => {

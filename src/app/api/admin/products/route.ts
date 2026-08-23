@@ -1,8 +1,35 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { products } from "@/lib/data/products";
-import { getAdminProduct, upsertAdminProduct, deleteAdminProduct } from "@/lib/db";
+import { getAdminProduct, upsertAdminProduct, deleteAdminProduct, listPendingRestockRequests, markRestockNotified } from "@/lib/db";
 import { mergedCatalog, invalidateCatalogCache } from "@/lib/admin-products";
+import { liveGetProduct } from "@/lib/catalog";
+import { sendBackInStockEmail } from "@/lib/mailer";
+import { siteUrl } from "@/lib/site";
+
+/**
+ * Fires back-in-stock emails when a save brings a subscribed product into
+ * stock. Best-effort: never blocks or fails the admin save.
+ */
+async function maybeNotifyRestock(sku: string, stock: number, name: string, slug: string | undefined) {
+  if (!(stock > 0)) return;
+  const pending = await listPendingRestockRequests(sku);
+  if (pending.length === 0) return;
+  const product = await liveGetProduct(sku);
+  if (!product || product.stock <= 0) return; // effective stock still zero — skip
+  const url = `${siteUrl}/product/${encodeURIComponent(slug || product.slug || sku)}`;
+  const notified: string[] = [];
+  for (const req of pending.slice(0, 200)) {
+    try {
+      if (await sendBackInStockEmail({ to: req.email, productName: name, productUrl: url })) {
+        notified.push(req.id);
+      }
+    } catch (err) {
+      console.error(`[admin-products] restock email failed for ${req.email}:`, (err as Error).message);
+    }
+  }
+  await markRestockNotified(notified);
+}
 
 export async function GET() {
   const denied = await requireAdmin();
@@ -65,6 +92,12 @@ export async function POST(req: Request) {
   };
   await upsertAdminProduct(sku, record);
   invalidateCatalogCache();
+  try {
+    const rec = record as Record<string, unknown>;
+    await maybeNotifyRestock(sku, Number(rec.stock ?? 0), String(record.name), typeof rec.slug === "string" ? rec.slug : undefined);
+  } catch (err) {
+    console.error("[admin-products] restock notify failed:", (err as Error).message);
+  }
   return NextResponse.json({ product: record }, { status: 201 });
 }
 
@@ -88,6 +121,11 @@ export async function PATCH(req: Request) {
   delete merged.id;
   await upsertAdminProduct(sku, merged);
   invalidateCatalogCache();
+  try {
+    await maybeNotifyRestock(sku, Number(merged.stock ?? 0), String(merged.name ?? sku), typeof merged.slug === "string" ? merged.slug : undefined);
+  } catch (err) {
+    console.error("[admin-products] restock notify failed:", (err as Error).message);
+  }
   return NextResponse.json({ product: merged });
 }
 

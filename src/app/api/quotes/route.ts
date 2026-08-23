@@ -5,6 +5,7 @@ import { liveGetProduct } from "@/lib/catalog";
 import { bulkUnitPrice } from "@/lib/utils";
 import { sendQuoteConfirmationEmail, sendNewQuoteAlert } from "@/lib/mailer";
 import { getSetting } from "@/lib/db";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 export async function GET() {
   const user = await getSessionUser();
@@ -16,6 +17,9 @@ export async function GET() {
 type QuoteItem = { productId: string; qty: number; price?: number };
 
 export async function POST(req: Request) {
+  const rl = rateLimit(req, "quotes", 5, 600000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
+
   let body: { name?: string; company?: string; email?: string; phone?: string; items?: unknown[]; attachment?: string };
   try {
     body = await req.json();

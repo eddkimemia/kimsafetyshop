@@ -92,47 +92,61 @@ function hashStr(str: string): number {
   return Math.abs(h);
 }
 
-let overrideMap: Record<string, string> | null = null;
-let galleryMap: Record<string, string[]> | null = null;
+// Admin image overrides are fetched client-side and shared across all product
+// cards via this module-level cache. A stale-while-revalidate TTL keeps renders
+// instant while still picking up admin edits ~30s after they're saved (a
+// fetch-once-per-session cache showed OLD images indefinitely).
+const OVERRIDES_TTL_MS = 30_000;
+let overrideCache: { at: number; images: Record<string, string>; galleries: Record<string, string[]> } | null = null;
+let overridesInflight: Promise<void> | null = null;
+
+function loadOverrides(): Promise<void> {
+  if (overrideCache && Date.now() - overrideCache.at < OVERRIDES_TTL_MS) return Promise.resolve();
+  if (overridesInflight) return overridesInflight;
+  overridesInflight = fetch("/api/products/image-overrides", { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      if (d?.images) {
+        overrideCache = { at: Date.now(), images: d.images, galleries: d.galleries ?? {} };
+      }
+    })
+    .catch(() => {})
+    .finally(() => {
+      overridesInflight = null;
+    });
+  return overridesInflight;
+}
 
 export function useAdminImageOverrides(): Record<string, string> | null {
-  const [, force] = useState(0);
+  const [map, setMap] = useState<Record<string, string> | null>(overrideCache?.images ?? null);
   useEffect(() => {
-    if (overrideMap !== null) return;
-    fetch("/api/products/image-overrides")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.images) {
-          overrideMap = d.images;
-          galleryMap = d.galleries ?? {};
-          force((n) => n + 1);
-        }
-      })
-      .catch(() => {});
+    let alive = true;
+    loadOverrides().then(() => {
+      if (alive && overrideCache) setMap(overrideCache.images);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
-  return overrideMap;
+  return map;
 }
 
 export function useAdminGalleries(): Record<string, string[]> | null {
-  const [, force] = useState(0);
+  const [map, setMap] = useState<Record<string, string[]> | null>(overrideCache?.galleries ?? null);
   useEffect(() => {
-    if (galleryMap !== null) return;
-    fetch("/api/products/image-overrides")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.galleries) {
-          galleryMap = d.galleries;
-          overrideMap = d.images ?? {};
-          force((n) => n + 1);
-        }
-      })
-      .catch(() => {});
+    let alive = true;
+    loadOverrides().then(() => {
+      if (alive && overrideCache) setMap(overrideCache.galleries);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
-  return galleryMap;
+  return map;
 }
 
 export function productImageFor(sku: string): string {
-  return overrideMap?.[sku] ?? productImages[sku] ?? `/images/products/${sku}.jpg`;
+  return overrideCache?.images[sku] ?? productImages[sku] ?? `/images/products/${sku}.jpg`;
 }
 
 export function ProductArt({

@@ -260,12 +260,17 @@ function orderStepsHtml(activeIndex: number): string {
 }
 
 async function resolveItems(itemsJson: string) {
-  const items = JSON.parse(itemsJson) as { productId: string; qty: number; price?: number }[];
+  const items = JSON.parse(itemsJson) as { productId: string; qty: number; name?: string; price?: number }[];
   return (
     await Promise.all(
       items.map(async (i) => {
+        // Emails quote the price the customer paid (stored on the order);
+        // live catalog lookup is only the fallback for legacy rows.
+        if (typeof i.price === "number" && i.price > 0) {
+          return { name: i.name || i.productId, qty: i.qty, price: i.price };
+        }
         const p = await liveGetProduct(i.productId);
-        return { name: p?.name ?? i.productId, qty: i.qty, price: p ? bulkUnitPrice(p, i.qty) : (i.price ?? 0) };
+        return { name: i.name || (p?.name ?? i.productId), qty: i.qty, price: p ? bulkUnitPrice(p, i.qty) : (i.price ?? 0) };
       })
     )
   ).filter((r) => r.qty > 0);
@@ -325,6 +330,110 @@ export async function sendWelcomeEmail(input: { to: string; name?: string | null
       </table>
       ${btn(`${siteUrl}/login`, "Sign in to your account")}
       <p style="font-size:12px;color:${GRAY};text-align:center;margin:14px 0 0 0;">Need help? WhatsApp us on ${esc(brand.phone)}</p>
+      `
+    ),
+  });
+  return true;
+}
+
+/** "You left items in your cart" recovery email. */
+export async function sendAbandonedCartEmail(input: {
+  to: string;
+  name?: string | null;
+  items: { name: string; qty: number; price: number }[];
+  total: number;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const firstName = (input.name ?? "").split(" ")[0] || "there";
+  const checkoutUrl = `${siteUrl}/checkout`;
+  const rows = input.items
+    .map(
+      (r) => `
+      <tr>
+        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px;color:#374151;">${esc(r.name)} <span style="color:#9ca3af;">× ${r.qty}</span></td>
+        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px;font-weight:bold;color:#374151;text-align:right;white-space:nowrap;">${money(r.price * r.qty)}</td>
+      </tr>`
+    )
+    .join("");
+  await sendBrandedMail(cfg, {
+    from: cfg.from,
+    to: input.to,
+    subject: `You left ${input.items.length} item${input.items.length === 1 ? "" : "s"} in your cart — KimSafety`,
+    text: `Hi ${firstName},\n\nYour cart is waiting — ${input.items.map((i) => `${i.name} x${i.qty}`).join(", ")}. Total ${money(input.total)}.\n\nComplete your order: ${checkoutUrl}\n\n— KimSafety Team`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Still thinking it over?")}
+      <h1 style="font-size:24px;color:${NAVY};margin:0 0 8px 0;">Hi ${esc(firstName)}, your cart is waiting</h1>
+      <p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 18px 0;">You left ${input.items.length} item${input.items.length === 1 ? "" : "s"} in your cart. Stock moves fast on certified PPE — complete your order and we'll dispatch from our Nairobi warehouse.</p>
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 6px 0;">
+        ${rows}
+        <tr>
+          <td style="padding:10px 0;font-size:13px;font-weight:bold;color:${NAVY};">Total (before delivery)</td>
+          <td style="padding:10px 0;font-size:13px;font-weight:bold;color:${NAVY};text-align:right;white-space:nowrap;">${money(input.total)}</td>
+        </tr>
+      </table>
+      ${btn(checkoutUrl, "Complete my order")}
+      <p style="font-size:12px;color:${GRAY};margin:14px 0 0 0;text-align:center;">Pay via M-Pesa STK push or card — dispatched within 24–72 hours.</p>
+      `
+    ),
+  });
+  return true;
+}
+
+/** Back-in-stock alert for a product a shopper asked to be notified about. */
+export async function sendBackInStockEmail(input: {
+  to: string;
+  productName: string;
+  productUrl: string;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  await sendBrandedMail(cfg, {
+    from: cfg.from,
+    to: input.to,
+    subject: `Back in stock: ${input.productName} — KimSafety`,
+    text: `Good news!\n\n${input.productName} is back in stock at KimSafety.\n\nOrder now: ${input.productUrl}\n\n— KimSafety Team`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Back in stock")}
+      <h1 style="font-size:24px;color:${NAVY};margin:0 0 8px 0;">It's back!</h1>
+      <p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 18px 0;"><strong>${esc(input.productName)}</strong> is back in stock. You asked us to tell you — grab yours before it runs out again.</p>
+      ${btn(input.productUrl, "View & order")}
+      `
+    ),
+  });
+  return true;
+}
+
+export async function sendVerificationEmail(input: {
+  to: string;
+  name?: string | null;
+  token: string;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const firstName = (input.name ?? "").split(" ")[0] || "there";
+  const verifyUrl = `${siteUrl}/verify?token=${encodeURIComponent(input.token)}`;
+  await sendBrandedMail(cfg, {
+    from: cfg.from,
+    to: input.to,
+    subject: "Verify your email — KimSafety",
+    text: `Hi ${firstName},\n\nWelcome to KimSafety! Please confirm your email address to activate your account:\n\n${verifyUrl}\n\nThis link expires in 48 hours. If you didn't create an account, you can ignore this email.\n\n— KimSafety Team`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Confirm your email")}
+      <h1 style="font-size:24px;color:${NAVY};margin:0 0 14px 0;">Hi ${esc(firstName)}, verify your email</h1>
+      <p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 18px 0;">Welcome to ${esc(brand.site_name)}! Tap the button below to confirm this email address and activate your account. The link is valid for <strong>48 hours</strong>.</p>
+      ${btn(verifyUrl, "Verify my email")}
+      <p style="font-size:12px;line-height:1.7;color:${GRAY};margin:16px 0 0 0;">If the button doesn't work, copy this link into your browser:<br/><a href="${verifyUrl}" style="color:${SAFETY};word-break:break-all;">${verifyUrl}</a></p>
+      <p style="font-size:12px;color:${GRAY};margin:14px 0 0 0;">Didn't create an account? You can safely ignore this email.</p>
       `
     ),
   });

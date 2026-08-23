@@ -23,8 +23,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const meta = product.description.replace(/<[^>]+>/g, " ").trim().slice(0, 160);
   // Main image: admin override -> committed product photo -> SKU fallback.
   const mainImage =
-    product.image ??
-    productImages[product.sku] ??
+    product.image ||
+    productImages[product.sku] ||
     `/images/products/${product.sku}.jpg`;
   const images = [{ url: mainImage, alt: product.name }];
   return {
@@ -53,8 +53,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   const related = await liveRelatedFor(product);
   const mainImage =
-    product.image ??
-    productImages[product.sku] ??
+    product.image ||
+    productImages[product.sku] ||
     `/images/products/${product.sku}.jpg`;
   const jsonLd = {
     "@context": "https://schema.org",

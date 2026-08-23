@@ -3,29 +3,36 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { getCachedAdminRows } from "@/lib/catalog";
 
-const TTL_MS = 5 * 60 * 1000;
-
-let cached: { at: number; data: { images: Record<string, string>; galleries: Record<string, string[]> } } | null = null;
-
+/**
+ * Client-side image overrides for the storefront. Served fresh on every request
+ * — the underlying admin rows are already cached in-process for 5s (and busted
+ * by invalidateCatalogCache() on every admin save), so this endpoint must NOT
+ * add its own longer TTL: a module-level cache here is what made edited product
+ * photos keep showing the old picture for minutes.
+ */
 export async function GET() {
-  const now = Date.now();
-  if (!cached || now - cached.at > TTL_MS) {
-    const images: Record<string, string> = {};
-    const galleries: Record<string, string[]> = {};
-    const rows = (await getCachedAdminRows()) ?? [];
-    for (const row of rows) {
-      const data = JSON.parse(String(row.data)) as { sku?: string; image?: string; gallery?: string[] };
-      if (data?.sku) {
-        if (typeof data.image === "string" && data.image.startsWith("/")) {
-          images[data.sku] = data.image;
-        }
-        const gallery = (Array.isArray(data.gallery) ? data.gallery : []).filter(
-          (p): p is string => typeof p === "string" && p.startsWith("/")
-        );
-        if (gallery.length > 0) galleries[data.sku] = gallery;
-      }
+  const images: Record<string, string> = {};
+  const galleries: Record<string, string[]> = {};
+  const rows = (await getCachedAdminRows()) ?? [];
+  for (const row of rows) {
+    const data = JSON.parse(String(row.data)) as { sku?: string; image?: string; gallery?: string[] };
+    if (!data?.sku) continue;
+    // Accept local public paths and absolute external URLs alike — admins can
+    // paste an https:// product photo just as well as upload one.
+    if (typeof data.image === "string" && isValidImagePath(data.image)) {
+      images[data.sku] = data.image;
     }
-    cached = { at: now, data: { images, galleries } };
+    const gallery = (Array.isArray(data.gallery) ? data.gallery : []).filter((p): p is string =>
+      typeof p === "string" && isValidImagePath(p)
+    );
+    if (gallery.length > 0) galleries[data.sku] = gallery;
   }
-  return NextResponse.json(cached.data);
+  return NextResponse.json(
+    { images, galleries },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
+function isValidImagePath(path: string): boolean {
+  return path.startsWith("/") || path.startsWith("http://") || path.startsWith("https://");
 }

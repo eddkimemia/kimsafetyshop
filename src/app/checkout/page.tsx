@@ -21,7 +21,7 @@ const MPESA_DECLINE: Record<string, string> = {
 };
 
 export default function CheckoutPage() {
-  const { cart, cartTotal, cartOldTotal, clearCart, liveProduct, refreshCatalog } = useStore();
+  const { cart, cartTotal, cartOldTotal, clearCart, liveProduct, refreshCatalog, delivery } = useStore();
 
   // Re-sync with the live catalog on mount so the amounts shown (and sent to
   // the payment prompt) match the server-side prices charged at order creation.
@@ -120,8 +120,9 @@ export default function CheckoutPage() {
   }, []);
 
   const savings = cartOldTotal - cartTotal;
-  const freeDelivery = cartTotal >= 10000;
-  const shipping = cart.length === 0 ? 0 : waiveFee || freeDelivery ? 0 : 350;
+  const { fee: deliveryFee, threshold: freeThreshold } = delivery;
+  const freeDelivery = freeThreshold > 0 && cartTotal >= freeThreshold;
+  const shipping = cart.length === 0 ? 0 : waiveFee || freeDelivery ? 0 : deliveryFee;
   const total = cartTotal + shipping;
 
   const field =
@@ -170,6 +171,14 @@ export default function CheckoutPage() {
       setPlacedTotal(json.order?.total ?? total);
       setPlaced(true);
       clearCart();
+      // Order placed — stop abandoned-cart tracking for this email.
+      if (form.email.trim()) {
+        fetch("/api/cart/track", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.email.trim(), items: [] }),
+        }).catch(() => {});
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
       if (payment !== "po" && json.order?.id && json.order?.payment_token) {
         startPayment(json.order.id, json.order.payment_token);
@@ -329,6 +338,20 @@ export default function CheckoutPage() {
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
+    // Leaving the contact step means we have an email — snapshot the cart for
+    // abandoned-cart recovery. Fire-and-forget: must never block checkout.
+    if (step === 0 && form.email.trim()) {
+      fetch("/api/cart/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.email.trim(),
+          name: `${form.first} ${form.last}`.trim(),
+          phone: form.phone,
+          items: cart.map((i) => ({ productId: i.productId, qty: i.qty })),
+        }),
+      }).catch(() => {});
+    }
     if (step < steps.length - 1) setStep(step + 1);
     else await placeOrder();
   };
@@ -473,7 +496,7 @@ export default function CheckoutPage() {
         </span>
         <div className="mt-2 flex flex-wrap justify-center gap-3">
           <a
-            href={`/api/orders/${orderId ?? ""}/invoice`}
+            href={`/api/orders/${orderId ?? ""}/invoice?token=${encodeURIComponent(paymentToken ?? "")}`}
             className="inline-flex items-center gap-1.5 rounded-lg border border-line px-4 py-2 text-xs font-bold text-navy-900 hover:bg-surface"
           >
             <Download className="h-3.5 w-3.5" /> Download Invoice
@@ -634,7 +657,7 @@ export default function CheckoutPage() {
                       {waiveFee && <Check className="h-3 w-3 text-white" />}
                     </span>
                     <span className="text-xs font-bold text-navy-900">
-                      {waiveFee ? "Delivery fee waived (pickup / account rate)" : "Include delivery fee (KES 350)"}
+                      {waiveFee ? "Delivery fee waived (pickup / account rate)" : `Include delivery fee (KES ${delivery.fee.toLocaleString("en-KE")})`}
                     </span>
                   </button>
                   <p className="text-[11px] text-gray-400">Staff checkout — choose whether to charge the delivery fee on this order.</p>
@@ -646,7 +669,9 @@ export default function CheckoutPage() {
                   ? "Delivery fee waived for this order"
                   : freeDelivery
                     ? "Free same-day delivery within Nairobi unlocked"
-                    : "Same-day delivery within Nairobi (KES 350) · Free over KES 10,000"}
+                    : freeThreshold > 0
+                      ? `Same-day delivery within Nairobi (${formatKES(deliveryFee)}) · Free over ${formatKES(freeThreshold)}`
+                      : `Same-day delivery within Nairobi (${formatKES(deliveryFee)})`}
               </div>
             </section>
           )}
@@ -859,7 +884,7 @@ export default function CheckoutPage() {
                   >
                     {waiveFee && <Check className="h-3 w-3 text-white" />}
                   </span>
-                  {waiveFee ? "Delivery fee waived" : "Include delivery fee (KES 350)"}
+                  {waiveFee ? "Delivery fee waived" : `Include delivery fee (KES ${delivery.fee.toLocaleString("en-KE")})`}
                 </span>
                 <Truck className={cn("h-4 w-4", waiveFee ? "text-gray-300" : "text-safety-600")} />
               </button>

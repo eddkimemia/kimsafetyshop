@@ -51,6 +51,10 @@ export function ProductCard({
           brand={product.brand}
           sku={product.sku}
           name={product.name}
+          // The merged catalog already carries the admin's image edit — passing
+          // it here means a changed photo shows up as soon as the catalog is
+          // fresh, without waiting for the overrides endpoint.
+          src={product.image ?? undefined}
           className="transition-transform duration-500 group-hover:scale-[1.04]"
         />
         <div className="absolute left-3 top-3 flex flex-col gap-1.5">

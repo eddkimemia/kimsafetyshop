@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createReview, getReviewByUserAndProduct, hasPurchasedProduct, listReviewsForProduct } from "@/lib/db";
 import { getSessionUser } from "@/lib/api-helpers";
 import { liveGetProduct } from "@/lib/catalog";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -25,6 +26,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const rl = rateLimit(req, "reviews", 5, 600000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
+
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Please sign in to leave a review" }, { status: 401 });
 

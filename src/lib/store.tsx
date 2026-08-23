@@ -32,6 +32,7 @@ type Store = {
   recentlyViewed: string[];
   noteRecentlyViewed: (productId: string) => void;
   refreshCatalog: () => Promise<void>;
+  delivery: { fee: number; threshold: number };
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -52,6 +53,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [compare, setCompare] = useState<string[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
   const [catalog, setCatalog] = useState<Product[]>([]);
+  // Delivery fee / free-shipping threshold come from admin settings; these
+  // defaults match the legacy hardcodes until the settings fetch lands.
+  const [delivery, setDelivery] = useState({ fee: 350, threshold: 10000 });
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -69,6 +73,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (Array.isArray(data?.products)) setCatalog(data.products);
       })
       .catch(() => setCatalog([]));
+    // Public settings endpoint — powers the delivery fee / free-shipping text.
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((j) => {
+        const fee = Number(j?.settings?.delivery_fee);
+        const threshold = Number(j?.settings?.free_delivery_threshold);
+        setDelivery({
+          fee: Number.isFinite(fee) && fee >= 0 ? fee : 350,
+          threshold: Number.isFinite(threshold) && threshold >= 0 ? threshold : 10000,
+        });
+      })
+      .catch(() => {});
   }, []);
 
   // Re-fetches the live catalog so cart/checkout prices reflect admin price
@@ -76,13 +92,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // mount — prices are never a snapshot taken at add-to-cart time.
   const refreshCatalog = useCallback(async () => {
     try {
-      const res = await fetch("/api/catalog");
+      const res = await fetch("/api/catalog", { cache: "no-store" });
       const data = await res.json();
       if (Array.isArray(data?.products)) setCatalog(data.products);
     } catch {
       /* keep the current catalog on failure */
     }
   }, []);
+
+  // Keeps listing pages (search/home/category carousels) honest while a visitor
+  // browses without a full reload: re-fetch when the tab is focused or becomes
+  // visible, and at a slow interval. The server caches /api/catalog for 5s, so
+  // this stays cheap while making admin price/image edits appear within a minute.
+  useEffect(() => {
+    let pending = false;
+    const sync = () => {
+      if (pending || document.visibilityState !== "visible") return;
+      pending = true;
+      refreshCatalog().finally(() => {
+        pending = false;
+      });
+    };
+    const onFocus = () => sync();
+    const iv = setInterval(sync, 60_000);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      clearInterval(iv);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [refreshCatalog]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -197,8 +237,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       recentlyViewed,
       noteRecentlyViewed,
       refreshCatalog,
+      delivery,
     }),
     [
+      delivery,
+
       cart,
       wishlist,
       compare,

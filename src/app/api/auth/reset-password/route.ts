@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { verifyResetToken } from "@/lib/reset-token";
 import { setUserPassword, getUserById } from "@/lib/db";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  const rl = rateLimit(req, "reset-password", 10, 3600000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
+
   let body: { token?: string; password?: string };
   try {
     body = await req.json();

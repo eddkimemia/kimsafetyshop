@@ -53,6 +53,10 @@ export function ProductDetail({
   const [tab, setTab] = useState("description");
   const [buyNowLoading, setBuyNowLoading] = useState(false);
   const [added, setAdded] = useState(false);
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifyLoading, setNotifyLoading] = useState(false);
+  const [notifyDone, setNotifyDone] = useState(false);
+  const [notifyError, setNotifyError] = useState<string | null>(null);
 
   // Re-sync with the live catalog on mount so admin price/stock/bulk edits show
   // up immediately, even while this page's server-rendered HTML is still from
@@ -76,12 +80,13 @@ export function ProductDetail({
   const activeTier = activeBulkTier(live, qty);
 
   const galleryVariants = useMemo(() => {
-    const main = productImageFor(product.sku);
+    // The live row's admin-edited image wins, then the overrides/static map.
+    const main = live.image || productImageFor(product.sku);
     const adminGallery = adminGalleries?.[product.sku] ?? [];
     const rest = adminGallery.length > 0 ? adminGallery : productGalleries[product.sku] ?? [];
     return [main, ...rest.filter((src) => src !== main)];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product, overrides, adminGalleries]);
+  }, [live, product, overrides, adminGalleries]);
 
   const [view, setView] = useState(0);
 
@@ -293,18 +298,71 @@ export function ProductDetail({
               </Button>
             </div>
 
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Button onClick={handleBuyNow} disabled={out} size="lg" variant="secondary">
-                <Zap className="h-4 w-4 text-safety-400" />
-                {buyNowLoading ? "Redirecting…" : "Buy Now"}
-              </Button>
-              <Link
-                href={`/quote?product=${product.id}`}
-                className="flex items-center justify-center gap-2 rounded-xl border border-line px-6 py-3.5 text-sm font-bold text-navy-900 transition-colors hover:bg-surface"
-              >
-                <ClipboardList className="h-4 w-4 text-safety-500" /> Request Quote
-              </Link>
-            </div>
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Button onClick={handleBuyNow} disabled={out} size="lg" variant="secondary">
+                  <Zap className="h-4 w-4 text-safety-400" />
+                  {buyNowLoading ? "Redirecting…" : "Buy Now"}
+                </Button>
+                <Link
+                  href={`/quote?product=${product.id}`}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-line px-6 py-3.5 text-sm font-bold text-navy-900 transition-colors hover:bg-surface"
+                >
+                  <ClipboardList className="h-4 w-4 text-safety-500" /> Request Quote
+                </Link>
+              </div>
+
+              {out && (
+                <div className="mt-4 rounded-xl border border-line bg-surface p-4">
+                  {notifyDone ? (
+                    <p className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
+                      <Check className="h-4 w-4" /> We&apos;ll email you the moment it&apos;s back.
+                    </p>
+                  ) : (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!notifyEmail.trim()) return;
+                        setNotifyLoading(true);
+                        fetch("/api/products/restock-notify", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ productId: product.id, email: notifyEmail.trim() }),
+                        })
+                          .then((r) => r.json())
+                          .then((j) => {
+                            if (j.error) throw new Error(j.error);
+                            setNotifyDone(true);
+                          })
+                          .catch(() => setNotifyError("Could not save your request — try again."))
+                          .finally(() => setNotifyLoading(false));
+                      }}
+                      className="space-y-2"
+                    >
+                      <label className="block text-xs font-bold text-navy-900">
+                        Out of stock — get notified when it&apos;s back
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="email"
+                          required
+                          placeholder="you@example.com"
+                          value={notifyEmail}
+                          onChange={(e) => setNotifyEmail(e.target.value)}
+                          className="min-w-0 flex-1 rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition-all focus:border-safety-400 focus:ring-4 focus:ring-safety-500/10"
+                        />
+                        <button
+                          type="submit"
+                          disabled={notifyLoading}
+                          className="shrink-0 rounded-lg bg-navy-900 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-safety-500 disabled:opacity-60"
+                        >
+                          {notifyLoading ? "Saving…" : "Notify me"}
+                        </button>
+                      </div>
+                      {notifyError && <p className="text-[11px] font-semibold text-danger">{notifyError}</p>}
+                    </form>
+                  )}
+                </div>
+              )}
 
             <div className="mt-3 flex items-center gap-3">
               <a

@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
-import { attachGuestOrdersToUser, createOrder, createNotification, getOrderById, ordersForUser, provisionUserLogin, subscribeNewsletter } from "@/lib/db";
+import { attachGuestOrdersToUser, createOrder, createNotification, getAllSettings, getOrderById, getSetting, ordersForUser, provisionUserLogin, subscribeNewsletter, adjustProductStock } from "@/lib/db";
+import { invalidateCatalogCache } from "@/lib/catalog";
 import { getSessionUser } from "@/lib/api-helpers";
 import { liveGetProduct } from "@/lib/catalog";
 import { bulkUnitPrice, formatKES } from "@/lib/utils";
 import { buildInvoicePdf } from "@/lib/invoice-pdf";
 import { sendOrderInvoiceEmail, sendNewOrderAlert } from "@/lib/mailer";
-import { getSetting } from "@/lib/db";
+
 import { randomBytes } from "crypto";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 export async function GET(req: Request) {
   const user = await getSessionUser();
@@ -15,13 +17,15 @@ export async function GET(req: Request) {
   const id = searchParams.get("id");
   const enrich = async (o: Awaited<ReturnType<typeof ordersForUser>>[number]) => ({
     ...o,
-    items: await Promise.all(JSON.parse(o.items).map(async (i: { productId: string; qty: number }) => {
+    items: await Promise.all(JSON.parse(o.items).map(async (i: { productId: string; qty: number; name?: string; price?: number }) => {
       const p = await liveGetProduct(i.productId);
       return {
         ...i,
-        name: p?.name ?? i.productId,
+        name: i.name || (p?.name ?? i.productId),
         sku: p?.sku,
-        price: p ? bulkUnitPrice(p, i.qty) : undefined,
+        // The stored purchase price is authoritative — history must not
+        // reprice when the admin later edits catalog prices.
+        price: typeof i.price === "number" && i.price > 0 ? i.price : p ? bulkUnitPrice(p, i.qty) : undefined,
         datasheetIndex: p?.downloads?.findIndex((d) => /datasheet/i.test(d.name || "")),
       };
     })),
@@ -50,12 +54,21 @@ async function computeTotals(items: OrderItem[]) {
     subtotal += unit * qty;
     discount += (old - unit) * qty;
   }
-  const shipping = items.length === 0 || subtotal <= 0 ? 0 : subtotal >= 10000 ? 0 : 350;
+  // Delivery fee + free-shipping threshold come from admin settings (defaults
+  // keep legacy behaviour when unset).
+  const s = await getAllSettings();
+  const fee = Math.max(0, Number(s.delivery_fee) || 0);
+  const threshold = Math.max(0, Number(s.free_delivery_threshold) || 0);
+  const freeShipping = threshold > 0 && subtotal >= threshold;
+  const shipping = items.length === 0 || subtotal <= 0 || freeShipping ? 0 : fee;
   discount = Math.max(0, Math.round(discount));
   return { subtotal: Math.round(subtotal), discount, shipping, total: Math.round(subtotal) + shipping };
 }
 
 export async function POST(req: Request) {
+  const rl = rateLimit(req, "orders", 10, 600000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
+
   let body: { name?: string; email?: string; phone?: string; address?: string; items?: unknown[]; total?: number; payment?: string; po_ref?: string; company?: string; po_file?: string; momo?: string; delivery_fee?: boolean; marketing_opt_in?: boolean; guest_password?: string; referral_code?: string };
   try {
     body = await req.json();
@@ -74,6 +87,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "One or more products could not be found" }, { status: 400 });
   }
   const totals = await computeTotals(items);
+  // Snapshot what each unit actually cost AT PURCHASE TIME (incl. bulk tier)
+  // into the stored line items. Invoices/receipts/order history render from
+  // these frozen prices — later admin price edits must never rewrite history.
+  // Client-supplied prices are ignored for the same reason totals are.
+  const pricedItems = await Promise.all(
+    items.map(async (i) => {
+      const qty = typeof i.qty === "number" && i.qty > 0 ? Math.floor(i.qty) : 0;
+      const p = await liveGetProduct(i.productId);
+      return {
+        productId: i.productId,
+        name: p?.name ?? i.productId,
+        qty,
+        price: p ? bulkUnitPrice(p, qty) : 0,
+      };
+    })
+  );
   const { subtotal, discount } = totals;
   let shipping = totals.shipping;
   let total = totals.total;
@@ -94,7 +123,7 @@ export async function POST(req: Request) {
     email: body.email,
     phone: body.phone,
     address: body.address,
-    items: JSON.stringify(items),
+    items: JSON.stringify(pricedItems),
     total,
     subtotal,
     discount,
@@ -110,6 +139,21 @@ export async function POST(req: Request) {
     // check its status without needing a login (works for guest checkout too).
     payment_token: randomBytes(24).toString("hex"),
   });
+
+  // Reserve inventory at order placement: decrement stock / increment sold
+  // per line. Stock floors at 0 (business prefers taking the order over
+  // rejecting it when two buyers race); admin restocks on cancellation.
+  // Failures are logged inside adjustProductStock and never fail the order.
+  await adjustProductStock(
+    pricedItems.map((i, idx) => ({
+      sku: i.productId,
+      qty: i.qty,
+      fallbackStock: found[idx]?.stock ?? 0,
+      fallbackSold: found[idx]?.sold ?? 0,
+      isSeed: Boolean(found[idx]?.id && !String(found[idx]?.id).startsWith("custom-")),
+    }))
+  );
+  invalidateCatalogCache();
 
   // Guest checkout extras — only for customers without an account:
   // 1. "Create an account" with a chosen password: provision the login and

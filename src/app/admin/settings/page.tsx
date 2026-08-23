@@ -217,6 +217,38 @@ export default function AdminSettingsPage() {
           </div>
         </div>
       </AdminCard>
+
+      <AdminCard title="Delivery" subtitle="Delivery fee and free-delivery threshold applied at checkout — changes take effect immediately for new orders">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="delivery_fee" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-400">
+              Delivery fee (KES)
+            </label>
+            <input
+              id="delivery_fee"
+              inputMode="numeric"
+              value={form.delivery_fee ?? ""}
+              onChange={(e) => set("delivery_fee", e.target.value.replace(/[^\d]/g, ""))}
+              className={field}
+              placeholder="350"
+            />
+          </div>
+          <div>
+            <label htmlFor="free_delivery_threshold" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-400">
+              Free delivery from (KES subtotal)
+            </label>
+            <input
+              id="free_delivery_threshold"
+              inputMode="numeric"
+              value={form.free_delivery_threshold ?? ""}
+              onChange={(e) => set("free_delivery_threshold", e.target.value.replace(/[^\d]/g, ""))}
+              className={field}
+              placeholder="10000"
+            />
+            <p className="mt-1 text-[11px] text-gray-400">Set 0 to disable free delivery.</p>
+          </div>
+        </div>
+      </AdminCard>
     </div>
   );
 }

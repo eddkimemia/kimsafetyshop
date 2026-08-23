@@ -4,6 +4,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, Clock, User, ClipboardList, TrendingUp, Tag } from "lucide-react";
 import { getPostBySlug, listPosts } from "@/lib/db";
+import { sanitizePostHtml } from "@/lib/blog";
 import { liveCatalog } from "@/lib/catalog";
 import { formatKES, discountPercent } from "@/lib/utils";
 import type { Product } from "@/lib/types";
@@ -145,7 +146,7 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
             )}
             <div
               className="blog-prose"
-              dangerouslySetInnerHTML={{ __html: post.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizePostHtml(post.content) }}
             />
             {!post.content && (
               <p className="py-10 text-center text-sm text-gray-400">This article has no body content yet.</p>

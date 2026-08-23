@@ -1166,6 +1166,66 @@ export async function deleteAdminProduct(sku: string) {
   await qe("DELETE FROM admin_products WHERE sku = ?", sku);
 }
 
+/**
+ * Records a sale: decrements `stock` (floored at 0) and increments `sold` for
+ * each line item. The JSON override row must exist with concrete numbers before
+ * the atomic UPDATE — for catalog products whose only stock lives in the seed
+ * file, a minimal override row is created from the caller-supplied fallbacks
+ * (the caller resolves them via the live catalog). The per-row UPDATE itself is
+ * atomic in Postgres, so concurrent orders can't lose counts.
+ */
+export async function adjustProductStock(
+  adjustments: { sku: string; qty: number; fallbackStock: number; fallbackSold: number; isSeed: boolean }[]
+) {
+  const changed: string[] = [];
+  for (const adj of adjustments) {
+    const qty = Math.floor(adj.qty);
+    if (!adj.sku || qty <= 0) continue;
+    try {
+      const existing = await getAdminProduct(adj.sku);
+      if (!existing) {
+        if (!adj.isSeed) continue; // custom product rows are always in the DB
+        // Minimal static override: mergedCatalog spreads these keys over the
+        // seed product, leaving every other field intact.
+        await upsertAdminProduct(adj.sku, {
+          sku: adj.sku,
+          static: true,
+          stock: Math.max(0, Number(adj.fallbackStock) || 0),
+          sold: Number(adj.fallbackSold) || 0,
+        });
+      } else if (typeof existing.stock !== "number") {
+        // Row exists (prior partial edit) but has no numeric stock — backfill
+        // it once from the live-catalog values the caller resolved.
+        await upsertAdminProduct(adj.sku, {
+          ...existing,
+          sku: adj.sku,
+          stock: Math.max(0, Number(adj.fallbackStock) || 0),
+          sold: Number(existing.sold ?? adj.fallbackSold) || 0,
+        });
+      }
+      await qe(
+        `UPDATE admin_products SET data = (
+           SELECT jsonb_set(jsonb_set(
+             data::jsonb,
+             '{stock}',
+             to_jsonb(GREATEST(0, COALESCE((data::jsonb->>'stock')::int, 0) - $2))
+           , '{sold}', to_jsonb(COALESCE((data::jsonb->>'sold')::int, 0) + $2))
+           )::text
+         ), updated_at = $3
+         WHERE sku = $1`,
+        adj.sku,
+        qty,
+        new Date().toISOString()
+      );
+      changed.push(adj.sku);
+    } catch (err) {
+      // Stock tracking must never fail an order that was already created.
+      console.error(`[db] stock adjust failed for ${adj.sku}:`, (err as Error).message);
+    }
+  }
+  return changed;
+}
+
 export async function listAdminGuides(): Promise<{ slug: string; data: unknown; updated_at: string }[]> {  return (await qr("SELECT * FROM admin_guides ORDER BY updated_at DESC")) as { slug: string; data: unknown; updated_at: string }[];
 }
 
@@ -1384,6 +1444,80 @@ let campaignsCache: { at: number; data: MarketingCampaign[] } | null = null;
 export function invalidateMarketingCache() {
   bannersCache = null;
   campaignsCache = null;
+}
+
+// ---- Abandoned-cart recovery & back-in-stock notifications ----
+
+export type DbAbandonedCart = {
+  id: string;
+  email: string;
+  name: string;
+  phone: string;
+  items: string;
+  updated_at: string;
+  reminded_at: string | null;
+};
+
+/** Upserts the cart snapshot captured when a shopper fills in checkout details. */
+export async function upsertAbandonedCart(input: { email: string; name?: string; phone?: string; items: unknown[] }): Promise<void> {
+  const existing = (await q1("SELECT id FROM abandoned_carts WHERE email = ?", input.email)) as { id: string } | undefined;
+  const items = JSON.stringify(input.items ?? []);
+  if (!input.items?.length) {
+    // Empty cart = they ordered or cleared it — stop tracking.
+    await qe("DELETE FROM abandoned_carts WHERE email = ?", input.email);
+    return;
+  }
+  if (existing) {
+    await qe("UPDATE abandoned_carts SET name = ?, phone = ?, items = ?, updated_at = ? WHERE email = ?", input.name ?? "", input.phone ?? "", items, new Date().toISOString(), input.email);
+    return;
+  }
+  await qe(
+    "INSERT INTO abandoned_carts (id, email, name, phone, items, updated_at, reminded_at) VALUES (?, ?, ?, ?, ?, ?, NULL)",
+    randomUUID(),
+    input.email,
+    input.name ?? "",
+    input.phone ?? "",
+    items,
+    new Date().toISOString()
+  );
+}
+
+/** Carts idle for at least `olderThanMs`, not yet reminded. */
+export async function listAbandonedCartsToRemind(olderThanMs: number): Promise<DbAbandonedCart[]> {
+  const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  return (await qr(
+    "SELECT * FROM abandoned_carts WHERE reminded_at IS NULL AND updated_at < ? ORDER BY updated_at ASC LIMIT 200",
+    cutoff
+  )) as DbAbandonedCart[];
+}
+
+export async function markAbandonedCartReminded(id: string) {
+  await qe("UPDATE abandoned_carts SET reminded_at = ? WHERE id = ?", new Date().toISOString(), id);
+}
+
+/** Adds a back-in-stock request; duplicate (product,email) pairs are ignored. */
+export async function addRestockRequest(productId: string, email: string): Promise<void> {
+  await qe(
+    "INSERT INTO restock_notifications (id, product_id, email, notified, created_at) VALUES (?, ?, ?, 0, ?) ON CONFLICT (product_id, email) DO NOTHING",
+    randomUUID(),
+    productId,
+    email,
+    new Date().toISOString()
+  );
+}
+
+/** Pending (not-yet-notified) requests for one product. */
+export async function listPendingRestockRequests(productId: string): Promise<{ id: string; email: string }[]> {
+  return (await qr(
+    "SELECT id, email FROM restock_notifications WHERE product_id = ? AND notified = 0",
+    productId
+  )) as { id: string; email: string }[];
+}
+
+export async function markRestockNotified(ids: string[]) {
+  for (const id of ids) {
+    await qe("UPDATE restock_notifications SET notified = 1 WHERE id = ?", id);
+  }
 }
 
 // ---- Addresses ----
@@ -1669,7 +1803,14 @@ export async function createReview(input: {
   return review;
 }
 
-export async function updateReview(id: string, patch: Partial<Pick<DbReview, "rating" | "title" | "text" | "status" | "verified" | "helpful">>) {  const sets = Object.entries(patch).map(([k]) => `${k} = @${k}`);
+const REVIEW_COLUMNS = new Set(["rating", "title", "text", "status", "verified", "helpful"]);
+
+export async function updateReview(id: string, patch: Partial<Pick<DbReview, "rating" | "title" | "text" | "status" | "verified" | "helpful">>) {
+  // Column names are interpolated into the SQL text, so they MUST come from
+  // this fixed allowlist — never from raw object keys.
+  const sets = Object.entries(patch)
+    .filter(([k]) => REVIEW_COLUMNS.has(k))
+    .map(([k]) => `${k} = @${k}`);
   if (sets.length === 0) return;
   await qe(`UPDATE reviews SET ${sets.join(", ")} WHERE id = @id`, { ...patch, id } as Record<string, unknown>);
 }

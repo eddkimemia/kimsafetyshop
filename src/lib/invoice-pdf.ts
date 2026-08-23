@@ -64,10 +64,17 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
     website: FALLBACK_COMPANY.website,
   };
 
-  const items = JSON.parse(order.items) as { productId: string; qty: number; price?: number }[];
+  const items = JSON.parse(order.items) as { productId: string; qty: number; name?: string; price?: number }[];
+  // An invoice is a historical financial document: it must show the price the
+  // customer actually paid (captured on the order), never today's catalog
+  // price — otherwise an admin price edit would silently rewrite old invoices
+  // so their lines no longer sum to the stored total.
   const rows = (await Promise.all(items.map(async (i) => {
+      if (typeof i.price === "number" && i.price > 0) {
+        return { name: i.name || i.productId, qty: i.qty, price: i.price };
+      }
       const p = await liveGetProduct(i.productId);
-      return { name: p?.name ?? i.productId, qty: i.qty, price: p ? bulkUnitPrice(p, i.qty) : (i.price ?? 0) };
+      return { name: i.name || (p?.name ?? i.productId), qty: i.qty, price: p ? bulkUnitPrice(p, i.qty) : (i.price ?? 0) };
     }))).filter((r) => r.qty > 0);
 
   const doc = new PDFDocument({

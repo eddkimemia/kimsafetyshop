@@ -38,10 +38,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const order = await getOrderById(params.id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-  const items = JSON.parse(order.items) as { productId: string; qty: number; price?: number }[];
+  const items = JSON.parse(order.items) as { productId: string; qty: number; name?: string; price?: number }[];
   const rows = (await Promise.all(items.map(async (i) => {
       const p = await liveGetProduct(i.productId);
-      return { name: p?.name ?? i.productId, qty: i.qty };
+      return { name: i.name || (p?.name ?? i.productId), qty: i.qty };
     })))
     .filter((r) => r.qty > 0);
 

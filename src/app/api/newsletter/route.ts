@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { subscribeNewsletter } from "@/lib/db";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  const rl = rateLimit(req, "newsletter", 5, 60000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
+
   let body: { email?: string; name?: string; source?: string };
   try {
     body = await req.json();

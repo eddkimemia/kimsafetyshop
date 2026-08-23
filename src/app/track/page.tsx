@@ -182,7 +182,7 @@ function TrackInner() {
 
             <div className="flex flex-wrap justify-center gap-3">
               <a
-                href={`/api/orders/${encodeURIComponent(info.orderId)}/invoice`}
+                href={`/api/orders/${encodeURIComponent(info.orderId)}/invoice?token=${encodeURIComponent(token)}`}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-4 py-2 text-xs font-bold text-navy-900 hover:bg-surface"
               >
                 <Download className="h-3.5 w-3.5" /> Download Invoice

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createProductQuestion, listQuestionsForProduct } from "@/lib/db";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const rl = rateLimit(req, "questions", 5, 600000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
+
   let body: { product_id?: string; name?: string; email?: string; question?: string };
   try {
     body = await req.json();

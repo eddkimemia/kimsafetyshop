@@ -52,8 +52,9 @@ export async function GET(req: Request) {
   const nameOf = (productId: string) => catalog.find((p) => p.id === productId)?.name ?? productId;
 
   const rows = orders.map((o) => {
-    const items = JSON.parse(o.items) as { productId: string; qty: number }[];
-    const summary = items.filter((i) => i.qty > 0).map((i) => `${i.qty}× ${nameOf(i.productId)}`).join(", ");
+    const items = JSON.parse(o.items) as { productId: string; qty: number; name?: string }[];
+    // Prefer the item name captured on the order; live catalog is a fallback.
+    const summary = items.filter((i) => i.qty > 0).map((i) => `${i.qty}× ${i.name || nameOf(i.productId)}`).join(", ");
     return {
       "Order": o.id,
       "Date (EAT)": kenyaTimestamp(o.created_at),

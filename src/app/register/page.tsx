@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { Building2, Eye, EyeOff, Loader2, Lock, Mail, Phone, User, Gift } from "lucide-react";
+import { Building2, Eye, EyeOff, Loader2, Lock, Mail, MailCheck, Phone, User, Gift } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { useSettings } from "@/lib/settings";
@@ -37,6 +37,8 @@ function RegisterInner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [created, setCreated] = useState(false);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -53,9 +55,50 @@ function RegisterInner() {
       return;
     }
     await signIn("credentials", { email: form.email, password: form.password, redirect: false });
-    router.push("/account");
-    router.refresh();
+    // Show a "verify your email" step before entering the account.
+    setCreated(true);
+    setLoading(false);
   };
+
+  if (created) {
+    return (
+      <div className="bg-surface pb-20">
+        <PageHeader
+          bg="/images/hero/hero2.jpg"
+          eyebrow="Join KimSafety"
+          title="Check Your Email"
+          subtitle="One quick click and your account is fully active."
+        />
+        <div className="mx-auto max-w-shell px-4 pt-8 lg:px-8">
+          <div className="mx-auto w-full max-w-md">
+            <div className="rounded-3xl border border-line bg-white p-8 text-center shadow-card">
+              <span className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50">
+                <MailCheck className="h-6 w-6 text-emerald-600" />
+              </span>
+              <h1 className="font-display text-2xl font-extrabold text-navy-900">Verify your email</h1>
+              <p className="mt-2 text-sm text-gray-500">
+                We sent a verification link to <strong className="text-navy-900">{form.email}</strong>. Tap it to
+                activate your account — the link expires in 48 hours.
+              </p>
+              <p className="mt-3 rounded-xl bg-surface px-4 py-3 text-xs leading-relaxed text-gray-500">
+                Didn&apos;t get it? Check your spam folder, or contact us on WhatsApp and we&apos;ll verify you
+                manually.
+              </p>
+              <button
+                onClick={() => {
+                  router.push("/account");
+                  router.refresh();
+                }}
+                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-navy-900 text-sm font-bold text-white transition-colors hover:bg-safety-500"
+              >
+                Continue to your account
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-surface pb-20">

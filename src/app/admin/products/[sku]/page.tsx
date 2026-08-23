@@ -302,7 +302,9 @@ export default function AdminProductEditPage() {
             previewSrc={previewSrc}
             gallery={form.gallery ?? []}
             onPick={(path) => set({ image: path })}
-            onClear={() => set({ image: undefined })}
+            // "" (not undefined) so the clear actually persists: JSON.stringify
+            // drops undefined keys and the API merge would keep the old image.
+            onClear={() => set({ image: "" })}
             onGalleryChange={(gallery) => set({ gallery })}
           />
 

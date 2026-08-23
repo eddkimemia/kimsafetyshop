@@ -3,11 +3,15 @@ import { getUserByEmail } from "@/lib/db";
 import { createResetToken } from "@/lib/reset-token";
 import { sendPasswordResetEmail } from "@/lib/mailer";
 import { siteUrl } from "@/lib/site";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 /** Requests a reset link for any account (customer or staff). Always responds OK to avoid leaking which emails exist. */
 export async function POST(req: Request) {
+  const rl = rateLimit(req, "forgot-password", 3, 900000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
+
   let body: { email?: string };
   try {
     body = await req.json();

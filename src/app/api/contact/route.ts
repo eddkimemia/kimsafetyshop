@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { createContactMessage, getSetting } from "@/lib/db";
 import { sendContactAlert } from "@/lib/mailer";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  const rl = rateLimit(req, "contact", 5, 600000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
+
   let body: { name?: string; email?: string; phone?: string; topic?: string; message?: string };
   try {
     body = await req.json();

@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { createUser, getUserByEmail, q1 } from "@/lib/db";
-import { sendWelcomeEmail } from "@/lib/mailer";
+import { sendVerificationEmail } from "@/lib/mailer";
+import { createVerifyToken } from "@/lib/reset-token";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
+  const rl = rateLimit(req, "register", 5, 600000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
+
   let body: { name?: string; email?: string; password?: string; company?: string; phone?: string; referral?: string };
   try {
     body = await req.json();
@@ -47,13 +52,15 @@ export async function POST(req: Request) {
     referred_by: referredBy,
   });
 
-  // Best-effort welcome email — never blocks registration when SMTP is unset.
-  // Awaited (not fire-and-forget): on Vercel serverless the event loop freezes
-  // the moment the handler returns, and un-awaited SMTP sends never complete.
+  // Email verification: the account starts unverified (verified = 0) and the
+  // customer activates it via the signed link. Best-effort — never blocks
+  // registration when SMTP is unset. Awaited (not fire-and-forget): on Vercel
+  // serverless the event loop freezes when the handler returns, and an
+  // un-awaited SMTP send never completes.
   try {
-    await sendWelcomeEmail({ to: email, name });
+    await sendVerificationEmail({ to: email, name, token: createVerifyToken(user.id) });
   } catch (err) {
-    console.error("[register] welcome email failed:", err);
+    console.error("[register] verification email failed:", err);
   }
 
   return NextResponse.json(
