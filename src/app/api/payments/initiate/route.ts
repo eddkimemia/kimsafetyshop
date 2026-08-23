@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOrderById, setMpesaCheckout, setPaystackReference, recordMpesaPushAttempt, recordMpesaResult } from "@/lib/db";
 import { getSessionUser } from "@/lib/api-helpers";
-import { mpesaStkPush, MPESA_COOLDOWN_MS, MPESA_MAX_ATTEMPTS } from "@/lib/payments/mpesa";
+import { mpesaStkPush, mpesaCallbackUrl, MPESA_COOLDOWN_MS, MPESA_MAX_ATTEMPTS } from "@/lib/payments/mpesa";
 import { paystackInitialize } from "@/lib/payments/paystack";
 import { siteUrl } from "@/lib/site";
 
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
         phone: order.payment_phone,
         amount: order.total,
         accountRef: order.id,
-        callbackUrl: `${siteUrl}/api/payments/mpesa/callback`,
+        callbackUrl: mpesaCallbackUrl(siteUrl),
       });
       await setMpesaCheckout(order.id, checkoutId, merchantId);
       await recordMpesaPushAttempt(order.id);

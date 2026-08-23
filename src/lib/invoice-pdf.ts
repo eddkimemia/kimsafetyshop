@@ -330,10 +330,10 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
     );
   ty += 18;
 
-  // ---- HOW TO PAY (unpaid invoices only) ----
-  // Clients without a payment link (or whose STK push expired) can pay the
-  // invoice manually via the KimSafety M-Pesa Buy Goods till and quote the
-  // invoice number.
+  // ---- Manual payment fallback (unpaid invoices only) ----
+  // Shown ONLY on unpaid invoices: if the M-Pesa STK push or card checkout
+  // failed, the client can still settle the invoice manually via the Buy
+  // Goods till and quote the invoice number.
   if (!paid) {
     const till = s.mpesa_till || "4178866";
     const boxH = 64;
@@ -347,16 +347,16 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
       .font("Helvetica-Bold")
       .fontSize(9.5)
       .fillColor(NAVY)
-      .text("HOW TO PAY THIS INVOICE", padL + 14, ty + 8, { width: padR - padL - 28 });
+      .text("COULDN'T PAY ONLINE? MANUAL M-PESA FALLBACK", padL + 14, ty + 8, { width: padR - padL - 28 });
     doc
       .font("Helvetica")
       .fontSize(8.5)
       .fillColor("#374151")
       .text(
         [
-          `1. Go to M-PESA on your phone  →  Lipa na M-Pesa  →  Buy Goods and Services.`,
-          `2. Till Number: ${till}  (KimSafety Ltd)  ·  Amount: ${fmt(order.total)}.`,
-          `3. Enter the invoice number "${order.id}" as the account/reference, then send us the confirmation SMS.`,
+          `If the M-Pesa prompt or card checkout failed or expired, pay manually instead:`,
+          `M-PESA  →  Lipa na M-Pesa  →  Buy Goods and Services  →  Till Number ${till} (KimSafety Ltd)  ·  Amount: ${fmt(order.total)}.`,
+          `Enter "${order.id}" as the account/reference, then send us the confirmation SMS — we'll confirm and dispatch.`,
         ].join("\n"),
         padL + 14,
         ty + 22,

@@ -82,6 +82,17 @@ export function normalizeMpesaPhone(phone: string): string {
   return p;
 }
 
+/**
+ * The callback URL used for STK pushes. Taken from MPESA_CALLBACK_URL when set
+ * (env is the source of truth — e.g. an ngrok tunnel in local dev or a
+ * dedicated callback host), otherwise derived from the site URL:
+ *   <siteUrl>/api/payments/mpesa/callback
+ */
+export function mpesaCallbackUrl(siteUrlFallback: string): string {
+  const fromEnv = process.env.MPESA_CALLBACK_URL?.trim();
+  return fromEnv || `${siteUrlFallback}/api/payments/mpesa/callback`;
+}
+
 export async function mpesaStkPush(input: {
   phone: string;
   amount: number;

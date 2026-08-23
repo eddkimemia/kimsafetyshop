@@ -209,10 +209,10 @@ export default function AdminSettingsPage() {
             <Smartphone className="mt-2.5 h-4 w-4 shrink-0 text-safety-600" />
             <div className="flex-1">
               <label htmlFor="mpesa_till" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                M-Pesa Till Number (manual payments)
+                M-Pesa Till Number (manual fallback payments)
               </label>
               <input id="mpesa_till" value={form.mpesa_till ?? ""} onChange={(e) => set("mpesa_till", e.target.value.replace(/\D/g, ""))} className={field} />
-              <p className="mt-1 text-[11px] text-gray-400">Printed on unpaid invoice PDFs and order emails so clients can pay via M-Pesa Buy Goods.</p>
+              <p className="mt-1 text-[11px] text-gray-400">Backup manual payment — printed on unpaid invoices only, for clients whose M-Pesa STK push or card (Paystack) checkout failed.</p>
             </div>
           </div>
         </div>

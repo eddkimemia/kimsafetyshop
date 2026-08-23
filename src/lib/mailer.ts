@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { siteUrl } from "@/lib/site";
 import { getAllSettings } from "@/lib/db";
+import { readLogoBytes } from "@/lib/logo";
 import { liveGetProduct } from "@/lib/catalog";
 import { bulkUnitPrice } from "@/lib/utils";
 import { buildInvoicePdf } from "@/lib/invoice-pdf";
@@ -40,6 +41,60 @@ function createTransporter(cfg: SmtpConfig): Transporter {
     port: cfg.port,
     secure: cfg.secure,
     auth: { user: cfg.user, pass: cfg.pass },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Inline logo — embedded into every branded email as a CID attachment.
+//
+// Remote <img src="https://…"> headers silently render blank in many clients
+// (Gmail/Outlook proxy blocks, corporate filters, or when the site is briefly
+// unreachable). Embedding the logo bytes as an inline attachment is the only
+// method that renders reliably everywhere, and it always uses the CURRENT
+// admin-configured logo (fresh bytes on cache expiry).
+// ---------------------------------------------------------------------------
+
+const LOGO_CID = "kimsafety-logo";
+let logoAttachmentCache: { at: number; att: { filename: string; content: Buffer; cid: string; contentType: string } } | null = null;
+
+async function getLogoAttachment() {
+  if (logoAttachmentCache && Date.now() - logoAttachmentCache.at < 5 * 60 * 1000) return logoAttachmentCache.att;
+  let buf: Buffer | undefined;
+  try {
+    const s = await getAllSettings();
+    buf = await readLogoBytes(s.logo);
+  } catch {
+    buf = undefined;
+  }
+  const ext = (() => {
+    const b = buf;
+    if (!b || b.length < 4) return "png";
+    if (b[0] === 0xff && b[1] === 0xd8) return "jpg";
+    if (b[0] === 0x89 && b[1] === 0x50) return "png";
+    if (b.toString("ascii", 0, 4) === "RIFF") return "webp";
+    return "jpg";
+  })();
+  const att = {
+    filename: `logo.${ext}`,
+    content: buf ?? Buffer.alloc(0),
+    cid: LOGO_CID,
+    contentType: ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg",
+  };
+  logoAttachmentCache = { at: Date.now(), att };
+  return att;
+}
+
+/**
+ * Sends mail with the branded logo attached inline. Every HTML email rendered
+ * by renderShell references src="cid:kimsafety-logo"; without the attachment
+ * the header logo would be blank.
+ */
+async function sendBrandedMail(cfg: SmtpConfig, mail: nodemailer.SendMailOptions) {
+  const logo = await getLogoAttachment();
+  const transporter = createTransporter(cfg);
+  return transporter.sendMail({
+    ...mail,
+    attachments: [logo, ...((mail.attachments as nodemailer.SendMailOptions["attachments"]) ?? [])],
   });
 }
 
@@ -101,7 +156,7 @@ function renderShell(brand: Brand, body: string): string {
     <div style="max-width:600px;margin:0 auto;">
       <div style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
         <div style="background:${NAVY};text-align:center;padding:26px 24px 20px;">
-          <img src="${brand.logo}" alt="${esc(brand.site_name)}" style="height:52px;max-width:240px;object-fit:contain;" />
+          <img src="cid:kimsafety-logo" alt="${esc(brand.site_name)}" style="height:52px;max-width:240px;object-fit:contain;" />
           <div style="font-size:11px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;color:#93a5be;margin-top:10px;">${esc(brand.tagline)}</div>
           <div style="width:56px;height:4px;background:${SAFETY};margin:14px auto 0;border-radius:2px;"></div>
         </div>
@@ -224,7 +279,7 @@ export async function sendTestEmail(input: { to: string }): Promise<boolean> {
   const cfg = await getSmtpConfig();
   if (!cfg || !isSmtpConfigured(cfg)) return false;
   const brand = await getBrand();
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to: input.to,
     subject: "KimSafety — SMTP test",
@@ -247,7 +302,7 @@ export async function sendWelcomeEmail(input: { to: string; name?: string | null
   if (!cfg || !isSmtpConfigured(cfg)) return false;
   const brand = await getBrand();
   const firstName = (input.name ?? "").split(" ")[0] || "there";
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to: input.to,
     subject: "Welcome to KimSafety — your account is ready",
@@ -290,7 +345,7 @@ export async function sendCorporateWelcomeEmail(input: {
   const passwordNote = tempPassword
     ? `<p style="font-size:13px;line-height:1.7;color:#374151;margin:0 0 14px 0;">Your temporary password is <strong style="font-family:monospace;background:#f1f5f9;color:${NAVY};padding:3px 10px;border-radius:6px;font-size:14px;">${esc(tempPassword)}</strong> — you'll be asked to change it on your first sign-in.</p>`
     : "";
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `Your ${company} corporate account with KimSafety is active`,
@@ -322,7 +377,7 @@ export async function sendQuoteConfirmationEmail(input: {
   const brand = await getBrand();
   const { to, name, quoteId, total } = input;
   const firstName = (name ?? "").split(" ")[0] || "there";
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `Quote request ${quoteId} received — KimSafety`,
@@ -355,9 +410,8 @@ export async function sendPasswordResetEmail(input: {
   const brand = await getBrand();
 
   const { to, name, resetUrl } = input;
-  const transporter = createTransporter(cfg);
   const firstName = (name ?? "").split(" ")[0] || "there";
-  await transporter.sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: "Reset your KimSafety password",
@@ -400,7 +454,6 @@ export async function sendOrderInvoiceEmail(input: {
   const brand = await getBrand();
 
   const { to, orderId, orderTotal, pdf, name, phone, address, company, items, payment, paid, status, payment_token } = input;
-  const transporter = createTransporter(cfg);
   const trackUrl = payment_token
     ? `${siteUrl}/track?id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(payment_token)}`
     : `${siteUrl}/account/orders`;
@@ -430,9 +483,9 @@ export async function sendOrderInvoiceEmail(input: {
   const unpaidNote =
     paid === 1
       ? ""
-      : `<p style="font-size:12px;color:${GRAY};margin:12px 0 0 0;text-align:center;">Payment: ${esc(paymentLabel[payment] ?? payment)} — or pay manually via M-Pesa <strong>Buy Goods · Till ${esc(till)}</strong> using your order number as the reference. Your invoice PDF shows the full details.</p>`;
+      : `<p style="font-size:12px;color:${GRAY};margin:12px 0 0 0;text-align:center;">Payment: ${esc(paymentLabel[payment] ?? payment)}. If the M-Pesa prompt or card checkout fails, pay manually via <strong>M-Pesa Buy Goods · Till ${esc(till)}</strong> (KimSafety Ltd) using your order number as the reference, then send us the confirmation SMS. Details are on the attached invoice.</p>`;
 
-  await transporter.sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `Order confirmed — ${orderId} · KES ${Math.round(orderTotal).toLocaleString("en-KE")}`,
@@ -524,7 +577,6 @@ export async function sendPaidInvoiceEmail(input: {
       : null;
   const pdf = await buildInvoicePdf({ ...input, paid: 1 });
   const receiptPdf = await buildReceiptPdf(input);
-  const transporter = createTransporter(cfg);
 
   const paymentLabel: Record<string, string> = {
     mpesa: "M-Pesa",
@@ -545,7 +597,7 @@ export async function sendPaidInvoiceEmail(input: {
     )
     .join("");
 
-  await transporter.sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to: email,
     subject: `Payment received — ${orderId} · KES ${Math.round(input.total).toLocaleString("en-KE")}`,
@@ -601,7 +653,7 @@ export async function sendNewOrderAlert(input: {
   if (!cfg || !isSmtpConfigured(cfg)) return false;
   const brand = await getBrand();
   const { to, orderId, orderTotal, customer, company, payment } = input;
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `New order ${orderId} — KES ${Math.round(orderTotal).toLocaleString("en-KE")}`,
@@ -634,7 +686,7 @@ export async function sendNewQuoteAlert(input: {
   if (!cfg || !isSmtpConfigured(cfg)) return false;
   const brand = await getBrand();
   const { to, quoteId, total, customer, company } = input;
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `New quote request ${quoteId} — KES ${Math.round(total).toLocaleString("en-KE")}`,
@@ -667,7 +719,7 @@ export async function sendContactAlert(input: {
   if (!cfg || !isSmtpConfigured(cfg)) return false;
   const brand = await getBrand();
   const { to, name, email, phone, topic, message } = input;
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `New contact message — ${topic}`,
@@ -698,7 +750,7 @@ export async function sendNewTicketAlert(input: {
   if (!cfg || !isSmtpConfigured(cfg)) return false;
   const brand = await getBrand();
   const { to, ticketId, subject, customer } = input;
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `New support ticket ${ticketId} — ${subject}`,
@@ -728,7 +780,7 @@ export async function sendTicketReplyEmail(input: {
   const brand = await getBrand();
   const { to, name, ticketId, message, staffName } = input;
   const firstName = (name ?? "").split(" ")[0] || "there";
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `Re: your support ticket ${ticketId} — KimSafety`,
@@ -762,7 +814,7 @@ export async function sendNewReturnAlert(input: {
   if (!cfg || !isSmtpConfigured(cfg)) return false;
   const brand = await getBrand();
   const { to, returnId, customer, orderId, productName, reason } = input;
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `New return request ${returnId}`,
@@ -796,7 +848,7 @@ export async function sendReturnStatusEmail(input: {
   const brand = await getBrand();
   const { to, name, returnId, status } = input;
   const firstName = (name ?? "").split(" ")[0] || "there";
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `Return ${returnId} is now "${status}" — KimSafety`,
@@ -825,7 +877,7 @@ export async function sendNewPOAlert(input: {
   if (!cfg || !isSmtpConfigured(cfg)) return false;
   const brand = await getBrand();
   const { to, poId, company, contact } = input;
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `New purchase order ${poId} — ${company}`,
@@ -855,7 +907,7 @@ export async function sendNewCorporateApplicationAlert(input: {
   if (!cfg || !isSmtpConfigured(cfg)) return false;
   const brand = await getBrand();
   const { to, company, contact } = input;
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `New corporate application — ${company}`,
@@ -883,7 +935,7 @@ export async function sendCorporateApplicationConfirmation(input: {
   const brand = await getBrand();
   const { to, name, company } = input;
   const firstName = (name ?? "").split(" ")[0] || "there";
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `We received your ${company} corporate application — KimSafety`,
@@ -913,7 +965,7 @@ export async function sendOrderStatusEmail(input: {
   const brand = await getBrand();
   const { to, name, orderId, status, orderTotal } = input;
   const firstName = (name ?? "").split(" ")[0] || "there";
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `Your order ${orderId} is now "${status}" — KimSafety`,
@@ -946,7 +998,7 @@ export async function sendQuoteStatusEmail(input: {
   const brand = await getBrand();
   const { to, name, quoteId, status } = input;
   const firstName = (name ?? "").split(" ")[0] || "there";
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `Your quote ${quoteId} is now "${status}" — KimSafety`,
@@ -1006,7 +1058,7 @@ export async function sendDailyOrdersEmail(input: {
   const brand = await getBrand();
   const { to, dateLabel, orderCount, paidCount, revenue, xlsx } = input;
   const pending = orderCount - paidCount;
-  await createTransporter(cfg).sendMail({
+  await sendBrandedMail(cfg, {
     from: cfg.from,
     to,
     subject: `Daily orders — ${dateLabel} · ${orderCount} order${orderCount === 1 ? "" : "s"} · ${money(revenue)}`,
@@ -1039,7 +1091,6 @@ export async function sendNewsletterBroadcast(input: {
   cfg: SmtpConfig;
 }): Promise<{ sent: number; failed: number }> {
   const { subject, html, to, cfg } = input;
-  const transporter = createTransporter(cfg);
 
   let sent = 0;
   let failed = 0;
@@ -1048,7 +1099,7 @@ export async function sendNewsletterBroadcast(input: {
     const batch = to.slice(i, i + batchSize);
     const results = await Promise.allSettled(
       batch.map(async (recipient) => {
-        await transporter.sendMail({
+        await sendBrandedMail(cfg, {
           from: cfg.from,
           to: recipient.email,
           subject,

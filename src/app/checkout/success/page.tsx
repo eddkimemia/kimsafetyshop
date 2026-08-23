@@ -28,9 +28,9 @@ function CheckoutSuccessInner() {
 
   useEffect(() => {
     let cancelled = false;
-    const run = async () => {
-      // Card payment returning from Paystack: verify the transaction first.
-      if (reference && orderId && token) {
+    // Card payment returning from Paystack: verify the transaction first.
+    if (reference && orderId && token) {
+      (async () => {
         try {
           const res = await fetch("/api/payments/paystack/verify", {
             method: "POST",
@@ -51,34 +51,43 @@ function CheckoutSuccessInner() {
               /* non-fatal */
             }
           }
-          return;
         } catch (err) {
           if (!cancelled) {
             setStatus("error");
             setMessage(err instanceof Error ? err.message : "We could not verify your payment. Contact us on WhatsApp if it was deducted.");
           }
-          return;
         }
-      }
-      if (orderId && token) {
-        try {
-          const r = await fetch(`/api/orders/status?orderId=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`);
-          const j = await r.json();
-          if (!cancelled) {
-            setStatus(j.paid === 1 ? "paid" : "pending");
-            setPayment(j.payment ?? null);
-          }
-        } catch {
-          if (!cancelled) {
-            setStatus("error");
-            setMessage("We could not load your order. Check your email for the confirmation.");
-          }
-        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    // M-Pesa: the confirmation arrives asynchronously via the Safaricom
+    // callback, so POLL the order status until it flips to paid (or ~3 min).
+    // Previously this ran once — a successful payment was never reflected
+    // without a manual refresh.
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let attempts = 0;
+    const poll = async () => {
+      if (!orderId || !token) return;
+      attempts++;
+      try {
+        const r = await fetch(`/api/orders/status?orderId=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`, { cache: "no-store" });
+        const j = await r.json();
+        if (cancelled) return;
+        setStatus(j.paid === 1 ? "paid" : "pending");
+        setPayment(j.payment ?? null);
+        if ((j.paid === 1 || attempts > 36) && timer) clearInterval(timer);
+      } catch {
+        /* transient network error — keep polling */
       }
     };
-    run();
+    poll();
+    timer = setInterval(poll, 5000);
     return () => {
       cancelled = true;
+      if (timer) clearInterval(timer);
     };
   }, [orderId, token, reference]);
 
