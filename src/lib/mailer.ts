@@ -675,12 +675,12 @@ export async function sendPaidInvoiceEmail(input: {
   const trackUrl = payment_token
     ? `${siteUrl}/track?id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(payment_token)}`
     : `${siteUrl}/account/orders`;
-  // Reference chain matches the PDF builders: Safaricom receipt, else the STK
-  // CheckoutRequestID (status-query fallback), Paystack ref, PO ref.
+  // Reference chain matches the PDF builders: M-Pesa transaction code,
+  // Paystack reference, or PO ref — no synthetic fallbacks.
   const txnId =
     input.paid === 1
       ? payment === "mpesa"
-        ? input.mpesa_transaction_id || (input.mpesa_checkout_id ? `STK ${input.mpesa_checkout_id}` : null)
+        ? input.mpesa_transaction_id
         : payment === "card"
           ? input.paystack_reference
           : payment === "po"

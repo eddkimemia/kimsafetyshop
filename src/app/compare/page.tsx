@@ -81,7 +81,7 @@ export default function ComparePage() {
                     <X className="h-3 w-3" /> Remove
                   </button>
                   <div className="overflow-hidden rounded-xl">
-                    <ProductArt tags={p!.tags} categoryName={p!.categoryName} brand={p!.brand} sku={p!.sku} name={p!.name} className="aspect-video" />
+                    <ProductArt tags={p!.tags} categoryName={p!.categoryName} brand={p!.brand} sku={p!.sku} name={p!.name} className="aspect-video" src={(p!).image || undefined} />
                   </div>
                   <Link href={`/product/${p!.slug}`} className="mt-2 block font-display text-sm font-extrabold leading-snug text-navy-900 hover:text-safety-600">
                     {p!.name}

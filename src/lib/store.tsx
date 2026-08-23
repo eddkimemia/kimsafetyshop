@@ -67,7 +67,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    fetch("/api/catalog")
+    fetch("/api/catalog", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data?.products)) setCatalog(data.products);

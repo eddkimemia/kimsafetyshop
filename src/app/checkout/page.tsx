@@ -799,7 +799,7 @@ export default function CheckoutPage() {
                 {summaryItems.map(({ product, qty }) => (
                   <li key={product!.id} className="flex items-center gap-3">
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
-                      <ProductArt tags={product!.tags} categoryName={product!.categoryName} brand={product!.brand} sku={product!.sku} name={product!.name} className="h-full w-full" />
+                      <ProductArt tags={product!.tags} categoryName={product!.categoryName} brand={product!.brand} sku={product!.sku} name={product!.name} className="h-full w-full" src={(product!).image || undefined} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-navy-900">{product!.name}</p>
@@ -852,7 +852,7 @@ export default function CheckoutPage() {
             {summaryItems.map(({ product, qty }) => (
               <li key={product!.id} className="flex items-center gap-3">
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
-                  <ProductArt tags={product!.tags} categoryName={product!.categoryName} brand={product!.brand} sku={product!.sku} name={product!.name} className="h-full w-full" />
+                  <ProductArt tags={product!.tags} categoryName={product!.categoryName} brand={product!.brand} sku={product!.sku} name={product!.name} className="h-full w-full" src={(product!).image || undefined} />
                 </div>
                 <p className="min-w-0 flex-1 truncate text-xs font-semibold text-navy-900">
                   {product!.name}

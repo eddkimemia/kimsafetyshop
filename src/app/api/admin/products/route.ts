@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+
+// Never cache: a stale GET here would make the admin form re-save OLD values.
+export const dynamic = "force-dynamic";
 import { requireAdmin } from "@/lib/api-helpers";
 import { products } from "@/lib/data/products";
 import { getAdminProduct, upsertAdminProduct, deleteAdminProduct, listPendingRestockRequests, markRestockNotified } from "@/lib/db";

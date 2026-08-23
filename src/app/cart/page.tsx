@@ -81,7 +81,7 @@ export default function CartPage() {
               return (
                 <li key={item.productId} className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-3 shadow-card sm:flex-row sm:gap-4">
                   <Link href={`/product/${product.slug}`} className="h-[100px] w-[100px] shrink-0 self-center overflow-hidden rounded-xl sm:h-[110px] sm:w-[110px] sm:self-auto">
-                    <ProductArt tags={product.tags} categoryName={product.categoryName} brand={product.brand} sku={product.sku} name={product.name} className="h-full w-full" />
+                    <ProductArt tags={product.tags} categoryName={product.categoryName} brand={product.brand} sku={product.sku} name={product.name} className="h-full w-full" src={(product).image || undefined} />
                   </Link>
                   <div className="flex min-w-0 flex-1 flex-col gap-2.5">
                     <div className="flex items-start justify-between gap-3">

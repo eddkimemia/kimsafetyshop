@@ -26,6 +26,7 @@ type Order = {
   paid: number;
   payment_phone?: string | null;
   mpesa_checkout_id?: string | null;
+  mpesa_transaction_id?: string | null;
   paystack_reference?: string | null;
   referrer_code?: string | null;
   created_at: string;
@@ -313,6 +314,12 @@ export default function AdminOrderDetailPage() {
                     <p className="flex items-center justify-between">
                       <span className="text-gray-600">M-Pesa number</span>
                       <span className="font-semibold text-navy-900">{order.payment_phone}</span>
+                    </p>
+                  )}
+                  {order.payment === "mpesa" && order.mpesa_transaction_id && (
+                    <p className="flex items-center justify-between">
+                      <span className="text-gray-600">Transaction code</span>
+                      <span className="font-mono text-xs font-bold text-navy-900">{order.mpesa_transaction_id}</span>
                     </p>
                   )}
                   {order.paystack_reference && (

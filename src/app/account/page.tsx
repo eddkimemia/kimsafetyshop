@@ -124,7 +124,7 @@ function Overview() {
             {wishlistItems.slice(0, 4).map((p) => (
               <Link key={p!.id} href={`/product/${p!.slug}`} className="group">
                 <div className="overflow-hidden rounded-xl">
-                  <ProductArt tags={p!.tags} categoryName={p!.categoryName} brand={p!.brand} sku={p!.sku} name={p!.name} className="aspect-square" />
+                  <ProductArt tags={p!.tags} categoryName={p!.categoryName} brand={p!.brand} sku={p!.sku} name={p!.name} className="aspect-square" src={(p!).image || undefined} />
                 </div>
                 <p className="mt-2 line-clamp-1 text-xs font-semibold text-navy-900 group-hover:text-safety-600">{p!.name}</p>
                 <p className="text-xs font-extrabold text-safety-600">{formatKES(p!.price)}</p>
