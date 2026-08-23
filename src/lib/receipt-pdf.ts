@@ -77,9 +77,12 @@ export async function buildReceiptPdf(order: InvoiceOrder): Promise<Buffer> {
     email: s.email || FALLBACK_COMPANY.email,
   };
 
+  // Same reference chain as the invoice: Safaricom receipt number, falling
+  // back to the STK CheckoutRequestID when payment was confirmed via the
+  // status-query fallback (the query response carries no receipt number).
   const txnId =
     order.payment === "mpesa"
-      ? order.mpesa_transaction_id
+      ? order.mpesa_transaction_id || (order.mpesa_checkout_id ? `STK ${order.mpesa_checkout_id}` : null)
       : order.payment === "card"
         ? order.paystack_reference
         : order.payment === "po"

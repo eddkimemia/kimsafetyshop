@@ -23,6 +23,7 @@ export type InvoiceOrder = {
   company?: string | null;
   payment_phone?: string | null;
   mpesa_transaction_id?: string | null;
+  mpesa_checkout_id?: string | null;
   paystack_reference?: string | null;
   po_ref?: string | null;
 };
@@ -185,10 +186,12 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
   // ---- Meta line ----
   // Paid invoices carry the payment gateway's transaction reference: the
   // M-Pesa receipt number from the STK callback, the Paystack reference, or
-  // the purchase-order reference for corporate orders.
+  // the purchase-order reference for corporate orders. When the receipt never
+  // landed (payment confirmed via the Daraja status-query fallback), the
+  // CheckoutRequestID is printed as an STK reference instead of a blank.
   const txnId = paid
     ? order.payment === "mpesa"
-      ? order.mpesa_transaction_id
+      ? order.mpesa_transaction_id || (order.mpesa_checkout_id ? `STK ${order.mpesa_checkout_id}` : null)
       : order.payment === "card"
         ? order.paystack_reference
         : order.payment === "po"

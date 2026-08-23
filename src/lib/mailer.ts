@@ -662,6 +662,7 @@ export async function sendPaidInvoiceEmail(input: {
   status: string;
   created_at: string;
   mpesa_transaction_id?: string | null;
+  mpesa_checkout_id?: string | null;
   paystack_reference?: string | null;
   po_ref?: string | null;
   payment_token?: string | null;
@@ -674,10 +675,12 @@ export async function sendPaidInvoiceEmail(input: {
   const trackUrl = payment_token
     ? `${siteUrl}/track?id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(payment_token)}`
     : `${siteUrl}/account/orders`;
+  // Reference chain matches the PDF builders: Safaricom receipt, else the STK
+  // CheckoutRequestID (status-query fallback), Paystack ref, PO ref.
   const txnId =
     input.paid === 1
       ? payment === "mpesa"
-        ? input.mpesa_transaction_id
+        ? input.mpesa_transaction_id || (input.mpesa_checkout_id ? `STK ${input.mpesa_checkout_id}` : null)
         : payment === "card"
           ? input.paystack_reference
           : payment === "po"

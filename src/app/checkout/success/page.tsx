@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Check, Download, Loader2, CircleAlert, Lock } from "lucide-react";
+import { Check, Download, Loader2, CircleAlert, Lock, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function CheckoutSuccessPage() {
@@ -168,6 +168,15 @@ function CheckoutSuccessInner() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-line px-4 py-2 text-xs font-bold text-navy-900 hover:bg-surface"
           >
             <Download className="h-3.5 w-3.5" /> Download Invoice
+          </a>
+        )}
+        {/* Official receipt only exists once payment is confirmed. */}
+        {orderId && status === "paid" && (
+          <a
+            href={`/api/orders/${encodeURIComponent(orderId)}/receipt?token=${encodeURIComponent(token ?? "")}`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+          >
+            <Receipt className="h-3.5 w-3.5" /> Download Receipt
           </a>
         )}
         {orderId && token && (

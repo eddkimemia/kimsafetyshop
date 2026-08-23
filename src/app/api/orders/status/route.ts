@@ -87,7 +87,10 @@ export async function GET(req: Request) {
     mpesaPushCount: order.mpesa_push_count ?? 0,
     mpesaLastResult: order.mpesa_last_result,
     mpesaLastResultDesc: order.mpesa_last_result_desc,
-    transactionId: order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_reference,
+    transactionId:
+      order.payment === "mpesa"
+        ? order.mpesa_transaction_id || (order.mpesa_checkout_id ? `STK ${order.mpesa_checkout_id}` : null)
+        : order.paystack_reference,
     canResend,
     retryAfterMs,
     queried,
