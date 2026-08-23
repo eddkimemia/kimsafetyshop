@@ -56,6 +56,16 @@ export function mpesaConfigured(): boolean {
   return Boolean(c.consumerKey && c.consumerSecret && c.passkey && c.shortcode);
 }
 
+/**
+ * Absolute URL Safaricom should POST the STK result to. Override with
+ * MPESA_CALLBACK_URL (must be publicly reachable — e.g. an ngrok URL while
+ * testing locally); defaults to this site's /api/payments/mpesa/callback.
+ */
+export function mpesaCallbackUrl(siteUrlBase: string): string {
+  const override = process.env.MPESA_CALLBACK_URL?.trim();
+  return override || `${siteUrlBase}/api/payments/mpesa/callback`;
+}
+
 let tokenCache: { token: string; at: number } | null = null;
 
 async function getToken(): Promise<string> {
@@ -80,17 +90,6 @@ export function normalizeMpesaPhone(phone: string): string {
   else if (p.startsWith("254")) p = p;
   else p = "254" + p;
   return p;
-}
-
-/**
- * The callback URL used for STK pushes. Taken from MPESA_CALLBACK_URL when set
- * (env is the source of truth — e.g. an ngrok tunnel in local dev or a
- * dedicated callback host), otherwise derived from the site URL:
- *   <siteUrl>/api/payments/mpesa/callback
- */
-export function mpesaCallbackUrl(siteUrlFallback: string): string {
-  const fromEnv = process.env.MPESA_CALLBACK_URL?.trim();
-  return fromEnv || `${siteUrlFallback}/api/payments/mpesa/callback`;
 }
 
 /**

@@ -64,6 +64,17 @@ export async function PATCH(req: Request) {
   const order = await getOrderById(body.id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
+  // Reference-only update (add/edit the transaction ID on an order without
+  // changing its paid state).
+  if (body.paid === undefined) {
+    const ref = body.txn_ref?.trim();
+    if (!ref) return NextResponse.json({ error: "Missing transaction reference" }, { status: 400 });
+    if (order.payment === "mpesa") await setMpesaTransaction(body.id, ref);
+    else if (order.payment === "card") await setPaystackReference(body.id, ref);
+    else return NextResponse.json({ error: "This payment method does not take a transaction reference" }, { status: 400 });
+    return NextResponse.json({ ok: true });
+  }
+
   if (body.paid !== undefined) {
     // Record the payment reference BEFORE flagging paid and re-fetching —
     // the paid invoice PDF and receipt must show it.

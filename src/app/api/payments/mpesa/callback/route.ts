@@ -63,6 +63,15 @@ export async function POST(req: Request) {
           } catch (err) {
             console.error(`[mpesa] paid invoice email failed for ${order.id}:`, (err as Error).message);
           }
+        } else {
+          // Order already paid (e.g. the STK-query fallback detected it first,
+          // which carries no receipt number): BACKFILL the receipt from this
+          // late callback so the invoice/receipt show the transaction ID.
+          const receipt = cb.CallbackMetadata?.Item?.find((i) => i.Name === "MpesaReceiptNumber")?.Value;
+          if (receipt && !order.mpesa_transaction_id) {
+            await setMpesaTransaction(order.id, String(receipt));
+            console.info(`[mpesa] backfilled receipt ${receipt} for already-paid order ${order.id}`);
+          }
         }
       } else {
         // Record the decline so the checkout screen can explain it, and the

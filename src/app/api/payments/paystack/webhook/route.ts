@@ -17,10 +17,22 @@ export async function POST(req: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const event = JSON.parse(raw) as { event?: string; data?: { reference?: string } };
+  const event = JSON.parse(raw) as {
+    event?: string;
+    data?: { reference?: string; amount?: number; status?: string };
+  };
   if (event.event === "charge.success" && event.data?.reference) {
     const order = await getOrderByPaystackReference(event.data.reference);
     if (order && order.paid !== 1) {
+      // Anti-tamper: amounts arrive in kobo/pesewas — only accept an exact
+      // match against the order total computed server-side at checkout.
+      const expected = Math.round(order.total * 100);
+      if (event.data.amount !== undefined && Number(event.data.amount.toFixed(0)) !== expected) {
+        console.warn(
+          `[paystack] SECURITY: webhook amount mismatch for ${order.id} — callback ${event.data.amount}, expected ${expected}. Not marking paid.`
+        );
+        return NextResponse.json({ ok: false }, { status: 400 });
+      }
       await setOrderPaid(order.id, 1);
       // Re-fetch the fresh row so the paid-invoice email/PDF carries the
       // payment reference, then AWAIT the send — on Vercel serverless the

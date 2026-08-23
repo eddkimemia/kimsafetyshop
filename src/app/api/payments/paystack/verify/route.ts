@@ -21,7 +21,20 @@ export async function POST(req: Request) {
   if (!body.reference) return NextResponse.json({ error: "Missing transaction reference" }, { status: 400 });
 
   try {
-    const { paid } = await paystackVerify(body.reference);
+    // The reference must be the one this order was initialized with — a client
+    // can't replay a successful transaction from another (already paid) order.
+    if (body.reference !== order.paystack_reference) {
+      return NextResponse.json({ error: "Reference does not belong to this order", paid: false }, { status: 403 });
+    }
+    const { paid, amount } = await paystackVerify(body.reference);
+    // Anti-tamper: Paystack reports amounts in kobo/pesewas. Never mark the
+    // order paid unless the charged amount equals the order total computed
+    // server-side at checkout.
+    const expected = Math.round(order.total * 100);
+    if (paid && amount !== null && Number(amount.toFixed(0)) !== expected) {
+      console.warn(`[paystack] SECURITY: amount mismatch for ${order.id} — callback ${amount}, expected ${expected}`);
+      return NextResponse.json({ error: "Amount mismatch", paid: false }, { status: 400 });
+    }
     if (paid && order.paid !== 1) {
       await setOrderPaid(order.id, 1);
       // Re-fetch the fresh row (txn reference) and AWAIT the send — on Vercel
