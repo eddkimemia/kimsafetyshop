@@ -92,61 +92,13 @@ function hashStr(str: string): number {
   return Math.abs(h);
 }
 
-// Admin image overrides are fetched client-side and shared across all product
-// cards via this module-level cache. A stale-while-revalidate TTL keeps renders
-// instant while still picking up admin edits ~30s after they're saved (a
-// fetch-once-per-session cache showed OLD images indefinitely).
-const OVERRIDES_TTL_MS = 30_000;
-let overrideCache: { at: number; images: Record<string, string>; galleries: Record<string, string[]> } | null = null;
-let overridesInflight: Promise<void> | null = null;
-
-function loadOverrides(): Promise<void> {
-  if (overrideCache && Date.now() - overrideCache.at < OVERRIDES_TTL_MS) return Promise.resolve();
-  if (overridesInflight) return overridesInflight;
-  overridesInflight = fetch("/api/products/image-overrides", { cache: "no-store" })
-    .then((r) => (r.ok ? r.json() : null))
-    .then((d) => {
-      if (d?.images) {
-        overrideCache = { at: Date.now(), images: d.images, galleries: d.galleries ?? {} };
-      }
-    })
-    .catch(() => {})
-    .finally(() => {
-      overridesInflight = null;
-    });
-  return overridesInflight;
-}
-
-export function useAdminImageOverrides(): Record<string, string> | null {
-  const [map, setMap] = useState<Record<string, string> | null>(overrideCache?.images ?? null);
-  useEffect(() => {
-    let alive = true;
-    loadOverrides().then(() => {
-      if (alive && overrideCache) setMap(overrideCache.images);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return map;
-}
-
-export function useAdminGalleries(): Record<string, string[]> | null {
-  const [map, setMap] = useState<Record<string, string[]> | null>(overrideCache?.galleries ?? null);
-  useEffect(() => {
-    let alive = true;
-    loadOverrides().then(() => {
-      if (alive && overrideCache) setMap(overrideCache.galleries);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return map;
-}
-
+// Image URLs arrive fully resolved from the merged catalog (see lib/catalog.ts),
+// so no client-side override fetch is needed — a changed photo shows up as soon
+// as the catalog data is fresh, with no old-image flash and no extra request.
+// productImageFor() remains as a synchronous static-map fallback for contexts
+// that only have a SKU (e.g. the admin edit preview).
 export function productImageFor(sku: string): string {
-  return overrideCache?.images[sku] ?? productImages[sku] ?? `/images/products/${sku}.jpg`;
+  return productImages[sku] ?? `/images/products/${sku}.jpg`;
 }
 
 export function ProductArt({
@@ -175,10 +127,9 @@ export function ProductArt({
   quality?: number;
 }) {
   const [failed, setFailed] = useState(false);
-  const overrides = useAdminImageOverrides();
   const Icon = icon ?? artIconFor(tags, categoryName);
   const theme = themes[hashStr(sku + brand + categoryName) % themes.length];
-  const imageSrc = src ?? (sku && overrides !== null ? productImageFor(sku) : undefined);
+  const imageSrc = src ?? (sku ? productImageFor(sku) : undefined);
   const defaultAlt = name
     ? `${name} — KimSafety`
     : categoryName || brand || "KimSafety product";

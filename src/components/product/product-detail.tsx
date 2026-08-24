@@ -30,7 +30,7 @@ import { useStore } from "@/lib/store";
 import { productInCategory } from "@/lib/data/catalog";
 import { activeBulkTier, bulkUnitPrice, discountPercent, formatKES, cn } from "@/lib/utils";
 import { sanitizePostHtml } from "@/lib/blog";
-import { ProductArt, productImageFor, useAdminImageOverrides, useAdminGalleries } from "@/components/product/product-art";
+import { ProductArt, productImageFor } from "@/components/product/product-art";
 import { productGalleries } from "@/lib/data/product-images";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { ProductCard } from "@/components/product/product-card";
@@ -47,8 +47,6 @@ export function ProductDetail({
   related: Product[];
 }) {
   const { addToCart, toggleWishlist, wishlist, toggleCompare, compare, noteRecentlyViewed, recentlyViewed, liveProduct, refreshCatalog } = useStore();
-  const overrides = useAdminImageOverrides();
-  const adminGalleries = useAdminGalleries();
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState("description");
   const [buyNowLoading, setBuyNowLoading] = useState(false);
@@ -80,13 +78,13 @@ export function ProductDetail({
   const activeTier = activeBulkTier(live, qty);
 
   const galleryVariants = useMemo(() => {
-    // The live row's admin-edited image wins, then the overrides/static map.
+    // The live row's admin-edited image wins, then the static photo map. The
+    // merged catalog resolves `image`/`gallery` server-side, so this is final
+    // on first paint.
     const main = live.image || productImageFor(product.sku);
-    const adminGallery = adminGalleries?.[product.sku] ?? [];
-    const rest = adminGallery.length > 0 ? adminGallery : productGalleries[product.sku] ?? [];
-    return [main, ...rest.filter((src) => src !== main)];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [live, product, overrides, adminGalleries]);
+    const extras = live.gallery?.length ? live.gallery : productGalleries[product.sku] ?? [];
+    return [main, ...extras.filter((src) => src !== main)];
+  }, [live, product]);
 
   const [view, setView] = useState(0);
 
@@ -138,7 +136,7 @@ export function ProductDetail({
                   brand={product.brand}
                   sku={product.sku}
                   name={product.name}
-                  src={overrides === null ? undefined : galleryVariants[view]}
+                  src={galleryVariants[view]}
                   className="aspect-square"
                   sizes="(max-width: 1024px) 100vw, 50vw"
                   quality={90}
@@ -172,7 +170,7 @@ export function ProductDetail({
                     brand={product.brand}
                     sku={product.sku}
                     name={product.name}
-                    src={overrides === null ? undefined : image}
+                    src={image}
                     className="aspect-square"
                   />
                 </button>

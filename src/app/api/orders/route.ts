@@ -144,9 +144,12 @@ export async function POST(req: Request) {
   // per line. Stock floors at 0 (business prefers taking the order over
   // rejecting it when two buyers race); admin restocks on cancellation.
   // Failures are logged inside adjustProductStock and never fail the order.
+  // NOTE: admin_products rows are keyed by REAL SKU, not cart productId (which
+  // is "p-001"-style for seed products and "custom-<sku>" for custom ones), so
+  // resolve the SKU from the live catalog before adjusting.
   await adjustProductStock(
     pricedItems.map((i, idx) => ({
-      sku: i.productId,
+      sku: found[idx]?.sku ?? i.productId,
       qty: i.qty,
       fallbackStock: found[idx]?.stock ?? 0,
       fallbackSold: found[idx]?.sold ?? 0,

@@ -9,6 +9,10 @@ export function generateStaticParams() {
   return categories.map((c) => ({ slug: c.slug }));
 }
 
+// ISR: category pages re-render at most every 5 minutes and are busted
+// immediately by admin product saves (revalidatePath in /api/admin/products).
+export const revalidate = 300;
+
 export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
   const category = categories.find((c) => c.slug === params.slug);
   if (!category) return { title: "Category not found" };
@@ -36,6 +40,9 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
 export default async function CategoryPage({ params }: { params: { slug: string } }) {
   const category = categories.find((c) => c.slug === params.slug);
   if (!category) return notFound();
+  // One fetch shared by the JSON-LD list and the grid — also guarantees both
+  // show the same (deterministic) catalog order.
+  const catalog = await liveCatalog();
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -45,7 +52,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
     isPartOf: { "@type": "WebSite", name: "KimSafety", url: "/" },
     mainEntity: {
       "@type": "ItemList",
-      itemListElement: (await liveCatalog())
+      itemListElement: catalog
         .filter((p) => productInCategory(p, category.slug))
         .slice(0, 30)
         .map((p, i) => ({
@@ -67,6 +74,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
           title={`${category.name} Equipment`}
           subtitle={category.description}
           category={category.slug}
+          initialProducts={catalog}
         />
       </Suspense>
     </>

@@ -45,7 +45,11 @@ export default function AdminOrderDetailPage() {
   const id = decodeURIComponent(params.id ?? "");
   const { data, loading, refresh } = useFetch<{ order: Order }>(`/api/admin/orders?id=${encodeURIComponent(id)}`);
   const [notice, setNotice] = useState<string | null>(null);
-  const [payOpen, setPayOpen] = useState(false);
+  // Which dialog the txn-ref input serves: marking an unpaid order paid, or
+  // adding/correcting the transaction ID on any order (auto-confirmed orders
+  // can be paid WITHOUT a gateway reference — the STK-query fallback carries
+  // no receipt number — so admins must be able to add it afterwards).
+  const [dialog, setDialog] = useState<null | "mark-paid" | "edit-ref">(null);
   const [txnRef, setTxnRef] = useState("");
   const [marking, setMarking] = useState(false);
 
@@ -71,12 +75,39 @@ export default function AdminOrderDetailPage() {
       });
       const json = await res.json().catch(() => ({}));
       setNotice(res.ok ? `Order #${id} marked as paid.` : json.error ?? "Update failed");
-      setPayOpen(false);
+      setDialog(null);
       setTxnRef("");
       refresh();
     } finally {
       setMarking(false);
     }
+  };
+
+  // Reference-only update (order paid state untouched). The API already
+  // supports PATCHing just the txn_ref; this is its UI.
+  const saveRefOnly = async () => {
+    if (!txnRef.trim()) return;
+    setMarking(true);
+    try {
+      const res = await fetch("/api/admin/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, txn_ref: txnRef.trim() }),
+      });
+      const json = await res.json().catch(() => ({}));
+      setNotice(res.ok ? `Transaction ID saved for #${id}.` : json.error ?? "Update failed");
+      setDialog(null);
+      setTxnRef("");
+      refresh();
+    } finally {
+      setMarking(false);
+    }
+  };
+
+  const openEditRef = () => {
+    if (!order) return;
+    setTxnRef((order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_reference) ?? "");
+    setDialog("edit-ref");
   };
 
   const order = data?.order;
@@ -138,24 +169,37 @@ export default function AdminOrderDetailPage() {
         <>
           {notice && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{notice}</p>}
 
-          {payOpen && (
+          {dialog && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-900/50 p-4" role="dialog" aria-modal="true">
               <div className="w-full max-w-md rounded-2xl border border-line bg-white p-6 shadow-xl">
-                <h3 className="font-display text-lg font-extrabold text-navy-900">Mark order #{id} as paid</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {order?.payment === "mpesa"
-                    ? "Enter the M-Pesa transaction / receipt number from the confirmation SMS (e.g. QGH7XYZ1K2). It will be printed on the paid invoice and receipt."
-                    : "Optionally enter the payment reference — it will be printed on the paid invoice and receipt."}
-                </p>
+                {dialog === "mark-paid" ? (
+                  <>
+                    <h3 className="font-display text-lg font-extrabold text-navy-900">Mark order #{id} as paid</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {order?.payment === "mpesa"
+                        ? "Enter the M-Pesa transaction / receipt number from the confirmation SMS (e.g. QGH7XYZ1K2). It will be printed on the paid invoice and receipt."
+                        : "Optionally enter the payment reference — it will be printed on the paid invoice and receipt."}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="font-display text-lg font-extrabold text-navy-900">Transaction ID for #{id}</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {order?.payment === "mpesa"
+                        ? "Auto-confirmed M-Pesa payments can lack a receipt number (the status-query fallback carries none). Paste it here from the customer's confirmation SMS — it prints on the invoice and receipt."
+                        : "Paste the Paystack transaction reference. It prints on the paid invoice and receipt. The gateway reference is filled automatically when a card payment verifies."}
+                    </p>
+                  </>
+                )}
                 <input
                   autoFocus
                   value={txnRef}
                   onChange={(e) => setTxnRef(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") confirmMarkPaid();
-                    if (e.key === "Escape") setPayOpen(false);
+                    if (e.key === "Enter") (dialog === "mark-paid" ? confirmMarkPaid : saveRefOnly)();
+                    if (e.key === "Escape") setDialog(null);
                   }}
-                  placeholder={order?.payment === "mpesa" ? "M-Pesa receipt number *" : "Payment reference (optional)"}
+                  placeholder={order?.payment === "mpesa" ? "M-Pesa receipt number *" : "Payment reference"}
                   className="mt-4 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm outline-none transition-all focus:border-safety-400 focus:bg-white focus:ring-4 focus:ring-safety-500/10"
                 />
                 {order?.payment === "mpesa" && !txnRef.trim() && (
@@ -163,18 +207,18 @@ export default function AdminOrderDetailPage() {
                 )}
                 <div className="mt-5 flex justify-end gap-2">
                   <button
-                    onClick={() => setPayOpen(false)}
+                    onClick={() => setDialog(null)}
                     disabled={marking}
                     className="rounded-xl border border-line px-4 py-2.5 text-xs font-bold text-gray-500 hover:text-navy-900 disabled:opacity-60"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={confirmMarkPaid}
+                    onClick={dialog === "mark-paid" ? confirmMarkPaid : saveRefOnly}
                     disabled={marking || (order?.payment === "mpesa" && !txnRef.trim())}
                     className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
                   >
-                    {marking ? "Saving…" : "Confirm payment"}
+                    {marking ? "Saving…" : dialog === "mark-paid" ? "Confirm payment" : "Save transaction ID"}
                   </button>
                 </div>
               </div>
@@ -316,14 +360,23 @@ export default function AdminOrderDetailPage() {
                       <span className="font-semibold text-navy-900">{order.payment_phone}</span>
                     </p>
                   )}
-                  {order.payment === "mpesa" && order.mpesa_transaction_id && (
-                    <p className="flex items-center justify-between">
-                      <span className="text-gray-600">Transaction code</span>
-                      <span className="font-mono text-xs font-bold text-navy-900">{order.mpesa_transaction_id}</span>
+                  {(order.payment === "mpesa" || order.payment === "card") && (
+                    <p className="flex items-center justify-between gap-2">
+                      <span className="shrink-0 text-gray-600">
+                        {order.payment === "mpesa" ? "Transaction code" : "Reference"}
+                      </span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className={`truncate font-mono text-xs ${order.mpesa_transaction_id || order.paystack_reference ? "font-bold text-navy-900" : "text-gray-300"}`}>
+                          {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_reference) || "— not set"}
+                        </span>
+                        <button
+                          onClick={openEditRef}
+                          className="shrink-0 rounded-lg border border-line px-2 py-1 text-[10px] font-bold text-navy-900 hover:border-safety-400 hover:text-safety-600"
+                        >
+                          {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_reference) ? "Edit" : "Add"}
+                        </button>
+                      </span>
                     </p>
-                  )}
-                  {order.paystack_reference && (
-                    <p className="break-all text-right font-mono text-[11px] text-gray-400">Ref: {order.paystack_reference}</p>
                   )}
                   <p className="flex items-center justify-between">
                     <span className="text-gray-600">Status</span>
@@ -337,7 +390,7 @@ export default function AdminOrderDetailPage() {
                     <button
                       onClick={() => {
                         setTxnRef("");
-                        setPayOpen(true);
+                        setDialog("mark-paid");
                       }}
                       className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700"
                     >

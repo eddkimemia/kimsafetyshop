@@ -10,6 +10,7 @@ import { Newsletter } from "@/components/home/newsletter";
 import { DealsBanner } from "@/components/home/deals-banner";
 import { CampaignStrip } from "@/components/home/campaign-strip";
 import { getActiveBanners, getActiveCampaigns } from "@/lib/db";
+import { liveCatalog } from "@/lib/catalog";
 
 export const revalidate = 60;
 
@@ -31,6 +32,9 @@ export default async function Home() {
     bg: b.image,
   }));
   const campaigns = await getActiveCampaigns();
+  // Server-rendered live catalog so carousels show current prices/images on
+  // first paint instead of flashing the static seed data.
+  const catalog = await liveCatalog();
 
   return (
     <>
@@ -43,6 +47,7 @@ export default async function Home() {
         filter="featured"
         href="/search?sort=featured"
         showTabs
+        items={catalog}
       />
       <CategoryGrid />
       <DealsBanner />
@@ -51,6 +56,7 @@ export default async function Home() {
         title="Best Sellers"
         filter="bestSeller"
         href="/search?sort=popular"
+        items={catalog}
       />
       <CorporateSolutions />
       <BrandStrip />
@@ -59,6 +65,7 @@ export default async function Home() {
         title="Deals & Discounts"
         filter="deals"
         href="/search?discount=1"
+        items={catalog}
       />
       <KnowledgeCenter />
       <Testimonials />

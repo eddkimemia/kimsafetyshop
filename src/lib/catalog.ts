@@ -1,5 +1,6 @@
 import { products, normalizeDownloads } from "@/lib/data/products";
 import { productInCategory } from "@/lib/data/catalog";
+import { productImages, productGalleries } from "@/lib/data/product-images";
 import { listAdminProducts } from "@/lib/db";
 import { slugify } from "@/lib/utils";
 import type { Product } from "@/lib/types";
@@ -35,6 +36,24 @@ export function invalidateCatalogCache() {
   lastDbFailAt = 0;
 }
 
+// Resolves the final image/gallery URLs server-side so the browser receives
+// finished URLs on first paint. Admin override wins, then the committed photo
+// map, then the SKU-path fallback. An empty string counts as "not set" (the
+// admin form persists image:"" when clearing an override).
+function resolveImage(sku: string, value: unknown): string {
+  if (typeof value === "string" && value) return value;
+  return productImages[sku] ?? `/images/products/${sku}.jpg`;
+}
+
+function resolveGallery(sku: string, value: unknown): string[] | undefined {
+  if (Array.isArray(value)) {
+    const clean = value.filter((p): p is string => typeof p === "string" && Boolean(p));
+    if (clean.length > 0) return clean;
+  }
+  const mapped = productGalleries[sku];
+  return mapped && mapped.length > 0 ? [...mapped] : undefined;
+}
+
 async function mergedCatalog(): Promise<Product[]> {
   const rows = (await getCachedAdminRows()) ?? [];
   const overrides = new Map<string, Record<string, unknown>>();
@@ -48,7 +67,12 @@ async function mergedCatalog(): Promise<Product[]> {
   const merged = products.map((p) => {
     const override = overrides.get(p.sku);
     const base = override ? { ...p, ...override } : p;
-    return { ...base, downloads: normalizeDownloads(base.downloads) };
+    return {
+      ...base,
+      image: resolveImage(base.sku, base.image),
+      gallery: resolveGallery(base.sku, base.gallery),
+      downloads: normalizeDownloads(base.downloads),
+    };
   });
 
   const customProducts: Product[] = customs.map((c) => ({
@@ -74,15 +98,32 @@ async function mergedCatalog(): Promise<Product[]> {
     bulk: [],
     downloads: [],
     ...(c as Partial<Product>),
+    image: resolveImage(String(c.sku), c.image),
+    gallery: resolveGallery(String(c.sku), c.gallery),
   }));
 
-  return shuffle([...merged, ...customProducts.map((p) => ({ ...p, downloads: normalizeDownloads(p.downloads) }))]);
+  return stableShuffle([...merged, ...customProducts.map((p) => ({ ...p, downloads: normalizeDownloads(p.downloads) }))]);
 }
 
-function shuffle<T>(arr: T[]): T[] {
-  const out = [...arr];
+/**
+ * Deterministic shuffle: a seeded Fisher–Yates over a SKU-sorted copy whose seed
+ * rotates hourly. Every request/refetch inside the hour returns the SAME order,
+ * so paginated grids don't reshuffle while a visitor browses, yet the storefront
+ * still rotates over time for discovery. Sorting by SKU first makes the result
+ * independent of DB row ordering.
+ */
+function stableShuffle<T extends { sku: string }>(arr: T[]): T[] {
+  const out = [...arr].sort((a, b) => a.sku.localeCompare(b.sku));
+  let s = Math.floor(Date.now() / 3_600_000) >>> 0 || 1;
+  const rnd = () => {
+    s ^= s << 13;
+    s ^= s >>> 17;
+    s ^= s << 5;
+    s >>>= 0;
+    return s / 4294967296;
+  };
   for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rnd() * (i + 1));
     [out[i], out[j]] = [out[j], out[i]];
   }
   return out;

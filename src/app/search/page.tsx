@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CatalogView } from "@/components/catalog/catalog-view";
+import { liveCatalog } from "@/lib/catalog";
+
+// ISR with on-demand busting from admin product saves (revalidatePath in
+// /api/admin/products). Keeps listing pages fresh without a DB hit per view.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Shop All Safety Equipment",
@@ -8,10 +13,11 @@ export const metadata: Metadata = {
     "Browse KimSafety's full catalogue — certified PPE, medical, fire, road, lab and emergency safety equipment with bulk pricing.",
 };
 
-export default function SearchPage() {
+export default async function SearchPage() {
+  const catalog = await liveCatalog();
   return (
     <Suspense fallback={<CatalogSkeleton />}>
-      <CatalogView title="All Safety Products" />
+      <CatalogView title="All Safety Products" initialProducts={catalog} />
     </Suspense>
   );
 }

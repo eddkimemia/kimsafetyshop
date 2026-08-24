@@ -44,6 +44,9 @@ export default function CheckoutPage() {
   const [orderError, setOrderError] = useState<string | null>(null);
   const [payError, setPayError] = useState<string | null>(null);
   const [paidNow, setPaidNow] = useState(false);
+  // Gateway transaction reference (M-Pesa receipt / Paystack ref) surfaced by
+  // the status poll so the confirmation screen can show it immediately.
+  const [paidRef, setPaidRef] = useState<string | null>(null);
   const [pollDone, setPollDone] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendError, setResendError] = useState<string | null>(null);
@@ -221,6 +224,7 @@ export default function CheckoutPage() {
         if (cancelled) return;
         if (j.paid === 1) {
           setPaidNow(true);
+          setPaidRef(j.transactionId ?? null);
           setPollDone(true);
           clearInterval(iv);
           return;
@@ -494,6 +498,11 @@ export default function CheckoutPage() {
               ? "Waiting for M-Pesa confirmation…"
               : "Payment pending — invoice marked UNPAID"}
         </span>
+        {paidNow && paidRef && (
+          <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-700">
+            Transaction ID: <span className="font-mono">{paidRef}</span>
+          </p>
+        )}
         <div className="mt-2 flex flex-wrap justify-center gap-3">
           <a
             href={`/api/orders/${orderId ?? ""}/invoice?token=${encodeURIComponent(paymentToken ?? "")}`}

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 
 // Never cache: a stale GET here would make the admin form re-save OLD values.
 export const dynamic = "force-dynamic";
@@ -9,6 +10,16 @@ import { mergedCatalog, invalidateCatalogCache } from "@/lib/admin-products";
 import { liveGetProduct } from "@/lib/catalog";
 import { sendBackInStockEmail } from "@/lib/mailer";
 import { siteUrl } from "@/lib/site";
+
+/**
+ * Busts every ISR page that can display product data (home, search, category,
+ * deals, brands, product/[slug]). Admin saves are rare, so a sitewide bust is
+ * the simplest way to guarantee no page anywhere serves a stale price/image —
+ * without it, ISR pages would keep old values for up to their revalidate window.
+ */
+function revalidateProductPages() {
+  revalidatePath("/", "layout");
+}
 
 /**
  * Fires back-in-stock emails when a save brings a subscribed product into
@@ -95,6 +106,7 @@ export async function POST(req: Request) {
   };
   await upsertAdminProduct(sku, record);
   invalidateCatalogCache();
+  revalidateProductPages();
   try {
     const rec = record as Record<string, unknown>;
     await maybeNotifyRestock(sku, Number(rec.stock ?? 0), String(record.name), typeof rec.slug === "string" ? rec.slug : undefined);
@@ -124,6 +136,7 @@ export async function PATCH(req: Request) {
   delete merged.id;
   await upsertAdminProduct(sku, merged);
   invalidateCatalogCache();
+  revalidateProductPages();
   try {
     await maybeNotifyRestock(sku, Number(merged.stock ?? 0), String(merged.name ?? sku), typeof merged.slug === "string" ? merged.slug : undefined);
   } catch (err) {
@@ -145,5 +158,6 @@ export async function DELETE(req: Request) {
   }
   await deleteAdminProduct(sku);
   invalidateCatalogCache();
+  revalidateProductPages();
   return NextResponse.json({ ok: true });
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { products } from "@/lib/data/products";
 import { useStore } from "@/lib/store";
+import type { Product } from "@/lib/types";
 import { ProductCard } from "@/components/product/product-card";
 import { cn } from "@/lib/utils";
 
@@ -14,12 +15,15 @@ export function ProductCarousel({
   filter,
   href,
   showTabs,
+  items,
 }: {
   title: string;
   kicker?: string;
   filter: "featured" | "bestSeller" | "new" | "deals" | "all";
   href: string;
   showTabs?: boolean;
+  /** Server-rendered live catalog — avoids the stale-seed first-paint flash. */
+  items?: Product[];
 }) {
   const { catalog } = useStore();
   const [tab, setTab] = useState("All");
@@ -27,7 +31,7 @@ export function ProductCarousel({
 
   const tabs = ["All", "Medical Safety", "Industrial Safety", "PPE", "Fire Safety", "Road Safety"];
 
-  const list = (catalog.length ? catalog : products).filter((p) => {
+  const list = (catalog.length ? catalog : items?.length ? items : products).filter((p) => {
     const base =
       filter === "all" ||
       (filter === "deals" ? p.oldPrice != null && p.oldPrice > p.price : p[filter] === true);

@@ -17,6 +17,7 @@ import {
 import { products, matchesQuery } from "@/lib/data/products";
 import { categories, brands, productInCategory } from "@/lib/data/catalog";
 import { useStore } from "@/lib/store";
+import type { Product } from "@/lib/types";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProductCard } from "@/components/product/product-card";
 import { ProductRow } from "./product-row";
@@ -30,6 +31,8 @@ type CatalogProps = {
   brand?: string;
   deals?: boolean;
   hideBrandFilter?: boolean;
+  /** Server-rendered live catalog — kills the stale-seed first-paint flash. */
+  initialProducts?: Product[];
 };
 
 const SORTS = [
@@ -53,7 +56,7 @@ const FILTER_FIELDS = [
 
 const PAGE_SIZE = 12;
 
-export function CatalogView({ title, subtitle, search, category, brand, deals, hideBrandFilter }: CatalogProps) {
+export function CatalogView({ title, subtitle, search, category, brand, deals, hideBrandFilter, initialProducts }: CatalogProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -80,7 +83,10 @@ export function CatalogView({ title, subtitle, search, category, brand, deals, h
   }, [q, cat, br, availability, rating, minPrice, maxPrice, onSale, hideBrandFilter]);
 
   const results = useMemo(() => {
-    let list = [...(liveCatalogItems.length ? liveCatalogItems : products)];
+    // Live client catalog wins once loaded; before that we render the
+    // server-passed catalog (already live at render time) so no stale seed
+    // prices/images ever flash. The static array is a last-resort fallback.
+    let list = [...(liveCatalogItems.length ? liveCatalogItems : initialProducts?.length ? initialProducts : products)];
     if (deals) list = list.filter((p) => p.oldPrice);
     if (q) list = list.filter((p) => matchesQuery(p, q));
     if (cat !== "all") list = list.filter((p) => productInCategory(p, cat));
@@ -114,7 +120,7 @@ export function CatalogView({ title, subtitle, search, category, brand, deals, h
       }
     }
     return list;
-  }, [q, cat, br, availability, rating, minPrice, maxPrice, onSale, sort, sortExplicit, deals, liveCatalogItems]);
+  }, [q, cat, br, availability, rating, minPrice, maxPrice, onSale, sort, sortExplicit, deals, liveCatalogItems, initialProducts]);
 
   const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const pageItems = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);

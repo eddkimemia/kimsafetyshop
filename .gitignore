@@ -43,3 +43,5 @@ next-env.d.ts
 
 # generated prisma client (starter scaffolding, not used)
 /generated/
+implementation.md
+todo.md
