@@ -24,7 +24,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/terms`, changeFrequency: "yearly" as const, priority: 0.2 },
   ].map((r) => ({ ...r, lastModified: new Date() }));
 
-  const productRoutes = (await liveCatalog()).map((p) => ({
+  let products: Awaited<ReturnType<typeof liveCatalog>> = [];
+  try {
+    products = await liveCatalog();
+  } catch (err) {
+    console.error("[sitemap] liveCatalog failed, using seed:", (err as Error).message);
+    const { products: seed } = await import("@/lib/data/products");
+    const { productImages } = await import("@/lib/data/product-images");
+    products = seed.map((p) => ({ ...p, image: productImages[p.sku] ?? `/images/products/${p.sku}.jpg` })) as typeof products;
+  }
+  const productRoutes = products.map((p) => ({
     url: `${base}/product/${p.slug}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,
@@ -52,7 +61,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  const postRoutes = (await listPosts()).map((p) => ({
+  let postRows: Awaited<ReturnType<typeof listPosts>> = [];
+  try {
+    postRows = await listPosts();
+  } catch (err) {
+    console.error("[sitemap] listPosts failed, returning empty:", (err as Error).message);
+    postRows = [];
+  }
+  const postRoutes = postRows.map((p) => ({
     url: `${base}/blog/${p.slug}`,
     lastModified: new Date(p.updated_at ?? p.created_at),
     changeFrequency: "monthly" as const,

@@ -1,0 +1,208 @@
+
+> kimsafety@0.1.0 build
+> next build
+
+  ▲ Next.js 14.2.15
+  - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/320) ...
+   Generating static pages (80/320) 
+   Generating static pages (160/320) 
+   Generating static pages (240/320) 
+ ✓ Generating static pages (320/320)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                 Size     First Load JS
+┌ ○ /                                                       10.4 kB         191 kB
+├ ○ /_not-found                                             170 B          87.6 kB
+├ ○ /about                                                  888 B           100 kB
+├ ○ /account                                                3.44 kB         155 kB
+├ ○ /account/addresses                                      2.85 kB         145 kB
+├ ○ /account/downloads                                      1.92 kB         144 kB
+├ ○ /account/invoices                                       1.76 kB         144 kB
+├ ○ /account/notifications                                  2.39 kB         144 kB
+├ ○ /account/orders                                         2.23 kB         144 kB
+├ ƒ /account/orders/[id]                                    4.1 kB          146 kB
+├ ○ /account/password                                       2.62 kB         145 kB
+├ ○ /account/quotes                                         1.48 kB         143 kB
+├ ○ /account/returns                                        3.15 kB         145 kB
+├ ○ /account/tickets                                        3.36 kB         145 kB
+├ ƒ /admin                                                  4.32 kB         108 kB
+├ ƒ /admin/blog                                             3.95 kB         101 kB
+├ ƒ /admin/blog/[slug]                                      5.67 kB         115 kB
+├ ƒ /admin/contact-messages                                 2.93 kB        99.7 kB
+├ ƒ /admin/content                                          3.54 kB         107 kB
+├ ƒ /admin/content/[slug]                                   5.73 kB         115 kB
+├ ƒ /admin/corporate                                        6.47 kB         103 kB
+├ ƒ /admin/docs                                             6.11 kB         103 kB
+├ ƒ /admin/marketing                                        4.93 kB         107 kB
+├ ƒ /admin/marketing/banners/[id]                           2.8 kB          112 kB
+├ ƒ /admin/marketing/banners/new                            2.54 kB         111 kB
+├ ƒ /admin/marketing/campaigns/[id]                         2.48 kB         111 kB
+├ ƒ /admin/marketing/campaigns/new                          2.22 kB         111 kB
+├ ƒ /admin/newsletter                                       8.64 kB         198 kB
+├ ƒ /admin/orders                                           6.44 kB         203 kB
+├ ƒ /admin/orders/[id]                                      6.5 kB          110 kB
+├ ƒ /admin/password                                         3.67 kB         100 kB
+├ ƒ /admin/products                                         5.72 kB         117 kB
+├ ƒ /admin/products/[sku]                                   17.5 kB         154 kB
+├ ƒ /admin/products/datasheets                              5.81 kB         124 kB
+├ ƒ /admin/purchases                                        4.42 kB         108 kB
+├ ƒ /admin/purchases/[id]                                   4.86 kB         108 kB
+├ ƒ /admin/purchases/new                                    4.14 kB         108 kB
+├ ƒ /admin/questions                                        3.5 kB          100 kB
+├ ƒ /admin/quotes                                           3.79 kB         107 kB
+├ ƒ /admin/quotes/[id]                                      4.28 kB         108 kB
+├ ƒ /admin/quotes/new                                       5.03 kB         109 kB
+├ ƒ /admin/returns                                          3.32 kB         100 kB
+├ ƒ /admin/reviews                                          4.62 kB         101 kB
+├ ƒ /admin/settings                                         5.72 kB         103 kB
+├ ƒ /admin/tickets                                          3.44 kB         100 kB
+├ ƒ /admin/users                                            6.36 kB         110 kB
+├ ƒ /admin/users/new                                        3.21 kB         107 kB
+├ ƒ /api/account/password                                   0 B                0 B
+├ ƒ /api/addresses                                          0 B                0 B
+├ ƒ /api/addresses/[id]                                     0 B                0 B
+├ ƒ /api/admin/contact-messages                             0 B                0 B
+├ ƒ /api/admin/content                                      0 B                0 B
+├ ƒ /api/admin/corporate                                    0 B                0 B
+├ ƒ /api/admin/corporate/accounts                           0 B                0 B
+├ ƒ /api/admin/documents                                    0 B                0 B
+├ ƒ /api/admin/images                                       0 B                0 B
+├ ƒ /api/admin/letters                                      0 B                0 B
+├ ƒ /api/admin/letters/pdf                                  0 B                0 B
+├ ƒ /api/admin/marketing/banners                            0 B                0 B
+├ ƒ /api/admin/marketing/campaigns                          0 B                0 B
+├ ƒ /api/admin/marketing/featured-categories                0 B                0 B
+├ ƒ /api/admin/me                                           0 B                0 B
+├ ƒ /api/admin/nav-badges                                   0 B                0 B
+├ ƒ /api/admin/newsletter                                   0 B                0 B
+├ ƒ /api/admin/newsletter/history                           0 B                0 B
+├ ƒ /api/admin/newsletter/import                            0 B                0 B
+├ ƒ /api/admin/newsletter/send                              0 B                0 B
+├ ƒ /api/admin/orders                                       0 B                0 B
+├ ƒ /api/admin/posts                                        0 B                0 B
+├ ƒ /api/admin/products                                     0 B                0 B
+├ ƒ /api/admin/products/datasheets                          0 B                0 B
+├ ƒ /api/admin/products/export                              0 B                0 B
+├ ƒ /api/admin/purchase-orders                              0 B                0 B
+├ ƒ /api/admin/questions                                    0 B                0 B
+├ ƒ /api/admin/quotes                                       0 B                0 B
+├ ƒ /api/admin/quotes/pdf                                   0 B                0 B
+├ ƒ /api/admin/returns                                      0 B                0 B
+├ ƒ /api/admin/reviews                                      0 B                0 B
+├ ƒ /api/admin/settings                                     0 B                0 B
+├ ƒ /api/admin/stats                                        0 B                0 B
+├ ƒ /api/admin/supplier-orders                              0 B                0 B
+├ ƒ /api/admin/supplier-orders/[id]/pdf                     0 B                0 B
+├ ƒ /api/admin/tickets                                      0 B                0 B
+├ ƒ /api/admin/users                                        0 B                0 B
+├ ƒ /api/admin/users/export                                 0 B                0 B
+├ ƒ /api/admin/users/reset-password                         0 B                0 B
+├ ƒ /api/auth/[...nextauth]                                 0 B                0 B
+├ ƒ /api/auth/forgot-password                               0 B                0 B
+├ ƒ /api/auth/register                                      0 B                0 B
+├ ƒ /api/auth/reset-password                                0 B                0 B
+├ ƒ /api/auth/verify                                        0 B                0 B
+├ ƒ /api/cart/track                                         0 B                0 B
+├ ƒ /api/catalog                                            0 B                0 B
+├ ƒ /api/contact                                            0 B                0 B
+├ ƒ /api/corporate/applications                             0 B                0 B
+├ ƒ /api/cron/abandoned-carts                               0 B                0 B
+├ ƒ /api/cron/daily-orders                                  0 B                0 B
+├ ƒ /api/documents/[sku]/[index]                            0 B                0 B
+├ ƒ /api/documents/datasheet                                0 B                0 B
+├ ƒ /api/marketing                                          0 B                0 B
+├ ƒ /api/newsletter                                         0 B                0 B
+├ ƒ /api/newsletter/unsubscribe                             0 B                0 B
+├ ƒ /api/notifications                                      0 B                0 B
+├ ƒ /api/orders                                             0 B                0 B
+├ ƒ /api/orders/[id]/delivery-note                          0 B                0 B
+├ ƒ /api/orders/[id]/invoice                                0 B                0 B
+├ ƒ /api/orders/[id]/receipt                                0 B                0 B
+├ ƒ /api/orders/status                                      0 B                0 B
+├ ƒ /api/payments/initiate                                  0 B                0 B
+├ ƒ /api/payments/mpesa/callback                            0 B                0 B
+├ ƒ /api/payments/paystack/verify                           0 B                0 B
+├ ƒ /api/payments/paystack/webhook                          0 B                0 B
+├ ƒ /api/posts                                              0 B                0 B
+├ ƒ /api/posts/[slug]                                       0 B                0 B
+├ ƒ /api/products/restock-notify                            0 B                0 B
+├ ƒ /api/purchase-orders                                    0 B                0 B
+├ ƒ /api/questions                                          0 B                0 B
+├ ƒ /api/quotes                                             0 B                0 B
+├ ƒ /api/returns                                            0 B                0 B
+├ ƒ /api/reviews                                            0 B                0 B
+├ ƒ /api/settings                                           0 B                0 B
+├ ƒ /api/tickets                                            0 B                0 B
+├ ƒ /api/tickets/[id]                                       0 B                0 B
+├ ƒ /api/uploads/[file]                                     0 B                0 B
+├ ƒ /api/uploads/documents                                  0 B                0 B
+├ ƒ /api/uploads/documents/[file]                           0 B                0 B
+├ ƒ /blog                                                   888 B           100 kB
+├ ƒ /blog/[slug]                                            2.86 kB         144 kB
+├ ○ /brands                                                 888 B           100 kB
+├ ● /brands/[slug]                                          170 B           194 kB
+├   ├ /brands/3m
+├   ├ /brands/honeywell
+├   ├ /brands/ansell
+├   └ [+13 more paths]
+├ ○ /cart                                                   5.29 kB         142 kB
+├ ● /category/[slug]                                        169 B           194 kB
+├   ├ /category/medical-safety
+├   ├ /category/industrial-safety
+├   ├ /category/ppe
+├   └ [+12 more paths]
+├ ○ /checkout                                               11 kB           148 kB
+├ ○ /checkout/success                                       3.43 kB         107 kB
+├ ○ /compare                                                4.48 kB         141 kB
+├ ○ /contact                                                2.69 kB        95.2 kB
+├ ○ /corporate                                              6.73 kB         115 kB
+├ ○ /corporate/purchase                                     4.48 kB         113 kB
+├ ○ /deals                                                  170 B           194 kB
+├ ƒ /documents/[file]                                       0 B                0 B
+├ ○ /forgot-password                                        3.26 kB         112 kB
+├ ƒ /knowledge                                              888 B           100 kB
+├ ● /knowledge/[slug]                                       892 B           142 kB
+├   ├ /knowledge/how-to-choose-safety-helmets
+├   ├ /knowledge/ppe-selection-by-industry
+├   ├ /knowledge/kenya-occupational-safety-laws
+├   └ [+3 more paths]
+├ ƒ /login                                                  5.05 kB         124 kB
+├ ○ /privacy                                                303 B          92.8 kB
+├ ● /product/[slug]                                         11.7 kB         198 kB
+├   ├ /product/nitrilution-exam-gloves-nitrile-powder-free
+├   ├ /product/surgical-face-masks-3-ply-disposable
+├   ├ /product/vanguard-safety-helmet-white
+├   └ [+182 more paths]
+├ ○ /quote                                                  7.58 kB         144 kB
+├ ƒ /register                                               5.97 kB         125 kB
+├ ○ /reset-password                                         3.75 kB         112 kB
+├ ○ /robots.txt                                             0 B                0 B
+├ ○ /search                                                 170 B           194 kB
+├ ○ /sitemap                                                191 B          99.5 kB
+├ ○ /sitemap.xml                                            0 B                0 B
+├ ○ /support                                                888 B           100 kB
+├ ○ /terms                                                  303 B          92.8 kB
+├ ○ /track                                                  4.22 kB         113 kB
+├ ƒ /unsubscribe/[token]                                    2.39 kB        96.7 kB
+├ ƒ /uploads/documents/[file]                               0 B                0 B
+├ ○ /verify                                                 2.97 kB         112 kB
+└ ○ /wishlist                                               2.21 kB         143 kB
++ First Load JS shared by all                               87.4 kB
+  ├ chunks/2117-cf67fce61ce537b3.js                         31.8 kB
+  ├ chunks/fd9d1056-392f71299a398af8.js                     53.6 kB
+  └ other shared chunks (total)                             2.04 kB
+
+
+ƒ Middleware                                                48.6 kB
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses getStaticProps)
+ƒ  (Dynamic)  server-rendered on demand
+

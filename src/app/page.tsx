@@ -15,26 +15,44 @@ import { liveCatalog } from "@/lib/catalog";
 export const revalidate = 60;
 
 export default async function Home() {
-  const bannerSlides: HeroSlide[] = (await getActiveBanners()).map((b) => ({
-    kicker: b.kicker,
-    title: b.title,
-    subtitle: b.subtitle,
-    cta: b.cta,
-    cta_href: b.cta_href,
-    cta2: b.cta2,
-    card_kicker: b.card_kicker,
-    card_title: b.card_title,
-    card_subtitle: b.card_subtitle,
-    stat1_label: b.stat1_label,
-    stat1_value: b.stat1_value,
-    stat2_label: b.stat2_label,
-    stat2_value: b.stat2_value,
-    bg: b.image,
-  }));
-  const campaigns = await getActiveCampaigns();
+  let bannerSlides: HeroSlide[] = [];
+  let campaigns: Awaited<ReturnType<typeof getActiveCampaigns>> = [];
+  let catalog: Awaited<ReturnType<typeof liveCatalog>> = [];
+  try {
+    bannerSlides = (await getActiveBanners()).map((b) => ({
+      kicker: b.kicker,
+      title: b.title,
+      subtitle: b.subtitle,
+      cta: b.cta,
+      cta_href: b.cta_href,
+      cta2: b.cta2,
+      card_kicker: b.card_kicker,
+      card_title: b.card_title,
+      card_subtitle: b.card_subtitle,
+      stat1_label: b.stat1_label,
+      stat1_value: b.stat1_value,
+      stat2_label: b.stat2_label,
+      stat2_value: b.stat2_value,
+      bg: b.image,
+    }));
+  } catch (err) {
+    console.error("[home] getActiveBanners failed during build:", (err as Error).message);
+  }
+  try {
+    campaigns = await getActiveCampaigns();
+  } catch (err) {
+    console.error("[home] getActiveCampaigns failed during build:", (err as Error).message);
+  }
   // Server-rendered live catalog so carousels show current prices/images on
   // first paint instead of flashing the static seed data.
-  const catalog = await liveCatalog();
+  try {
+    catalog = await liveCatalog();
+  } catch (err) {
+    console.error("[home] liveCatalog failed during build, using seed fallback:", (err as Error).message);
+    const { products } = await import("@/lib/data/products");
+    const { productImages } = await import("@/lib/data/product-images");
+    catalog = products.map((p) => ({ ...p, image: productImages[p.sku] ?? `/images/products/${p.sku}.jpg` })) as typeof catalog;
+  }
 
   return (
     <>

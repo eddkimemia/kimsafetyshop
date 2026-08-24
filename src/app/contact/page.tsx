@@ -12,7 +12,14 @@ export const metadata: Metadata = {
 };
 
 export default async function ContactPage() {
-  const s = await getAllSettings();
+  let s: Awaited<ReturnType<typeof getAllSettings>>;
+  try {
+    s = await getAllSettings();
+  } catch (err) {
+    console.error("[contact] getAllSettings failed during build, using defaults:", (err as Error).message);
+    const { DEFAULT_SETTINGS } = await import("@/lib/settings-defaults");
+    s = { ...DEFAULT_SETTINGS } as typeof s;
+  }
   return (
     <div className="bg-surface pb-20">
       <PageHeader
