@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getOrderById, setOrderPaid } from "@/lib/db";
-import { MPESA_COOLDOWN_MS, MPESA_MAX_ATTEMPTS, mpesaQueryCheckout } from "@/lib/payments/mpesa";
+import { getOrderById, setOrderPaid, setMpesaTransaction } from "@/lib/db";
+import { MPESA_COOLDOWN_MS, MPESA_MAX_ATTEMPTS, mpesaQueryCheckout, mpesaFetchReceipt } from "@/lib/payments/mpesa";
 import { sendPaidInvoiceEmail } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
@@ -47,11 +47,22 @@ export async function GET(req: Request) {
         const q = await mpesaQueryCheckout(order.mpesa_checkout_id);
         queried = true;
         if (q.paid) {
+          // The STK status query confirms payment but carries NO receipt
+          // number. Ask Daraja's Transaction Status API for the actual code
+          // BEFORE flagging paid, so the paid-invoice email/PDF and the admin
+          // view show a real transaction ID instead of a blank.
+          try {
+            const receipt = await mpesaFetchReceipt(order.mpesa_checkout_id);
+            if (receipt && !order.mpesa_transaction_id) {
+              await setMpesaTransaction(order.id, receipt);
+              order.mpesa_transaction_id = receipt;
+            }
+          } catch {
+            /* best-effort — the late Safaricom callback or manual entry can still backfill */
+          }
           await setOrderPaid(order.id, 1);
           const fresh = (await getOrderById(order.id)) ?? order;
           try {
-            // The query response carries no receipt number — the customer (or
-            // admin) can add it later; the paid invoice/receipt still go out.
             await sendPaidInvoiceEmail(fresh);
           } catch (err) {
             console.error(`[status] paid invoice email failed for ${order.id}:`, (err as Error).message);

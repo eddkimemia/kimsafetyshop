@@ -135,6 +135,56 @@ export async function mpesaQueryCheckout(
   };
 }
 
+/**
+ * Looks up the M-PESA RECEIPT NUMBER for a completed STK push via Daraja's
+ * Transaction Status API. Needed because the STK status query above confirms
+ * payment but carries NO receipt number — this call retrieves the actual code
+ * (what the customer sees on their SMS, what invoices/receipts print).
+ *
+ * The CheckoutRequestID is passed as both conversation identifiers; Safaricom
+ * matches completed STK pushes against either. Best-effort: returns null on
+ * any failure so callers can fall back to manual entry instead of erroring.
+ */
+export async function mpesaFetchReceipt(checkoutId: string): Promise<string | null> {
+  const c = config();
+  if (!mpesaConfigured() || !checkoutId) return null;
+  try {
+    const token = await getToken();
+    const params = new URLSearchParams({
+      ConversationID: checkoutId,
+      OriginatorConversationID: checkoutId,
+      ShortCode: c.shortcode,
+      Remarks: "KimSafety order reconciliation",
+    });
+    const res = await fetch(`${c.baseUrl}/mpesa/transactionstatus/v1/query?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      Result?: {
+        ResultCode?: number | string;
+        TransactionID?: string;
+        ResultParameters?: {
+          // Daraja renders ResultParameter as an array of {Key, Value}; some
+          // proxies collapse single entries into a bare object.
+          ResultParameter?: { Key?: string; Value?: unknown }[] | { Key?: string; Value?: unknown };
+        };
+      };
+      errorMessage?: string;
+    };
+    if (json.errorMessage) return null;
+    if (String(json.Result?.ResultCode ?? "1") !== "0") return null;
+    const raw = json.Result?.ResultParameters?.ResultParameter;
+    const items = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    for (const item of items) {
+      if (item?.Key === "MpesaReceiptNumber" && item.Value != null) return String(item.Value);
+    }
+    // For completed transactions TransactionID echoes the receipt code.
+    return json.Result?.TransactionID || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function mpesaStkPush(input: {
   phone: string;
   amount: number;

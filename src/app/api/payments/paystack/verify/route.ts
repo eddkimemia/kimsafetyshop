@@ -2,11 +2,27 @@ import { NextResponse } from "next/server";
 import { getOrderById, setOrderPaid } from "@/lib/db";
 import { paystackVerify } from "@/lib/payments/paystack";
 import { sendPaidInvoiceEmail } from "@/lib/mailer";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-/** Verifies a Paystack transaction after the customer returns to /checkout/success. */
+/**
+ * Verifies a Paystack transaction after the customer returns from the hosted
+ * checkout.
+ *
+ * The `reference` body field is OPTIONAL: Paystack redirects back to
+ * callback_url by APPENDING "?reference=…&trxref=…", which corrupts callback
+ * URLs that already carry their own query string (the token param ends up
+ * polluted and previously caused spurious 403s here — successful payments
+ * were never picked up). The authoritative reference is the one this server
+ * generated and stored on the order at initiation time
+ * (orders.paystack_reference), so we default to that and never need to trust
+ * URL-echoed values.
+ */
 export async function POST(req: Request) {
+  const rl = rateLimit(req, "paystack-verify", 30, 600000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
+
   let body: { orderId?: string; token?: string; reference?: string };
   try {
     body = await req.json();
@@ -15,18 +31,28 @@ export async function POST(req: Request) {
   }
   const order = body.orderId ? await getOrderById(body.orderId) : undefined;
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  if (!body.token || !order.payment_token || body.token !== order.payment_token) {
+
+  // The token gates GUEST visibility of order data elsewhere; verification
+  // itself only ever marks the order paid AFTER Paystack (queried with our
+  // secret key) confirms THIS order's stored reference succeeded — it cannot
+  // be forged by guessing ids. When a token IS supplied it must still match.
+  if (body.token && (!order.payment_token || body.token !== order.payment_token)) {
     return NextResponse.json({ error: "Invalid payment token" }, { status: 403 });
   }
-  if (!body.reference) return NextResponse.json({ error: "Missing transaction reference" }, { status: 400 });
+
+  // Anti-replay: an explicitly supplied reference must be the one this order
+  // was initialized with — a client can't replay another order's successful
+  // transaction onto this one.
+  const reference = typeof body.reference === "string" && body.reference ? body.reference : order.paystack_reference;
+  if (!reference) {
+    return NextResponse.json({ error: "No Paystack reference for this order — start the payment again", paid: false }, { status: 400 });
+  }
+  if (body.reference && body.reference !== order.paystack_reference) {
+    return NextResponse.json({ error: "Reference does not belong to this order", paid: false }, { status: 403 });
+  }
 
   try {
-    // The reference must be the one this order was initialized with — a client
-    // can't replay a successful transaction from another (already paid) order.
-    if (body.reference !== order.paystack_reference) {
-      return NextResponse.json({ error: "Reference does not belong to this order", paid: false }, { status: 403 });
-    }
-    const { paid, amount } = await paystackVerify(body.reference);
+    const { paid, amount } = await paystackVerify(reference);
     // Anti-tamper: Paystack reports amounts in kobo/pesewas. Never mark the
     // order paid unless the charged amount equals the order total computed
     // server-side at checkout.
@@ -50,6 +76,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ paid, orderId: order.id });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Verification failed";
+    console.error(`[paystack] verify failed for ${order.id}:`, msg);
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 }

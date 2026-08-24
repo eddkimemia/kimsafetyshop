@@ -592,7 +592,7 @@ export async function sendOrderInvoiceEmail(input: {
   const unpaidNote =
     paid === 1
       ? ""
-      : `<p style="font-size:12px;color:${GRAY};margin:12px 0 0 0;text-align:center;">Payment: ${esc(paymentLabel[payment] ?? payment)}. If the M-Pesa prompt or card checkout fails, pay manually via <strong>M-Pesa Buy Goods · Till ${esc(till)}</strong> (KimSafety Ltd) using your order number as the reference, then send us the confirmation SMS. Details are on the attached invoice.</p>`;
+      : `<p style="font-size:12px;color:${GRAY};margin:12px 0 0 0;text-align:center;">Payment: ${esc(paymentLabel[payment] ?? payment)}. If the M-Pesa prompt or card checkout fails, pay manually via <strong>M-Pesa Buy Goods · Till ${esc(till)}</strong> (KimSafety Ltd) using your order number as the reference, then send the confirmation SMS to WhatsApp <strong>+${esc(brand.whatsapp)}</strong> — we'll confirm and dispatch. Details are on the attached invoice.</p>`;
 
   await sendBrandedMail(cfg, {
     from: cfg.from,

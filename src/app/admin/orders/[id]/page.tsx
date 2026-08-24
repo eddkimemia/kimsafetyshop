@@ -65,7 +65,11 @@ export default function AdminOrderDetailPage() {
   };
 
   const confirmMarkPaid = async () => {
-    if (order?.payment === "mpesa" && !txnRef.trim()) return;
+    // Blank is allowed ONLY when an M-Pesa checkout exists — the server then
+    // fetches the transaction code from Daraja automatically. Otherwise a
+    // typed reference is required so paid orders never show a blank one.
+    const canAutoFetch = order?.payment === "mpesa" && Boolean(order?.mpesa_checkout_id);
+    if (!canAutoFetch && order?.payment === "mpesa" && !txnRef.trim()) return;
     setMarking(true);
     try {
       const res = await fetch("/api/admin/orders", {
@@ -177,7 +181,9 @@ export default function AdminOrderDetailPage() {
                     <h3 className="font-display text-lg font-extrabold text-navy-900">Mark order #{id} as paid</h3>
                     <p className="mt-1 text-sm text-gray-500">
                       {order?.payment === "mpesa"
-                        ? "Enter the M-Pesa transaction / receipt number from the confirmation SMS (e.g. QGH7XYZ1K2). It will be printed on the paid invoice and receipt."
+                        ? order?.mpesa_checkout_id
+                          ? "The M-Pesa transaction code is fetched automatically from Safaricom when you confirm — leave blank to auto-fetch, or type it from the customer's confirmation SMS. It prints on the paid invoice and receipt."
+                          : "Enter the M-Pesa transaction / receipt number from the confirmation SMS (e.g. QGH7XYZ1K2). It will be printed on the paid invoice and receipt."
                         : "Optionally enter the payment reference — it will be printed on the paid invoice and receipt."}
                     </p>
                   </>
@@ -202,7 +208,7 @@ export default function AdminOrderDetailPage() {
                   placeholder={order?.payment === "mpesa" ? "M-Pesa receipt number *" : "Payment reference"}
                   className="mt-4 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm outline-none transition-all focus:border-safety-400 focus:bg-white focus:ring-4 focus:ring-safety-500/10"
                 />
-                {order?.payment === "mpesa" && !txnRef.trim() && (
+                {order?.payment === "mpesa" && !txnRef.trim() && !order?.mpesa_checkout_id && (
                   <p className="mt-2 text-[11px] font-semibold text-danger">M-Pesa receipt number is required.</p>
                 )}
                 <div className="mt-5 flex justify-end gap-2">
@@ -215,7 +221,7 @@ export default function AdminOrderDetailPage() {
                   </button>
                   <button
                     onClick={dialog === "mark-paid" ? confirmMarkPaid : saveRefOnly}
-                    disabled={marking || (order?.payment === "mpesa" && !txnRef.trim())}
+                    disabled={marking || (order?.payment === "mpesa" && !txnRef.trim() && !(dialog === "mark-paid" && order?.mpesa_checkout_id))}
                     className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
                   >
                     {marking ? "Saving…" : dialog === "mark-paid" ? "Confirm payment" : "Save transaction ID"}
@@ -389,7 +395,8 @@ export default function AdminOrderDetailPage() {
                   {order.paid !== 1 && (
                     <button
                       onClick={() => {
-                        setTxnRef("");
+                        // Pre-fill with any code the gateways already captured.
+                        setTxnRef(order.payment === "mpesa" ? order.mpesa_transaction_id ?? "" : order.paystack_reference ?? "");
                         setDialog("mark-paid");
                       }}
                       className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700"

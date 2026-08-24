@@ -12,6 +12,7 @@ import {
 import { liveGetProduct } from "@/lib/catalog";
 import { productImages } from "@/lib/data/product-images";
 import { bulkUnitPrice } from "@/lib/utils";
+import { mpesaFetchReceipt } from "@/lib/payments/mpesa";
 import { sendOrderStatusEmail, sendPaidInvoiceEmail } from "@/lib/mailer";
 
 const VALID = ["Processing", "In transit", "Delivered", "Cancelled"];
@@ -82,9 +83,34 @@ export async function PATCH(req: Request) {
     // Record the payment reference BEFORE flagging paid and re-fetching —
     // the paid invoice PDF and receipt must show it.
     const ref = body.txn_ref?.trim();
-    if (ref) {
-      if (order.payment === "mpesa") await setMpesaTransaction(body.id, ref);
-      else if (order.payment === "card") await setPaystackReference(body.id, ref);
+    let effectiveRef = ref || null;
+    if (!effectiveRef && order.payment === "mpesa") {
+      // Admin left the reference blank: pull the transaction code straight
+      // from Daraja (Transaction Status API, keyed by CheckoutRequestID) so a
+      // paid M-Pesa order NEVER ends up with a blank transaction ID.
+      if (order.mpesa_transaction_id) {
+        effectiveRef = order.mpesa_transaction_id;
+      } else if (order.mpesa_checkout_id) {
+        try {
+          const receipt = await mpesaFetchReceipt(order.mpesa_checkout_id);
+          if (receipt) {
+            await setMpesaTransaction(body.id, receipt);
+            effectiveRef = receipt;
+          }
+        } catch (err) {
+          console.error(`[admin] mpesa receipt lookup failed for ${order.id}:`, (err as Error).message);
+        }
+      }
+      if (!effectiveRef) {
+        return NextResponse.json(
+          { error: "M-Pesa transaction code could not be fetched automatically. Enter it from the customer's confirmation SMS." },
+          { status: 400 }
+        );
+      }
+    }
+    if (effectiveRef) {
+      if (order.payment === "mpesa") await setMpesaTransaction(body.id, effectiveRef);
+      else if (order.payment === "card") await setPaystackReference(body.id, effectiveRef);
     }
     await setOrderPaid(body.id, body.paid ? 1 : 0);
     if (order.paid !== 1 && body.paid) {

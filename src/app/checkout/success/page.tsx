@@ -20,6 +20,13 @@ function CheckoutSuccessInner() {
   const token = params.get("token");
   const reference = params.get("reference");
 
+  // Paystack appends "?reference=…&trxref=…" to the callback_url, which
+  // corrupts URLs that already carry their own query string:
+  //   …?order=KS-1&token=abc?reference=ks_x&trxref=ks_x
+  // The token value then swallows the appended fragment. Strip anything from
+  // a stray ?/# onwards so verification and the invoice/track links work.
+  const cleanToken = token?.split(/[?#]/)[0] ?? null;
+
   const [status, setStatus] = useState<"checking" | "paid" | "pending" | "error">("checking");
   const [message, setMessage] = useState<string | null>(null);
   const [payment, setPayment] = useState<string | null>(null);
@@ -28,28 +35,45 @@ function CheckoutSuccessInner() {
 
   useEffect(() => {
     let cancelled = false;
-    // Card payment returning from Paystack: verify the transaction first.
-    if (reference && orderId && token) {
+    // Card payment returning from Paystack: verify against the reference this
+    // server stored at initiation time (the echoed URL reference is optional
+    // — see /api/payments/paystack/verify).
+    if (orderId && cleanToken) {
+      let pollTimer: ReturnType<typeof setInterval> | null = null;
+      let polls = 0;
       (async () => {
         try {
           const res = await fetch("/api/payments/paystack/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ orderId, token, reference }),
+            body: JSON.stringify({ orderId, token: cleanToken, ...(reference ? { reference } : {}) }),
           });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json.error ?? "Verification failed");
           if (!cancelled) {
             setStatus(json.paid ? "paid" : "pending");
+            setPayment("card");
           }
+          // Not confirmed yet: the webhook may still be in flight. Poll the
+          // order status for ~90s before showing the retry UI.
           if (!json.paid) {
-            try {
-              const r = await fetch(`/api/orders/status?orderId=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`);
-              const j = await r.json();
-              if (!cancelled) setPayment(j.payment ?? null);
-            } catch {
-              /* non-fatal */
-            }
+            pollTimer = setInterval(async () => {
+              polls++;
+              try {
+                const r = await fetch(`/api/orders/status?orderId=${encodeURIComponent(orderId)}&token=${encodeURIComponent(cleanToken)}`, { cache: "no-store" });
+                const j = await r.json();
+                if (cancelled) return;
+                setPayment(j.payment ?? "card");
+                if (j.paid === 1) {
+                  setStatus("paid");
+                  if (pollTimer) clearInterval(pollTimer);
+                } else if (polls > 18 && pollTimer) {
+                  clearInterval(pollTimer);
+                }
+              } catch {
+                /* transient network error — keep polling */
+              }
+            }, 5000);
           }
         } catch (err) {
           if (!cancelled) {
@@ -60,6 +84,7 @@ function CheckoutSuccessInner() {
       })();
       return () => {
         cancelled = true;
+        if (pollTimer) clearInterval(pollTimer);
       };
     }
 
@@ -70,10 +95,10 @@ function CheckoutSuccessInner() {
     let timer: ReturnType<typeof setInterval> | null = null;
     let attempts = 0;
     const poll = async () => {
-      if (!orderId || !token) return;
+      if (!orderId || !cleanToken) return;
       attempts++;
       try {
-        const r = await fetch(`/api/orders/status?orderId=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`, { cache: "no-store" });
+        const r = await fetch(`/api/orders/status?orderId=${encodeURIComponent(orderId)}&token=${encodeURIComponent(cleanToken)}`, { cache: "no-store" });
         const j = await r.json();
         if (cancelled) return;
         setStatus(j.paid === 1 ? "paid" : "pending");
@@ -89,17 +114,17 @@ function CheckoutSuccessInner() {
       cancelled = true;
       if (timer) clearInterval(timer);
     };
-  }, [orderId, token, reference]);
+  }, [orderId, cleanToken, reference]);
 
   const retryCard = async () => {
-    if (retrying || !orderId || !token) return;
+    if (retrying || !orderId || !cleanToken) return;
     setRetrying(true);
     setRetryError(null);
     try {
       const res = await fetch("/api/payments/initiate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, token }),
+        body: JSON.stringify({ orderId, token: cleanToken }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Payment could not be started");
@@ -164,7 +189,7 @@ function CheckoutSuccessInner() {
       <div className="mt-2 flex flex-wrap justify-center gap-3">
         {orderId && (
           <a
-            href={`/api/orders/${encodeURIComponent(orderId)}/invoice?token=${encodeURIComponent(token ?? "")}`}
+            href={`/api/orders/${encodeURIComponent(orderId)}/invoice?token=${encodeURIComponent(cleanToken ?? "")}`}
             className="inline-flex items-center gap-1.5 rounded-lg border border-line px-4 py-2 text-xs font-bold text-navy-900 hover:bg-surface"
           >
             <Download className="h-3.5 w-3.5" /> Download Invoice
@@ -173,15 +198,15 @@ function CheckoutSuccessInner() {
         {/* Official receipt only exists once payment is confirmed. */}
         {orderId && status === "paid" && (
           <a
-            href={`/api/orders/${encodeURIComponent(orderId)}/receipt?token=${encodeURIComponent(token ?? "")}`}
+            href={`/api/orders/${encodeURIComponent(orderId)}/receipt?token=${encodeURIComponent(cleanToken ?? "")}`}
             className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
           >
             <Receipt className="h-3.5 w-3.5" /> Download Receipt
           </a>
         )}
-        {orderId && token && (
+        {orderId && cleanToken && (
           <Link
-            href={`/track?id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`}
+            href={`/track?id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(cleanToken)}`}
             className="rounded-xl border border-line bg-white px-7 py-3.5 text-sm font-bold text-navy-900 hover:bg-surface"
           >
             Track Order

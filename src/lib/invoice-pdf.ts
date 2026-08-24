@@ -344,7 +344,21 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
   // Goods till and quote the invoice number.
   if (!paid) {
     const till = s.mpesa_till || "4178866";
-    const boxH = 64;
+    // Confirmation SMS go to the same WhatsApp number shown across the
+    // storefront (Settings → whatsapp); formatted for print here.
+    const waDigits = (s.whatsapp || "254715135141").replace(/\D/g, "");
+    const waDisplay = `+${waDigits.slice(0, 3)} ${waDigits.slice(3)}`;
+    // Payment steps render as a numbered list so customers can follow them
+    // top-to-bottom without parsing arrow-separated prose.
+    const steps = [
+      "Open M-Pesa on your phone",
+      "Choose Lipa na M-Pesa, then Buy Goods and Services",
+      `Enter Till Number ${till} (KimSafety Ltd)`,
+      `Enter Amount ${fmt(order.total)}`,
+      `Enter "${order.id}" as the account / reference`,
+      `Send the confirmation SMS to WhatsApp ${waDisplay} — we'll confirm and dispatch`,
+    ];
+    const boxH = 112;
     // Keep clear of the date stamp zone on the last page (bottom-right).
     if (ty + boxH > pageH - 210) {
       doc.addPage();
@@ -356,20 +370,12 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
       .fontSize(9.5)
       .fillColor(NAVY)
       .text("COULDN'T PAY ONLINE? MANUAL M-PESA FALLBACK", padL + 14, ty + 8, { width: padR - padL - 28 });
-    doc
-      .font("Helvetica")
-      .fontSize(8.5)
-      .fillColor("#374151")
-      .text(
-        [
-          `If the M-Pesa prompt or card checkout failed or expired, pay manually instead:`,
-          `M-PESA  →  Lipa na M-Pesa  →  Buy Goods and Services  →  Till Number ${till} (KimSafety Ltd)  ·  Amount: ${fmt(order.total)}.`,
-          `Enter "${order.id}" as the account/reference, then send us the confirmation SMS — we'll confirm and dispatch.`,
-        ].join("\n"),
-        padL + 14,
-        ty + 22,
-        { width: padR - padL - 28, lineGap: 2.5 }
-      );
+    doc.font("Helvetica").fontSize(8.5).fillColor("#374151");
+    let stepY = ty + 24;
+    for (let i = 0; i < steps.length; i++) {
+      doc.text(`${i + 1}.  ${steps[i]}`, padL + 14, stepY, { width: padR - padL - 28 });
+      stepY += 14;
+    }
     ty += boxH;
   }
 

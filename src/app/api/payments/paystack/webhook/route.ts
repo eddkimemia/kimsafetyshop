@@ -14,6 +14,10 @@ export async function POST(req: Request) {
   const raw = await req.text();
   const signature = req.headers.get("x-paystack-signature") ?? "";
   if (!verifyPaystackWebhook(raw, signature)) {
+    // Signature failures usually mean the dashboard webhook points at an
+    // environment whose PAYSTACK_SECRET_KEY differs from the one Paystack
+    // signs with (test vs live). Logged so a silent dead webhook is diagnosable.
+    console.warn("[paystack] webhook rejected — invalid x-paystack-signature");
     return new Response("Unauthorized", { status: 401 });
   }
 
