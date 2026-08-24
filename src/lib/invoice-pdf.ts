@@ -379,16 +379,19 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
     ty += boxH;
   }
 
-  // ---- Stamp on the last page, above the footer ----
+  // ---- Stamp + till seal on the last page, above the footer ----
   const stampPath = join(process.cwd(), "public", "images", "logo", "stamp.png");
+  let stampRect: { x: number; y: number; w: number; h: number } | null = null;
   if (fs.existsSync(stampPath)) {
     const stampW = 185;
     const range = doc.bufferedPageRange();
     doc.switchToPage(range.count - 1);
     const stampBuf = fs.readFileSync(stampPath);
     const stampH = stampW * (stampBuf.readUInt32BE(20) / stampBuf.readUInt32BE(16));
+    const stampX = padR - stampW;
     const stampY = pageH - 66 - 24 - stampH;
-    doc.image(stampPath, padR - stampW, stampY, { width: stampW });
+    doc.image(stampPath, stampX, stampY, { width: stampW });
+    stampRect = { x: stampX, y: stampY, w: stampW, h: stampH };
     const dateStr = new Date(order.created_at)
       .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
       .toUpperCase();
@@ -396,7 +399,23 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
       .font("Courier-Bold")
       .fontSize(14)
       .fillColor("#DC2626")
-      .text(dateStr, padR - stampW, stampY + (stampH - 16) / 2, { width: stampW, align: "center" });
+      .text(dateStr, stampX, stampY + (stampH - 16) / 2, { width: stampW, align: "center" });
+  }
+  // Unpaid invoices carry the M-Pesa till seal next to the stamp — it marks
+  // the manual payment option described in the fallback box above.
+  if (!paid) {
+    const tillPath = join(process.cwd(), "public", "images", "logo", "till.png");
+    if (fs.existsSync(tillPath)) {
+      const tillW = 150;
+      const tillBuf = fs.readFileSync(tillPath);
+      const tillH = tillW * (tillBuf.readUInt32BE(20) / tillBuf.readUInt32BE(16));
+      const rangeTill = doc.bufferedPageRange();
+      doc.switchToPage(rangeTill.count - 1);
+      const tillX = stampRect ? Math.max(padL, stampRect.x - 72 - tillW) : padR - tillW;
+      // Same line as the stamp: centre both seals vertically.
+      const tillY = stampRect ? stampRect.y + (stampRect.h - tillH) / 2 : pageH - 66 - 24 - tillH;
+      doc.image(tillPath, tillX, tillY, { width: tillW });
+    }
   }
 
   // ---- Footer drawn on every page via pageAdded handler ----
