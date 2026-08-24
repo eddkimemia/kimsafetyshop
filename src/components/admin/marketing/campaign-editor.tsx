@@ -66,6 +66,19 @@ export function CampaignEditor({ initial, isNew }: { initial: Campaign; isNew: b
       setError("Campaign image is required — the card shows the image instead of text.");
       return;
     }
+    const href = f.cta_href.trim();
+    if (href && /^javascript:/i.test(href)) {
+      setError("CTA link cannot be javascript:.");
+      return;
+    }
+    if (href && /^data:/i.test(href)) {
+      setError("CTA link cannot be data:.");
+      return;
+    }
+    if (href && href !== "/" && !href.startsWith("/") && !/^https:\/\//i.test(href)) {
+      setError("CTA link must start with / or https:// (e.g. /deals or https://example.com).");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {

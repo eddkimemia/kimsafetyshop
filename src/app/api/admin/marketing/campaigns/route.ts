@@ -48,6 +48,12 @@ export async function POST(req: Request) {
   }
   const input = parseCampaign(body);
   if (!input) return NextResponse.json({ error: "Campaign name is required" }, { status: 400 });
+  if (/^javascript:/i.test(input.cta_href) || /^data:/i.test(input.cta_href)) {
+    return NextResponse.json({ error: "CTA link cannot be javascript: or data:" }, { status: 400 });
+  }
+  if (input.cta_href !== "/" && !input.cta_href.startsWith("/") && !/^https:\/\//i.test(input.cta_href)) {
+    return NextResponse.json({ error: "CTA link must start with / or https://" }, { status: 400 });
+  }
   const conflict = await getCampaignBySlug(input.slug);
   if (conflict && conflict.id !== input.id) {
     return NextResponse.json({ error: `Slug "${input.slug}" already exists` }, { status: 409 });

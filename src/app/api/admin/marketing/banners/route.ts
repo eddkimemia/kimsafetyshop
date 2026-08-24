@@ -53,6 +53,12 @@ export async function POST(req: Request) {
   }
   const input = parseBanner(body);
   if (!input) return NextResponse.json({ error: "Title and image are required" }, { status: 400 });
+  if (/^javascript:/i.test(input.cta_href) || /^data:/i.test(input.cta_href)) {
+    return NextResponse.json({ error: "Button link cannot be javascript: or data:" }, { status: 400 });
+  }
+  if (input.cta_href !== "/" && !input.cta_href.startsWith("/") && !/^https:\/\//i.test(input.cta_href)) {
+    return NextResponse.json({ error: "Button link must start with / or https://" }, { status: 400 });
+  }
   if (input.id && !(await getBannerById(input.id))) {
     return NextResponse.json({ error: "Banner not found" }, { status: 404 });
   }

@@ -1233,6 +1233,58 @@ export async function adjustProductStock(
   return changed;
 }
 
+/**
+ * Reverses a sale: increments `stock` and decrements `sold` (floored at 0) for
+ * each line item. Used when an order is cancelled so inventory is re-reserved
+ * without manual admin restock. Mirrors `adjustProductStock` but with +qty.
+ */
+export async function restoreProductStock(
+  adjustments: { sku: string; qty: number; fallbackStock: number; fallbackSold: number; isSeed: boolean }[]
+) {
+  const changed: string[] = [];
+  for (const adj of adjustments) {
+    const qty = Math.floor(adj.qty);
+    if (!adj.sku || qty <= 0) continue;
+    try {
+      const existing = await getAdminProduct(adj.sku);
+      if (!existing) {
+        if (!adj.isSeed) continue;
+        await upsertAdminProduct(adj.sku, {
+          sku: adj.sku,
+          static: true,
+          stock: Math.max(0, Number(adj.fallbackStock) || 0) + qty,
+          sold: Math.max(0, (Number(adj.fallbackSold) || 0) - qty),
+        });
+      } else if (typeof existing.stock !== "number") {
+        await upsertAdminProduct(adj.sku, {
+          ...existing,
+          sku: adj.sku,
+          stock: Math.max(0, Number(adj.fallbackStock) || 0) + qty,
+          sold: Math.max(0, Number(existing.sold ?? adj.fallbackSold) - qty) || 0,
+        });
+      }
+      await qe(
+        `UPDATE admin_products SET data = (
+           SELECT jsonb_set(jsonb_set(
+             data::jsonb,
+             '{stock}',
+             to_jsonb(COALESCE((data::jsonb->>'stock')::int, 0) + $2)
+           , '{sold}', to_jsonb(GREATEST(0, COALESCE((data::jsonb->>'sold')::int, 0) - $2))
+           )::text
+         ), updated_at = $3
+         WHERE sku = $1`,
+        adj.sku,
+        qty,
+        new Date().toISOString()
+      );
+      changed.push(adj.sku);
+    } catch (err) {
+      console.error(`[db] stock restore failed for ${adj.sku}:`, (err as Error).message);
+    }
+  }
+  return changed;
+}
+
 export async function listAdminGuides(): Promise<{ slug: string; data: unknown; updated_at: string }[]> {  return (await qr("SELECT * FROM admin_guides ORDER BY updated_at DESC")) as { slug: string; data: unknown; updated_at: string }[];
 }
 

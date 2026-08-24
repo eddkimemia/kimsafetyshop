@@ -68,6 +68,19 @@ export function BannerEditor({ initial, isNew }: { initial: Banner; isNew: boole
       setError("Headline and background image are required.");
       return;
     }
+    const href = f.cta_href.trim();
+    if (href && /^javascript:/i.test(href)) {
+      setError("Button link cannot be javascript:.");
+      return;
+    }
+    if (href && /^data:/i.test(href)) {
+      setError("Button link cannot be data:.");
+      return;
+    }
+    if (href && href !== "/" && !href.startsWith("/") && !/^https:\/\//i.test(href)) {
+      setError("Button link must start with / or https://");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {

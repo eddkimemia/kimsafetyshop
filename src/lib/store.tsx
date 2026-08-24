@@ -141,29 +141,41 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("ks-recent", JSON.stringify(recentlyViewed));
   }, [recentlyViewed, hydrated]);
 
-  const addToCart = useCallback((productId: string, qty = 1) => {
-    setCart((prev) => {
-      const existing = prev.find((i) => i.productId === productId);
-      if (existing) {
-        return prev.map((i) =>
-          i.productId === productId ? { ...i, qty: Math.min(i.qty + qty, 999) } : i
-        );
-      }
-      return [...prev, { productId, qty }];
-    });
-  }, []);
+  const addToCart = useCallback(
+    (productId: string, qty = 1) => {
+      const p = catalog.find((pr) => pr.id === productId || pr.sku === productId) ?? getProduct(productId);
+      const cap = p?.stock != null && p.stock > 0 ? p.stock : 999;
+      const safeQty = Math.min(Math.max(1, Math.floor(qty)), cap);
+      setCart((prev) => {
+        const existing = prev.find((i) => i.productId === productId);
+        if (existing) {
+          return prev.map((i) =>
+            i.productId === productId ? { ...i, qty: Math.min(i.qty + safeQty, cap) } : i
+          );
+        }
+        return [...prev, { productId, qty: safeQty }];
+      });
+    },
+    [catalog]
+  );
 
   const removeFromCart = useCallback((productId: string) => {
     setCart((prev) => prev.filter((i) => i.productId !== productId));
   }, []);
 
-  const setQty = useCallback((productId: string, qty: number) => {
-    setCart((prev) =>
-      qty <= 0
-        ? prev.filter((i) => i.productId !== productId)
-        : prev.map((i) => (i.productId === productId ? { ...i, qty } : i))
-    );
-  }, []);
+  const setQty = useCallback(
+    (productId: string, qty: number) => {
+      const p = catalog.find((pr) => pr.id === productId || pr.sku === productId) ?? getProduct(productId);
+      const cap = p?.stock != null && p.stock > 0 ? p.stock : 999;
+      const safeQty = Math.min(Math.max(0, Math.floor(qty)), cap);
+      setCart((prev) =>
+        safeQty <= 0
+          ? prev.filter((i) => i.productId !== productId)
+          : prev.map((i) => (i.productId === productId ? { ...i, qty: safeQty } : i))
+      );
+    },
+    [catalog]
+  );
 
   const clearCart = useCallback(() => setCart([]), []);
 
@@ -178,7 +190,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const toggleCompare = useCallback((productId: string) => {
     setCompare((prev) => {
       if (prev.includes(productId)) return prev.filter((id) => id !== productId);
-      if (prev.length >= 4) return prev;
+      if (prev.length >= 4) {
+        // Notify user instead of silently ignoring — keeps UX honest
+        if (typeof window !== "undefined") {
+          // Use a lightweight alert; the compare page also shows a banner
+          window.dispatchEvent(new CustomEvent("kimsafety:toast", { detail: { message: "Compare limit is 4 items. Remove one to add another.", type: "warning" } }));
+          // Fallback if no toast listener is mounted
+          if (!document.querySelector("[data-toast-root]")) {
+            alert("Compare limit is 4 items. Remove one to add another.");
+          }
+        }
+        return prev;
+      }
       return [...prev, productId];
     });
   }, []);

@@ -45,7 +45,7 @@ export async function sendContentNewsletter(item: NewsletterContentItem): Promis
       item.cover
         ? `<p style="margin:0 0 18px 0;"><img src="${item.cover}" alt="${item.title}" style="max-width:100%;height:auto;border-radius:12px;display:block;width:100%;" /></p>`
         : "";
-    const readMore = cta(`${siteUrl}/${item.kind === "blog" ? "blog" : "knowledge"}/${item.slug}`, item.kind === "blog" ? "Read the full article" : "Read the full guide");
+    const readMore = cta(`${siteUrl}/${item.kind === "blog" ? "blog" : "knowledge"}/${encodeURIComponent(item.slug)}`, item.kind === "blog" ? "Read the full article" : "Read the full guide");
     const body = `${cover}${item.excerpt ? preview(item.excerpt) : ""}${content}${readMore}`;
 
     const subject = item.kind === "blog" ? `New on the blog: ${item.title}` : `New knowledge guide: ${item.title}`;

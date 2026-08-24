@@ -68,6 +68,11 @@ export function ProductDetail({
     noteRecentlyViewed(product.id);
   }, [product.id, noteRecentlyViewed]);
 
+  // Clamp qty if live stock drops below selected qty (e.g., concurrent purchase)
+  useEffect(() => {
+    if (live.stock > 0 && qty > live.stock) setQty(live.stock);
+  }, [live.stock, qty]);
+
   const off = discountPercent(live.price, live.oldPrice);
   const inWish = wishlist.includes(product.id);
   const inCompare = compare.includes(product.id);
@@ -89,13 +94,17 @@ export function ProductDetail({
   const [view, setView] = useState(0);
 
   const handleAdd = () => {
-    addToCart(product.id, qty);
+    const capped = Math.min(qty, live.stock || qty);
+    if (capped !== qty) setQty(capped);
+    addToCart(product.id, capped);
     setAdded(true);
     setTimeout(() => setAdded(false), 1400);
   };
 
   const handleBuyNow = () => {
-    addToCart(product.id, qty);
+    const capped = Math.min(qty, live.stock || qty);
+    if (capped !== qty) setQty(capped);
+    addToCart(product.id, capped);
     setBuyNowLoading(true);
     setTimeout(() => {
       setBuyNowLoading(false);
@@ -270,15 +279,17 @@ export function ProductDetail({
               <div className="flex items-center rounded-xl border border-line">
                 <button
                   onClick={() => setQty(Math.max(1, qty - 1))}
-                  className="flex h-12 w-12 items-center justify-center text-gray-500 transition-colors hover:text-navy-900"
+                  disabled={qty <= 1}
+                  className="flex h-12 w-12 items-center justify-center text-gray-500 transition-colors hover:text-navy-900 disabled:opacity-40"
                   aria-label="Decrease quantity"
                 >
                   <Minus className="h-4 w-4" />
                 </button>
                 <span className="w-12 text-center text-base font-bold">{qty}</span>
                 <button
-                  onClick={() => setQty(Math.min(999, qty + 1))}
-                  className="flex h-12 w-12 items-center justify-center text-gray-500 transition-colors hover:text-navy-900"
+                  onClick={() => setQty(Math.min(live.stock || 999, qty + 1))}
+                  disabled={out || qty >= live.stock}
+                  className="flex h-12 w-12 items-center justify-center text-gray-500 transition-colors hover:text-navy-900 disabled:opacity-40"
                   aria-label="Increase quantity"
                 >
                   <Plus className="h-4 w-4" />

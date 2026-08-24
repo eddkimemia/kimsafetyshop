@@ -18,7 +18,7 @@ const company: [string, string][] = [
   ["Why Choose Us", "/about"],
   ["Corporate Solutions", "/corporate"],
   ["Government & Tenders", "/corporate"],
-  ["Careers", "/about"],
+  ["Careers", "/contact"],
   ["Blog & News", "/blog"],
 ];
 

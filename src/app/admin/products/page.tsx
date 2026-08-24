@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronUp, ChevronsUpDown, Download, ExternalLink, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, Download, ExternalLink, FileStack, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useFetch, AdminCard, adminField } from "@/components/admin/ui";
 import { ProductArt } from "@/components/product/product-art";
 import { formatKES } from "@/lib/utils";
@@ -147,6 +147,13 @@ export default function AdminProductsPage() {
             className="flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-bold text-navy-900 hover:bg-surface disabled:opacity-60"
           >
             <Download className="h-4 w-4 text-emerald-600" /> {exporting ? "Exporting…" : "Export to Excel"}
+          </button>
+          <button
+            onClick={() => router.push("/admin/products/datasheets")}
+            className="flex items-center gap-2 rounded-xl border border-safety-200 bg-safety-50 px-4 py-3 text-sm font-bold text-navy-900 hover:bg-safety-100"
+            title="Open datasheets hub — merge selected products into one PDF or download the full catalog"
+          >
+            <FileStack className="h-4 w-4 text-safety-600" /> Datasheets
           </button>
           <button
             onClick={() => router.push("/admin/products/new")}

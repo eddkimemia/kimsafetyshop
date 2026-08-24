@@ -7,7 +7,7 @@ import PDFDocument from "pdfkit";
 import { mergedCatalog } from "@/lib/admin-products";
 import { htmlToBlocks, TextRun, Block } from "@/lib/html-blocks";
 import { getAllSettings, getSetting } from "@/lib/db";
-import { readLogoBytes, getLogoSize } from "@/lib/logo";
+import { readLogoBytes, getLogoSize, DEFAULT_LOGO } from "@/lib/logo";
 import { getStoredFile, readPublicFile } from "@/lib/file-store";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { productImages, productGalleries } from "@/lib/data/product-images";
@@ -28,6 +28,23 @@ const COMPANY = {
   email: "sales@kimsafety.co.ke",
   website: "www.kimsafety.co.ke",
 };
+
+// PDFKit supports only JPEG and PNG — WebP/SVG will throw "Unknown image format".
+function isSupportedImage(buf: Buffer | undefined): boolean {
+  if (!buf || buf.length < 4) return false;
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return true;
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return true;
+  return false;
+}
+function safeImage(pdf: InstanceType<typeof PDFDocument>, buf: Buffer, x: number, y: number, opts: Record<string, unknown>): boolean {
+  if (!isSupportedImage(buf)) return false;
+  try {
+    (pdf as unknown as { image: (b: Buffer, a: number, b2: number, c: unknown) => void }).image(buf, x, y, opts);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const fmtDate = (d: Date) =>
   d.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
@@ -141,11 +158,22 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
   pdf.on("pageAdded", drawPageChrome);
   drawPageChrome();
 
-  // ---- Letterhead ----
-  const logoBuf = await readLogoBytes((await getAllSettings()).logo);
+  // ---- Letterhead ---- fallback to bundled JPG if configured logo is WebP/SVG
+  let logoBuf = await readLogoBytes((await getAllSettings()).logo);
+  if (logoBuf && !isSupportedImage(logoBuf)) {
+    try {
+      const fb = await readLogoBytes(DEFAULT_LOGO);
+      if (fb && isSupportedImage(fb)) logoBuf = fb;
+      else logoBuf = undefined;
+    } catch {
+      logoBuf = undefined;
+    }
+  }
   let logoWidth = 0;
-  if (logoBuf) {
-    pdf.image(logoBuf, padL, 30, { height: 50 });
+  if (logoBuf && isSupportedImage(logoBuf)) {
+    try {
+      pdf.image(logoBuf, padL, 30, { height: 50 });
+    } catch {}
     const size = getLogoSize(logoBuf);
     logoWidth = size ? Math.round((size.width / size.height) * 50) : 50 * 3.34;
   }
@@ -187,7 +215,7 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
     `/images/products/${product.sku}.jpg`,
   ].filter((u): u is string => typeof u === "string" && !!u);
   const galleryBufs = (await Promise.all(gridCandidates.map((u) => readPublicFile(u)))).filter(
-    (b): b is Buffer => !!b
+    (b): b is Buffer => !!b && isSupportedImage(b)
   );
   const gallery = galleryBufs.slice(0, 3);
 
@@ -198,7 +226,11 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
     gallery.forEach((buf, i) => {
       const cx = padL + i * (cellW + gridGap);
       pdf.rect(cx, y, cellW, cellW).lineWidth(1).strokeColor("#E2E8F0").stroke();
-      pdf.image(buf, cx, y, { width: cellW, height: cellW });
+      if (isSupportedImage(buf)) {
+        try {
+          pdf.image(buf, cx, y, { width: cellW, height: cellW });
+        } catch {}
+      }
     });
     y += cellW + 16;
   }
@@ -213,11 +245,13 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
   ].filter((u): u is string => typeof u === "string" && !!u);
   for (const cand of imageCandidates) {
     const buf = await readPublicFile(cand);
-    if (buf) {
+    if (buf && isSupportedImage(buf)) {
       imageW = 118;
       imageH = 118;
       pdf.rect(padR - imageW, y, imageW, imageH).lineWidth(1).strokeColor("#E2E8F0").stroke();
-      pdf.image(buf, padR - imageW, y, { width: imageW, height: imageH });
+      try {
+        pdf.image(buf, padR - imageW, y, { width: imageW, height: imageH });
+      } catch {}
       pdf.rect(padR - imageW, y, imageW, 16).fill(NAVY);
       pdf
         .font("Helvetica-Bold")
@@ -522,21 +556,27 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
   });
   y += 86;
 
-  // ---- Stamp on the last page ----
+  // ---- Stamp on the last page ---- must not throw Unknown image format
   const stampPath = path.join(process.cwd(), "public", "images", "logo", "stamp.png");
   if (fs.existsSync(stampPath)) {
-    const stampW = 185;
-    const stampBuf = fs.readFileSync(stampPath);
-    const stampH = stampW * (stampBuf.readUInt32BE(20) / stampBuf.readUInt32BE(16));
-    const stampY = pageH - 66 - 24 - stampH;
-    const range = pdf.bufferedPageRange();
-    pdf.switchToPage(range.count - 1);
-    pdf.image(stampPath, padR - stampW, stampY, { width: stampW });
-    pdf
-      .font("Courier-Bold")
-      .fontSize(14)
-      .fillColor("#DC2626")
-      .text(fmtShortDate(new Date()), padR - stampW, stampY + (stampH - 16) / 2, { width: stampW, align: "center" });
+    try {
+      const stampBuf = fs.readFileSync(stampPath);
+      if (!isSupportedImage(stampBuf)) throw new Error("Unsupported stamp");
+      let stampH = 80;
+      try {
+        stampH = 185 * (stampBuf.readUInt32BE(20) / stampBuf.readUInt32BE(16));
+      } catch {}
+      const stampW = 185;
+      const stampY = pageH - 66 - 24 - stampH;
+      const range = pdf.bufferedPageRange();
+      pdf.switchToPage(range.count - 1);
+      safeImage(pdf, stampBuf, padR - stampW, stampY, { width: stampW });
+      pdf
+        .font("Courier-Bold")
+        .fontSize(14)
+        .fillColor("#DC2626")
+        .text(fmtShortDate(new Date()), padR - stampW, stampY + (stampH - 16) / 2, { width: stampW, align: "center" });
+    } catch {}
   }
 
   pdf.end();

@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npx prisma migrate deploy && next build",
+    "build": "next build",
+    "build:with-migrate": "npx prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
     "deploy:db": "node scripts/deploy-db.mjs",

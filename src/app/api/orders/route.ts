@@ -78,6 +78,12 @@ export async function POST(req: Request) {
   if (!body.name || !body.email || !body.phone || !body.address || !Array.isArray(body.items) || body.items.length === 0) {
     return NextResponse.json({ error: "Missing required order details" }, { status: 400 });
   }
+  // Validate guest account password BEFORE creating the order — otherwise a 400
+  // would leave an orphan order that the client thinks failed.
+  const __guestPw = body.guest_password?.trim();
+  if (__guestPw && __guestPw.length > 0 && __guestPw.length < 6) {
+    return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+  }
 
   // Re-derive every total from the live (admin-overridden) catalog so the
   // discount is always counted correctly and the stored total can't be spoofed.
@@ -85,6 +91,24 @@ export async function POST(req: Request) {
   const found = await Promise.all(items.map((i) => liveGetProduct(i.productId)));
   if (found.some((p) => !p)) {
     return NextResponse.json({ error: "One or more products could not be found" }, { status: 400 });
+  }
+  // Server-side quantity cap — prevent oversell races that the client might miss.
+  for (let idx = 0; idx < items.length; idx++) {
+    const it = items[idx] as { productId: string; qty: number };
+    const p = found[idx];
+    if (!p) continue;
+    const qty = Math.floor(Number(it.qty) || 0);
+    if (qty <= 0) {
+      return NextResponse.json({ error: `Quantity must be at least 1 for ${p.name}` }, { status: 400 });
+    }
+    if (qty > p.stock) {
+      return NextResponse.json(
+        {
+          error: `Only ${p.stock} unit${p.stock === 1 ? "" : "s"} available for ${p.name} (you requested ${qty}). Please reduce quantity or contact us for backorder.`,
+        },
+        { status: 409 }
+      );
+    }
   }
   const totals = await computeTotals(items);
   // Snapshot what each unit actually cost AT PURCHASE TIME (incl. bulk tier)
@@ -165,6 +189,7 @@ export async function POST(req: Request) {
   if (!user) {
     const guestPassword = body.guest_password?.trim();
     if (guestPassword) {
+      // Length already validated before order creation; this is just a guard.
       if (guestPassword.length < 6) {
         return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
       }

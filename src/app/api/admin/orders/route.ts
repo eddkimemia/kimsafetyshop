@@ -4,12 +4,13 @@ import {
   createNotification,
   getOrderById,
   listOrders,
+  restoreProductStock,
   setMpesaTransaction,
   setOrderPaid,
   setOrderStatus,
   setPaystackTransaction,
 } from "@/lib/db";
-import { liveGetProduct } from "@/lib/catalog";
+import { invalidateCatalogCache, liveGetProduct } from "@/lib/catalog";
 import { productImages } from "@/lib/data/product-images";
 import { bulkUnitPrice } from "@/lib/utils";
 import { mpesaFetchReceipt } from "@/lib/payments/mpesa";
@@ -143,7 +144,34 @@ export async function PATCH(req: Request) {
   if (!VALID.includes(body.status ?? "")) {
     return NextResponse.json({ error: "Invalid order id or status" }, { status: 400 });
   }
+  const wasCancelled = order.status === "Cancelled";
+  const willCancel = body.status === "Cancelled";
   await setOrderStatus(body.id, body.status as string);
+  // Auto-restore inventory when an order transitions into Cancelled (once only).
+  if (!wasCancelled && willCancel) {
+    try {
+      const rawItems = JSON.parse(order.items) as { productId: string; qty: number }[];
+      const restores = await Promise.all(
+        rawItems.map(async (i) => {
+          const p = await liveGetProduct(i.productId);
+          return {
+            sku: p?.sku ?? i.productId,
+            qty: Math.floor(Number(i.qty) || 0),
+            fallbackStock: p?.stock ?? 0,
+            fallbackSold: p?.sold ?? 0,
+            isSeed: Boolean(p?.id && !String(p.id).startsWith("custom-")),
+          };
+        })
+      );
+      const valid = restores.filter((r) => r.sku && r.qty > 0);
+      if (valid.length) {
+        await restoreProductStock(valid);
+        invalidateCatalogCache();
+      }
+    } catch (err) {
+      console.error(`[admin] stock restore failed for cancelled order ${order.id}:`, (err as Error).message);
+    }
+  }
   if (order.user_id) {
     await createNotification({
       user_id: order.user_id,
