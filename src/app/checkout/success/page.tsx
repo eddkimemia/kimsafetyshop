@@ -55,7 +55,9 @@ function CheckoutSuccessInner() {
             setPayment("card");
           }
           // Not confirmed yet: the webhook may still be in flight. Poll the
-          // order status for ~90s before showing the retry UI.
+          // order status for ~90s before showing the retry UI, and every
+          // ~30s re-query Paystack directly — covers slow mobile-money
+          // confirmations and a missed/broken webhook delivery.
           if (!json.paid) {
             pollTimer = setInterval(async () => {
               polls++;
@@ -67,7 +69,22 @@ function CheckoutSuccessInner() {
                 if (j.paid === 1) {
                   setStatus("paid");
                   if (pollTimer) clearInterval(pollTimer);
-                } else if (polls > 18 && pollTimer) {
+                  return;
+                }
+                if (polls % 6 === 0) {
+                  const v = await fetch("/api/payments/paystack/verify", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ orderId, token: cleanToken }),
+                  });
+                  const vj = await v.json().catch(() => ({}));
+                  if (!cancelled && v.ok && vj.paid) {
+                    setStatus("paid");
+                    if (pollTimer) clearInterval(pollTimer);
+                    return;
+                  }
+                }
+                if (polls > 18 && pollTimer) {
                   clearInterval(pollTimer);
                 }
               } catch {

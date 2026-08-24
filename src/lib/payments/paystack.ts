@@ -46,19 +46,20 @@ export async function paystackInitialize(input: {
   return { authorizationUrl: json.data.authorization_url, reference: json.data.reference ?? input.reference };
 }
 
-export async function paystackVerify(reference: string): Promise<{ paid: boolean; status: string | null; amount: number | null }> {
+export async function paystackVerify(reference: string): Promise<{ paid: boolean; status: string | null; amount: number | null; transactionId: string | null }> {
   const res = await fetch(`${BASE}/transaction/verify/${encodeURIComponent(reference)}`, {
     headers: { Authorization: `Bearer ${secretKey()}` },
   });
   const json = (await res.json().catch(() => ({}))) as {
     status?: boolean;
-    data?: { status?: string; amount?: number };
+    data?: { status?: string; amount?: number; id?: number | string };
   };
   const tx = json.data;
   return {
     paid: json.status === true && tx?.status === "success",
     status: tx?.status ?? null,
     amount: tx?.amount ?? null,
+    transactionId: tx?.id !== undefined ? String(tx.id) : null,
   };
 }
 

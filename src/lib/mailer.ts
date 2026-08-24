@@ -664,6 +664,7 @@ export async function sendPaidInvoiceEmail(input: {
   mpesa_transaction_id?: string | null;
   mpesa_checkout_id?: string | null;
   paystack_reference?: string | null;
+  paystack_transaction_id?: string | null;
   po_ref?: string | null;
   payment_token?: string | null;
 }): Promise<boolean> {
@@ -676,13 +677,14 @@ export async function sendPaidInvoiceEmail(input: {
     ? `${siteUrl}/track?id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(payment_token)}`
     : `${siteUrl}/account/orders`;
   // Reference chain matches the PDF builders: M-Pesa transaction code,
-  // Paystack reference, or PO ref — no synthetic fallbacks.
+  // Paystack transaction ID (fallback: initialization reference), or PO ref —
+  // no synthetic fallbacks.
   const txnId =
     input.paid === 1
       ? payment === "mpesa"
         ? input.mpesa_transaction_id
         : payment === "card"
-          ? input.paystack_reference
+          ? input.paystack_transaction_id || input.paystack_reference
           : payment === "po"
             ? input.po_ref
             : null

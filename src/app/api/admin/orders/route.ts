@@ -7,7 +7,7 @@ import {
   setMpesaTransaction,
   setOrderPaid,
   setOrderStatus,
-  setPaystackReference,
+  setPaystackTransaction,
 } from "@/lib/db";
 import { liveGetProduct } from "@/lib/catalog";
 import { productImages } from "@/lib/data/product-images";
@@ -69,12 +69,14 @@ export async function PATCH(req: Request) {
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
   // Reference-only update (add/edit the transaction ID on an order without
-  // changing its paid state).
+  // changing its paid state). Card codes are stored as the Paystack
+  // transaction ID — overwriting paystack_reference would break webhook
+  // matching, which is keyed on the initialization reference.
   if (body.paid === undefined) {
     const ref = body.txn_ref?.trim();
     if (!ref) return NextResponse.json({ error: "Missing transaction reference" }, { status: 400 });
     if (order.payment === "mpesa") await setMpesaTransaction(body.id, ref);
-    else if (order.payment === "card") await setPaystackReference(body.id, ref);
+    else if (order.payment === "card") await setPaystackTransaction(body.id, ref);
     else return NextResponse.json({ error: "This payment method does not take a transaction reference" }, { status: 400 });
     return NextResponse.json({ ok: true });
   }
@@ -110,7 +112,7 @@ export async function PATCH(req: Request) {
     }
     if (effectiveRef) {
       if (order.payment === "mpesa") await setMpesaTransaction(body.id, effectiveRef);
-      else if (order.payment === "card") await setPaystackReference(body.id, effectiveRef);
+      else if (order.payment === "card") await setPaystackTransaction(body.id, effectiveRef);
     }
     await setOrderPaid(body.id, body.paid ? 1 : 0);
     if (order.paid !== 1 && body.paid) {

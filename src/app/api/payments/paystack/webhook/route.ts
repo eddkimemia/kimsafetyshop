@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOrderByPaystackReference, setOrderPaid } from "@/lib/db";
+import { getOrderByPaystackReference, setOrderPaid, setPaystackTransaction } from "@/lib/db";
 import { verifyPaystackWebhook } from "@/lib/payments/paystack";
 import { sendPaidInvoiceEmail } from "@/lib/mailer";
 
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
   const event = JSON.parse(raw) as {
     event?: string;
-    data?: { reference?: string; amount?: number; status?: string };
+    data?: { reference?: string; amount?: number; status?: string; id?: number | string };
   };
   if (event.event === "charge.success" && event.data?.reference) {
     const order = await getOrderByPaystackReference(event.data.reference);
@@ -38,6 +38,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false }, { status: 400 });
       }
       await setOrderPaid(order.id, 1);
+      // Capture the gateway's own transaction ID (data.id) — the code shown in
+      // the Paystack dashboard — before re-fetching so the paid-invoice
+      // email/PDF carries the real transaction identifier.
+      if (event.data.id !== undefined && !order.paystack_transaction_id) {
+        await setPaystackTransaction(order.id, String(event.data.id));
+      }
       // Re-fetch the fresh row so the paid-invoice email/PDF carries the
       // payment reference, then AWAIT the send — on Vercel serverless the
       // event loop freezes when this handler returns, so a fire-and-forget

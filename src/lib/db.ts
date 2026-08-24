@@ -43,6 +43,7 @@ export type DbOrder = {
   mpesa_last_result_desc: string | null;
   mpesa_transaction_id: string | null;
   paystack_reference: string | null;
+  paystack_transaction_id: string | null;
   payment_token: string | null;
   referrer_code: string | null;
   created_at: string;
@@ -605,11 +606,12 @@ export async function createOrder(input: { user_id?: string | null; name: string
     mpesa_last_result_desc: null,
     mpesa_transaction_id: null,
     paystack_reference: null,
+    paystack_transaction_id: null,
     payment_token: input.payment_token ?? null,
     referrer_code: input.referrer_code ?? null,
     created_at: new Date().toISOString(),
   };
-  await qe("INSERT INTO orders (id, user_id, name, email, phone, address, items, total, subtotal, discount, shipping, status, payment, paid, po_ref, company, po_file, payment_phone, mpesa_checkout_id, mpesa_merchant_id, paystack_reference, payment_token, referrer_code, created_at) VALUES (@id, @user_id, @name, @email, @phone, @address, @items, @total, @subtotal, @discount, @shipping, @status, @payment, @paid, @po_ref, @company, @po_file, @payment_phone, @mpesa_checkout_id, @mpesa_merchant_id, @paystack_reference, @payment_token, @referrer_code, @created_at)", order);
+  await qe("INSERT INTO orders (id, user_id, name, email, phone, address, items, total, subtotal, discount, shipping, status, payment, paid, po_ref, company, po_file, payment_phone, mpesa_checkout_id, mpesa_merchant_id, paystack_reference, paystack_transaction_id, payment_token, referrer_code, created_at) VALUES (@id, @user_id, @name, @email, @phone, @address, @items, @total, @subtotal, @discount, @shipping, @status, @payment, @paid, @po_ref, @company, @po_file, @payment_phone, @mpesa_checkout_id, @mpesa_merchant_id, @paystack_reference, @paystack_transaction_id, @payment_token, @referrer_code, @created_at)", order);
   return order;
 }
 
@@ -642,6 +644,11 @@ export async function setMpesaTransaction(id: string, receipt: string) {
 
 export async function setPaystackReference(id: string, reference: string) {
   await qe("UPDATE orders SET paystack_reference = ? WHERE id = ?", reference, id);
+}
+
+/** The transaction ID Paystack itself assigned (data.id) — captured on success. */
+export async function setPaystackTransaction(id: string, transactionId: string) {
+  await qe("UPDATE orders SET paystack_transaction_id = ? WHERE id = ?", transactionId, id);
 }
 
 export async function getOrderByMpesaCheckout(checkoutId: string): Promise<DbOrder | undefined> {

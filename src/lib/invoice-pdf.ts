@@ -25,6 +25,7 @@ export type InvoiceOrder = {
   mpesa_transaction_id?: string | null;
   mpesa_checkout_id?: string | null;
   paystack_reference?: string | null;
+  paystack_transaction_id?: string | null;
   po_ref?: string | null;
 };
 
@@ -186,12 +187,13 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
   // ---- Meta line ----
   // Paid invoices carry the gateway transaction code: the M-Pesa transaction
   // code (receipt number) captured from the STK callback, the Paystack
-  // reference, or the purchase-order reference for corporate orders.
+  // transaction ID (falling back to our initialization reference), or the
+  // purchase-order reference for corporate orders.
   const txnId = paid
     ? order.payment === "mpesa"
       ? order.mpesa_transaction_id
       : order.payment === "card"
-        ? order.paystack_reference
+        ? order.paystack_transaction_id || order.paystack_reference
         : order.payment === "po"
           ? order.po_ref
           : null

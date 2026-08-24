@@ -101,7 +101,7 @@ export async function GET(req: Request) {
     transactionId:
       order.payment === "mpesa"
         ? order.mpesa_transaction_id
-        : order.paystack_reference,
+        : order.paystack_transaction_id ?? order.paystack_reference,
     canResend,
     retryAfterMs,
     queried,

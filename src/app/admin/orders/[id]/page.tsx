@@ -28,6 +28,7 @@ type Order = {
   mpesa_checkout_id?: string | null;
   mpesa_transaction_id?: string | null;
   paystack_reference?: string | null;
+  paystack_transaction_id?: string | null;
   referrer_code?: string | null;
   created_at: string;
 };
@@ -110,7 +111,9 @@ export default function AdminOrderDetailPage() {
 
   const openEditRef = () => {
     if (!order) return;
-    setTxnRef((order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_reference) ?? "");
+    // Card orders edit the gateway's own transaction ID (falling back to the
+    // initialization reference when the gateway ID hasn't been captured yet).
+    setTxnRef((order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id || order.paystack_reference) ?? "");
     setDialog("edit-ref");
   };
 
@@ -369,17 +372,17 @@ export default function AdminOrderDetailPage() {
                   {(order.payment === "mpesa" || order.payment === "card") && (
                     <p className="flex items-center justify-between gap-2">
                       <span className="shrink-0 text-gray-600">
-                        {order.payment === "mpesa" ? "Transaction code" : "Reference"}
+                        {order.payment === "mpesa" ? "Transaction code" : "Transaction ID"}
                       </span>
                       <span className="flex min-w-0 items-center gap-2">
-                        <span className={`truncate font-mono text-xs ${order.mpesa_transaction_id || order.paystack_reference ? "font-bold text-navy-900" : "text-gray-300"}`}>
-                          {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_reference) || "— not set"}
+                        <span className={`truncate font-mono text-xs ${order.mpesa_transaction_id || order.paystack_transaction_id || order.paystack_reference ? "font-bold text-navy-900" : "text-gray-300"}`}>
+                          {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id || order.paystack_reference) || "— not set"}
                         </span>
                         <button
                           onClick={openEditRef}
                           className="shrink-0 rounded-lg border border-line px-2 py-1 text-[10px] font-bold text-navy-900 hover:border-safety-400 hover:text-safety-600"
                         >
-                          {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_reference) ? "Edit" : "Add"}
+                          {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id || order.paystack_reference) ? "Edit" : "Add"}
                         </button>
                       </span>
                     </p>
@@ -396,7 +399,7 @@ export default function AdminOrderDetailPage() {
                     <button
                       onClick={() => {
                         // Pre-fill with any code the gateways already captured.
-                        setTxnRef(order.payment === "mpesa" ? order.mpesa_transaction_id ?? "" : order.paystack_reference ?? "");
+                        setTxnRef(order.payment === "mpesa" ? order.mpesa_transaction_id ?? "" : order.paystack_transaction_id || order.paystack_reference || "");
                         setDialog("mark-paid");
                       }}
                       className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700"

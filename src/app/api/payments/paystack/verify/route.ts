@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOrderById, setOrderPaid } from "@/lib/db";
+import { getOrderById, setOrderPaid, setPaystackTransaction } from "@/lib/db";
 import { paystackVerify } from "@/lib/payments/paystack";
 import { sendPaidInvoiceEmail } from "@/lib/mailer";
 import { rateLimit, tooMany } from "@/lib/rate-limit";
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { paid, amount } = await paystackVerify(reference);
+    const { paid, amount, transactionId } = await paystackVerify(reference);
     // Anti-tamper: Paystack reports amounts in kobo/pesewas. Never mark the
     // order paid unless the charged amount equals the order total computed
     // server-side at checkout.
@@ -62,6 +62,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Amount mismatch", paid: false }, { status: 400 });
     }
     if (paid && order.paid !== 1) {
+      // Capture the gateway's own transaction ID BEFORE flagging paid so the
+      // re-fetched row below (and the invoice email) carries it.
+      if (transactionId && !order.paystack_transaction_id) {
+        await setPaystackTransaction(order.id, transactionId);
+      }
       await setOrderPaid(order.id, 1);
       // Re-fetch the fresh row (txn reference) and AWAIT the send — on Vercel
       // serverless the event loop freezes once this handler returns, so a
