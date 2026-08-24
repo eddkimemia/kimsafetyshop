@@ -89,7 +89,7 @@ export default function AdminOrdersPage() {
   const [bestUsers, setBestUsers] = useState<"all" | "registered" | "guest">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const orders = data?.orders ?? [];
+  const orders = useMemo(() => data?.orders ?? [], [data?.orders]);
 
   const filtered = useMemo(() => {
     const now = Date.now();

@@ -19,7 +19,7 @@ type Line = { sku: string; name: string; qty: number; price: number };
 export default function AdminCreateQuotationPage() {
   const router = useRouter();
   const { data } = useFetch<{ products: CatalogProduct[] }>("/api/admin/products");
-  const catalog = data?.products ?? [];
+  const catalog = useMemo(() => data?.products ?? [], [data?.products]);
 
   const [customer, setCustomer] = useState({ name: "", company: "", email: "", phone: "" });
   const [notes, setNotes] = useState("");

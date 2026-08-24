@@ -127,6 +127,7 @@ export default function AdminSettingsPage() {
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-400">Logo</label>
             <div className="flex items-center gap-4">
               <div className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line bg-surface">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={form.logo} alt="Current logo" className="max-h-full max-w-full object-contain" />
               </div>
               <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-xs font-bold text-navy-900 transition-colors hover:bg-surface">

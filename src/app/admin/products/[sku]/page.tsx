@@ -731,6 +731,7 @@ function ImagePicker({
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
                 {gallery.map((path, i) => (
                   <div key={path + i} className="group relative overflow-hidden rounded-xl border border-line">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={path} alt={`Gallery ${i + 1}`} className="aspect-square w-full object-cover" />
                     <div className="absolute inset-0 flex flex-col items-end justify-between bg-black/45 p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
                       <button
@@ -825,6 +826,7 @@ function ImagePicker({
                     {inGallery ? "−" : "+"}
                   </span>
                   <ImagePlus className="pointer-events-none absolute inset-0 m-auto h-6 w-6 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={path} alt={file} loading="lazy" className="h-full w-full object-cover" />
                 </button>
               );

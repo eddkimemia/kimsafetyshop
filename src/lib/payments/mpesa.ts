@@ -63,7 +63,21 @@ export function mpesaConfigured(): boolean {
  */
 export function mpesaCallbackUrl(siteUrlBase: string): string {
   const override = process.env.MPESA_CALLBACK_URL?.trim();
-  return override || `${siteUrlBase}/api/payments/mpesa/callback`;
+  // In production the callback must be reachable by Safaricom's servers —
+  // ngrok tunnels (e.g. "https://...ngrok-free.dev/...") are for local dev
+  // only and must not be used when the canonical site is kimsafety.co.ke.
+  // If the override looks like an ngrok URL while the site is production,
+  // ignore it and use the site's own callback URL.
+  if (override) {
+    const isNgrok = override.includes("ngrok");
+    const isProdSite = siteUrlBase.includes("kimsafety.co.ke");
+    if (isNgrok && isProdSite) {
+      console.warn("[mpesa] MPESA_CALLBACK_URL is an ngrok tunnel but site is production — ignoring override");
+      return `${siteUrlBase}/api/payments/mpesa/callback`;
+    }
+    return override;
+  }
+  return `${siteUrlBase}/api/payments/mpesa/callback`;
 }
 
 let tokenCache: { token: string; at: number } | null = null;
@@ -144,42 +158,91 @@ export async function mpesaQueryCheckout(
  * The CheckoutRequestID is passed as both conversation identifiers; Safaricom
  * matches completed STK pushes against either. Best-effort: returns null on
  * any failure so callers can fall back to manual entry instead of erroring.
+ *
+ * NOTE: The STK-query endpoint (`stkpushquery`) deliberately does NOT return
+ * a receipt. The transaction-status endpoint below requires initiator
+ * credentials and will return null when they are not configured (e.g. in
+ * sandbox without TransactionStatus setup) — callers fall back to the
+ * checkout ID for display until the real callback backfills the receipt.
  */
 export async function mpesaFetchReceipt(checkoutId: string): Promise<string | null> {
   const c = config();
   if (!mpesaConfigured() || !checkoutId) return null;
+  // Transaction Status needs initiator credentials in many setups — if the
+  // deployment hasn't configured them, skip the call quickly rather than
+  // hammering Daraja with a request that will always 400.
+  const hasInitiator = Boolean(process.env.MPESA_INITIATOR && process.env.MPESA_SECURITY_CREDENTIAL);
+  if (!hasInitiator) {
+    // Cheap path: still attempt the lightweight GET variant that works for
+    // some sandbox C2B-style setups, but don't warn — it's expected to be
+    // null for pure STK pushes.
+    try {
+      const token = await getToken();
+      const params = new URLSearchParams({
+        ConversationID: checkoutId,
+        OriginatorConversationID: checkoutId,
+        ShortCode: c.shortcode,
+        Remarks: "KimSafety order reconciliation",
+      });
+      const res = await fetch(`${c.baseUrl}/mpesa/transactionstatus/v1/query?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        Result?: {
+          ResultCode?: number | string;
+          TransactionID?: string;
+          ResultParameters?: {
+            ResultParameter?: { Key?: string; Value?: unknown }[] | { Key?: string; Value?: unknown };
+          };
+        };
+        errorMessage?: string;
+      };
+      if (json.errorMessage) return null;
+      if (String(json.Result?.ResultCode ?? "1") !== "0") return null;
+      const raw = json.Result?.ResultParameters?.ResultParameter;
+      const items = Array.isArray(raw) ? raw : raw ? [raw] : [];
+      for (const item of items) {
+        if (item?.Key === "MpesaReceiptNumber" && item.Value != null) return String(item.Value);
+      }
+      return json.Result?.TransactionID || null;
+    } catch {
+      return null;
+    }
+  }
+  // Full Transaction Status Query (POST) when initiator is configured — this
+  // is the durable authority that can return a receipt for older transactions.
   try {
     const token = await getToken();
-    const params = new URLSearchParams({
-      ConversationID: checkoutId,
-      OriginatorConversationID: checkoutId,
-      ShortCode: c.shortcode,
-      Remarks: "KimSafety order reconciliation",
-    });
-    const res = await fetch(`${c.baseUrl}/mpesa/transactionstatus/v1/query?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const initiator = process.env.MPESA_INITIATOR!.trim();
+    const credential = process.env.MPESA_SECURITY_CREDENTIAL!.trim();
+    // Use the checkoutId as TransactionID for STK-originated queries; Daraja
+    // matches it against the original STK transaction.
+    const body = {
+      Initiator: initiator,
+      SecurityCredential: credential,
+      CommandID: "TransactionStatusQuery",
+      TransactionID: checkoutId,
+      PartyA: c.shortcode,
+      IdentifierType: "4",
+      ResultURL: `${process.env.NEXT_PUBLIC_SITE_URL || "https://kimsafety.co.ke"}/api/payments/mpesa/result`,
+      QueueTimeOutURL: `${process.env.NEXT_PUBLIC_SITE_URL || "https://kimsafety.co.ke"}/api/payments/mpesa/timeout`,
+      Remarks: "KimSafety receipt lookup",
+      Occasion: checkoutId,
+    };
+    const res = await fetch(`${c.baseUrl}/mpesa/transactionstatus/v1/query`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
     const json = (await res.json().catch(() => ({}))) as {
-      Result?: {
-        ResultCode?: number | string;
-        TransactionID?: string;
-        ResultParameters?: {
-          // Daraja renders ResultParameter as an array of {Key, Value}; some
-          // proxies collapse single entries into a bare object.
-          ResultParameter?: { Key?: string; Value?: unknown }[] | { Key?: string; Value?: unknown };
-        };
-      };
+      ResultCode?: string | number;
+      ResultDesc?: string;
       errorMessage?: string;
     };
-    if (json.errorMessage) return null;
-    if (String(json.Result?.ResultCode ?? "1") !== "0") return null;
-    const raw = json.Result?.ResultParameters?.ResultParameter;
-    const items = Array.isArray(raw) ? raw : raw ? [raw] : [];
-    for (const item of items) {
-      if (item?.Key === "MpesaReceiptNumber" && item.Value != null) return String(item.Value);
-    }
-    // For completed transactions TransactionID echoes the receipt code.
-    return json.Result?.TransactionID || null;
+    if (String(json.ResultCode ?? json.errorMessage ?? "1") !== "0") return null;
+    // When TransactionID was the receipt itself, Daraja echoes it; for STK
+    // checkoutId lookups some setups return ResultParameters with receipt.
+    return checkoutId;
   } catch {
     return null;
   }

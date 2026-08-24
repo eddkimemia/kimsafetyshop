@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserByEmail } from "@/lib/db";
-import { createResetToken } from "@/lib/reset-token";
+import { createPasswordResetToken } from "@/lib/reset-token";
 import { sendPasswordResetEmail } from "@/lib/mailer";
 import { siteUrl } from "@/lib/site";
 import { rateLimit, tooMany } from "@/lib/rate-limit";
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
   const user = await getUserByEmail(email);
   if (user) {
-    const token = createResetToken(user.id);
+    const token = createPasswordResetToken(user.id, user.password_hash);
     const resetUrl = `${siteUrl}/reset-password?token=${encodeURIComponent(token)}`;
     const sent = await sendPasswordResetEmail({ to: user.email, name: user.name, resetUrl });
     if (!sent) console.error("[forgot-password] SMTP not configured — reset link not sent");

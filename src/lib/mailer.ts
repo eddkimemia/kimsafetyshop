@@ -676,13 +676,14 @@ export async function sendPaidInvoiceEmail(input: {
   const trackUrl = payment_token
     ? `${siteUrl}/track?id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(payment_token)}`
     : `${siteUrl}/account/orders`;
-  // Reference chain matches the PDF builders: M-Pesa transaction code,
-  // Paystack transaction ID (fallback: initialization reference), or PO ref —
-  // no synthetic fallbacks.
+  // Reference chain matches the PDF builders: M-Pesa transaction code
+  // (fallback: checkout ID so STK-query-paid orders still show a ref until
+  // the late callback backfills the receipt), Paystack transaction ID
+  // (fallback: initialization reference), or PO ref.
   const txnId =
     input.paid === 1
       ? payment === "mpesa"
-        ? input.mpesa_transaction_id
+        ? input.mpesa_transaction_id || input.mpesa_checkout_id
         : payment === "card"
           ? input.paystack_transaction_id || input.paystack_reference
           : payment === "po"

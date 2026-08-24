@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, requireSuperAdmin, getSessionUser } from "@/lib/api-helpers";
 import { getUserById } from "@/lib/db";
-import { createResetToken } from "@/lib/reset-token";
+import { createPasswordResetToken } from "@/lib/reset-token";
 import { sendPasswordResetEmail, getSmtpConfig, isSmtpConfigured } from "@/lib/mailer";
 import { siteUrl } from "@/lib/site";
 
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const token = createResetToken(target.id);
+  const token = createPasswordResetToken(target.id, target.password_hash);
   const resetUrl = `${siteUrl}/reset-password?token=${encodeURIComponent(token)}`;
   const sent = await sendPasswordResetEmail({ to: target.email, name: target.name, resetUrl });
   if (!sent) {

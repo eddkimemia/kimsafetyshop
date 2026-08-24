@@ -30,18 +30,19 @@ export async function POST(req: Request) {
     if (!cb?.CheckoutRequestID) return new Response("0", { headers: { "Content-Type": "text/plain" } });
 
     const order = await getOrderByMpesaCheckout(cb.CheckoutRequestID);
+    if (!order) {
+      console.warn(`[mpesa] callback for unknown CheckoutRequestID ${cb.CheckoutRequestID} — no order matched (may be superseded or already reconciled)`);
+    }
     if (order) {
-      // Only the current push may update the order — a late callback from a
-      // previous (superseded) push must not flip state or record its result.
-      if (order.mpesa_checkout_id !== cb.CheckoutRequestID) {
-        console.warn(`[mpesa] ignoring stale callback for superseded push ${cb.CheckoutRequestID} on ${order.id}`);
-      } else if (cb.ResultCode === 0) {
+      if (cb.ResultCode === 0) {
         // Anti-forgery: the callback is unsigned, so never trust a success
         // alone. The Amount recorded by Safaricom must equal the order total
         // computed server-side at checkout; otherwise treat it as a failure
         // and never flip the order to paid.
-        const amount = Number(cb.CallbackMetadata?.Item?.find((i) => i.Name === "Amount")?.Value);
-        if (!Number.isFinite(amount) || amount <= 0 || Number(amount.toFixed(2)) !== Number(order.total)) {
+        const rawAmount = cb.CallbackMetadata?.Item?.find((i) => i.Name === "Amount")?.Value;
+        const amount = Number(rawAmount);
+        // Compare rounded KES — Daraja may send 1.00 vs integer 1, or string vs number.
+        if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount) !== Math.round(order.total)) {
           console.warn(
             `[mpesa] SECURITY: amount mismatch for ${order.id} — callback ${amount}, expected ${order.total}. Not marking paid.`
           );

@@ -79,10 +79,13 @@ export async function buildReceiptPdf(order: InvoiceOrder): Promise<Buffer> {
 
   // The M-Pesa transaction code (receipt number) from the STK callback, the
   // Paystack transaction ID (falling back to our initialization reference),
-  // or the PO reference — never a synthetic fallback.
+  // or the PO reference. For M-Pesa we fall back to the checkout ID so a
+  // receipt issued via the STK-query path (no receipt in query response)
+  // still carries a verifiable reference until the late callback backfills
+  // the real receipt.
   const txnId =
     order.payment === "mpesa"
-      ? order.mpesa_transaction_id
+      ? order.mpesa_transaction_id || order.mpesa_checkout_id
       : order.payment === "card"
         ? order.paystack_transaction_id || order.paystack_reference
         : order.payment === "po"

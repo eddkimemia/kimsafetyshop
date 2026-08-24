@@ -1249,18 +1249,20 @@ export async function restoreProductStock(
       const existing = await getAdminProduct(adj.sku);
       if (!existing) {
         if (!adj.isSeed) continue;
+        // Create a minimal static override at the live-catalog baseline; the
+        // atomic jsonb UPDATE below then applies the +qty / -qty delta once.
         await upsertAdminProduct(adj.sku, {
           sku: adj.sku,
           static: true,
-          stock: Math.max(0, Number(adj.fallbackStock) || 0) + qty,
-          sold: Math.max(0, (Number(adj.fallbackSold) || 0) - qty),
+          stock: Math.max(0, Number(adj.fallbackStock) || 0),
+          sold: Number(adj.fallbackSold) || 0,
         });
       } else if (typeof existing.stock !== "number") {
         await upsertAdminProduct(adj.sku, {
           ...existing,
           sku: adj.sku,
-          stock: Math.max(0, Number(adj.fallbackStock) || 0) + qty,
-          sold: Math.max(0, Number(existing.sold ?? adj.fallbackSold) - qty) || 0,
+          stock: Math.max(0, Number(adj.fallbackStock) || 0),
+          sold: Number(existing.sold ?? adj.fallbackSold) || 0,
         });
       }
       await qe(

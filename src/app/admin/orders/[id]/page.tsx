@@ -387,6 +387,12 @@ export default function AdminOrderDetailPage() {
                       </span>
                     </p>
                   )}
+                  {order.payment === "mpesa" && order.mpesa_checkout_id && (
+                    <p className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="shrink-0 text-gray-400">Checkout ID</span>
+                      <span className="truncate font-mono text-gray-500">{order.mpesa_checkout_id}</span>
+                    </p>
+                  )}
                   <p className="flex items-center justify-between">
                     <span className="text-gray-600">Status</span>
                     {order.paid === 1 ? (
@@ -399,7 +405,7 @@ export default function AdminOrderDetailPage() {
                     <button
                       onClick={() => {
                         // Pre-fill with any code the gateways already captured.
-                        setTxnRef(order.payment === "mpesa" ? order.mpesa_transaction_id ?? "" : order.paystack_transaction_id || order.paystack_reference || "");
+                        setTxnRef(order.payment === "mpesa" ? order.mpesa_transaction_id || "" : order.paystack_transaction_id || order.paystack_reference || "");
                         setDialog("mark-paid");
                       }}
                       className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700"

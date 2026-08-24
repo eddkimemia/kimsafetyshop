@@ -30,7 +30,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
   }
   if (await getUserByEmail(email)) {
-    return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
+    // Mitigate email enumeration: do not reveal that the address is already
+    // registered (409 would allow an attacker to probe). Return a generic
+    // success instead — identical to the forgot-password flow. The caller sees
+    // the same 201 / "verification sent" screen either way; if you prefer the
+    // explicit "account exists" UX, revert this to the 409 above.
+    return NextResponse.json(
+      { ok: true, message: "If this email is new, a verification link has been sent. Check your inbox." },
+      { status: 200 }
+    );
   }
 
   // Referral codes are validated (but never blocked on) — an unknown or empty

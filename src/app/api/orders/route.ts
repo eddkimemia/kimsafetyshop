@@ -189,21 +189,23 @@ export async function POST(req: Request) {
   if (!user) {
     const guestPassword = body.guest_password?.trim();
     if (guestPassword) {
-      // Length already validated before order creation; this is just a guard.
+      // Length was already validated before order creation; invalid values here
+      // are silently ignored so no orphan order is left behind.
       if (guestPassword.length < 6) {
-        return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
-      }
-      try {
-        const provision = await provisionUserLogin({
-          name: body.name,
-          email: body.email,
-          phone: body.phone,
-          company: body.company?.trim() || null,
-          password: guestPassword,
-        });
-        await attachGuestOrdersToUser(provision.user_id, body.email);
-      } catch (err) {
-        console.error(`[orders] guest account creation failed for ${order.id}:`, (err as Error).message);
+        console.warn(`[orders] guest password too short for ${order.id} — skipping account creation`);
+      } else {
+        try {
+          const provision = await provisionUserLogin({
+            name: body.name,
+            email: body.email,
+            phone: body.phone,
+            company: body.company?.trim() || null,
+            password: guestPassword,
+          });
+          await attachGuestOrdersToUser(provision.user_id, body.email);
+        } catch (err) {
+          console.error(`[orders] guest account creation failed for ${order.id}:`, (err as Error).message);
+        }
       }
     }
     if (body.marketing_opt_in) {

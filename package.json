@@ -8,6 +8,8 @@
     "build:with-migrate": "npx prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "deploy:db": "node scripts/deploy-db.mjs",
     "sync:seed-products": "tsx scripts/sync-seed-products.ts"
   },
