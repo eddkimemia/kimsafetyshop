@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, Clock, User, ClipboardList, TrendingUp, Tag } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, User, ClipboardList, TrendingUp, Tag, Download } from "lucide-react";
 import { getPostBySlug, listPosts } from "@/lib/db";
 import { sanitizePostHtml } from "@/lib/blog";
 import { liveCatalog } from "@/lib/catalog";
@@ -144,6 +144,13 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
                 {post.excerpt}
               </p>
             )}
+            <a
+              href={`/api/documents/blog?slug=${encodeURIComponent(post.slug)}`}
+              download={`kimsafety-blog-${post.slug}.pdf`}
+              className="mb-8 inline-flex items-center gap-2 rounded-xl bg-navy-900 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-safety-500"
+            >
+              <Download className="h-4 w-4" /> Download Article (PDF)
+            </a>
             <div
               className="blog-prose"
               dangerouslySetInnerHTML={{ __html: sanitizePostHtml(post.content) }}

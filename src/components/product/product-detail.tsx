@@ -546,7 +546,10 @@ export function ProductDetail({
                           {d.type} · {isDatasheet ? datasheetFilename : d.file ? "Download file" : "Free download"}
                         </span>
                       </span>
-                      <Button variant="outline" size="sm">Download</Button>
+                      {/* span (not Button) — a nested <button> would swallow the click and the anchor never downloads */}
+                      <span className="rounded-xl border border-line bg-white px-4 py-2 text-xs font-bold text-navy-900 transition-colors group-hover:border-safety-300 group-hover:bg-safety-50">
+                        Download
+                      </span>
                     </a>
                   );
                 })}

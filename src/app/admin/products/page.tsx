@@ -141,6 +141,14 @@ export default function AdminProductsPage() {
           <p className="text-sm text-gray-500">{products.length} of {all.length} catalog items · click a product to open the full editor</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <a
+            href="/api/admin/products/catalog"
+            download="kimsafety-product-catalog.pdf"
+            className="flex items-center gap-2 rounded-xl border border-safety-200 bg-safety-50 px-4 py-3 text-sm font-bold text-safety-700 hover:bg-safety-100"
+            title="Download a branded PDF catalog of every product (logo, prices, stock)"
+          >
+            <Download className="h-4 w-4" /> Catalog PDF
+          </a>
           <button
             onClick={exportExcel}
             disabled={exporting || all.length === 0}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Pencil, Trash2, ExternalLink } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, ExternalLink, Eye } from "lucide-react";
 import { AdminCard, adminField } from "@/components/admin/ui";
 
 type Brand = {
@@ -105,17 +105,17 @@ export default function AdminBrandsPage() {
             {filtered.map((b) => (
               <div key={b.slug} className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm transition-all hover:shadow-md">
                 <div className="flex items-center gap-4 p-5">
-                  <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-white p-2">
+                  <button onClick={() => router.push(`/admin/brands/${encodeURIComponent(b.slug)}`)} className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white p-2" title="View brand details">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={b.image} alt={`${b.name} logo`} className="h-full w-full object-contain" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate font-display text-base font-extrabold text-navy-900">{b.name}</h3>
+                  </button>
+                  <button onClick={() => router.push(`/admin/brands/${encodeURIComponent(b.slug)}`)} className="min-w-0 flex-1 text-left">
+                    <h3 className="truncate font-display text-base font-extrabold text-navy-900 hover:text-safety-600">{b.name}</h3>
                     <p className="truncate text-xs text-gray-500">{b.tagline || "—"}</p>
                     <p className="mt-1 text-[11px] font-semibold text-gray-400">
                       <span className="rounded-full bg-surface px-2 py-0.5 font-mono text-[10px]">{b.slug}</span> · {b.origin}
                     </p>
-                  </div>
+                  </button>
                 </div>
                 <div className="mt-auto flex items-center gap-1.5 border-t border-line bg-surface/50 p-3">
                   <a
@@ -129,6 +129,14 @@ export default function AdminBrandsPage() {
                   </a>
                   <button
                     onClick={() => router.push(`/admin/brands/${encodeURIComponent(b.slug)}`)}
+                    title="View brand details, products & catalog"
+                    aria-label={`Open ${b.name} details`}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white text-gray-500 hover:border-safety-300 hover:text-safety-600"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => router.push(`/admin/brands/${encodeURIComponent(b.slug)}/edit`)}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-bold text-navy-900 hover:bg-surface"
                   >
                     <Pencil className="h-3.5 w-3.5" /> Edit
