@@ -1,9 +1,10 @@
 import { products, normalizeDownloads } from "@/lib/data/products";
 import { productInCategory } from "@/lib/data/catalog";
 import { productImages, productGalleries } from "@/lib/data/product-images";
-import { listAdminProducts } from "@/lib/db";
+import { getSetting, listAdminProducts } from "@/lib/db";
 import { slugify } from "@/lib/utils";
 import type { Product } from "@/lib/types";
+import path from "path";
 
 // The admin product table only changes on admin edits. Caching it with a short
 // TTL cuts the repeated remote-DB round trips per page render (each serverless
@@ -34,28 +35,108 @@ export async function getCachedAdminRows(): Promise<Awaited<ReturnType<typeof li
 export function invalidateCatalogCache() {
   cachedAdminRows = null;
   lastDbFailAt = 0;
+  cachedBlocked = null;
+}
+
+let cachedBlocked: { at: number; set: Set<string> } | null = null;
+const BLOCKED_TTL_MS = 30 * 1000;
+
+async function getBlockedSet(): Promise<Set<string>> {
+  const now = Date.now();
+  if (cachedBlocked && now - cachedBlocked.at < BLOCKED_TTL_MS) return cachedBlocked.set;
+  try {
+    const raw = await getSetting("blocked_images");
+    if (!raw) {
+      cachedBlocked = { at: now, set: new Set() };
+      return cachedBlocked.set;
+    }
+    const arr = JSON.parse(raw);
+    const set = new Set<string>(Array.isArray(arr) ? arr.filter((v) => typeof v === "string") : []);
+    cachedBlocked = { at: now, set };
+    return set;
+  } catch {
+    return cachedBlocked?.set ?? new Set();
+  }
+}
+
+export async function addBlockedImages(filenames: string[]) {
+  const set = await getBlockedSet();
+  let changed = false;
+  for (const fn of filenames) {
+    if (!set.has(fn)) {
+      set.add(fn);
+      changed = true;
+    }
+  }
+  if (changed) {
+    const { setSetting } = await import("@/lib/db");
+    await setSetting("blocked_images", JSON.stringify(Array.from(set)));
+    cachedBlocked = { at: Date.now(), set };
+    invalidateCatalogCache();
+  }
 }
 
 // Resolves the final image/gallery URLs server-side so the browser receives
 // finished URLs on first paint. Admin override wins, then the committed photo
 // map, then the SKU-path fallback. An empty string counts as "not set" (the
 // admin form persists image:"" when clearing an override).
-function resolveImage(sku: string, value: unknown): string {
-  if (typeof value === "string" && value) return value;
-  return productImages[sku] ?? `/images/products/${sku}.jpg`;
+// Blocked images (deleted via Media Library) are ignored even if they remain
+// in the committed productImages map — otherwise the old file would flash
+// before the new DB-backed upload on every product reload.
+function resolveImage(sku: string, value: unknown, blocked: Set<string>): string {
+  if (typeof value === "string" && value) {
+    // If the admin override itself points to a blocked file, treat as not set
+    try {
+      const fn = decodeURIComponent(path.basename(value));
+      if (blocked.has(fn)) {
+        // fall through to fallback
+      } else {
+        return value;
+      }
+    } catch {
+      return value;
+    }
+  }
+  const mapped = productImages[sku];
+  if (mapped) {
+    try {
+      const fn = decodeURIComponent(path.basename(mapped));
+      if (!blocked.has(fn)) return mapped;
+    } catch {
+      return mapped;
+    }
+  }
+  return `/images/products/${sku}.jpg`;
 }
 
-function resolveGallery(sku: string, value: unknown): string[] | undefined {
+function resolveGallery(sku: string, value: unknown, blocked: Set<string>): string[] | undefined {
   if (Array.isArray(value)) {
     const clean = value.filter((p): p is string => typeof p === "string" && Boolean(p));
-    if (clean.length > 0) return clean;
+    // filter blocked from gallery overrides
+    const filtered = clean.filter((p) => {
+      try {
+        return !blocked.has(decodeURIComponent(path.basename(p)));
+      } catch {
+        return true;
+      }
+    });
+    if (filtered.length > 0) return filtered;
+    // if override was entirely blocked, fall through to mapped gallery
   }
   const mapped = productGalleries[sku];
-  return mapped && mapped.length > 0 ? [...mapped] : undefined;
+  if (!mapped || mapped.length === 0) return undefined;
+  const filtered = mapped.filter((url) => {
+    try {
+      return !blocked.has(decodeURIComponent(path.basename(url)));
+    } catch {
+      return true;
+    }
+  });
+  return filtered.length > 0 ? [...filtered] : undefined;
 }
 
 async function mergedCatalog(): Promise<Product[]> {
-  const rows = (await getCachedAdminRows()) ?? [];
+  const [rows, blocked] = await Promise.all([getCachedAdminRows().then((r) => r ?? []), getBlockedSet()]);
   const overrides = new Map<string, Record<string, unknown>>();
   const customs: Record<string, unknown>[] = [];
   for (const row of rows) {
@@ -69,8 +150,8 @@ async function mergedCatalog(): Promise<Product[]> {
     const base = override ? { ...p, ...override } : p;
     return {
       ...base,
-      image: resolveImage(base.sku, base.image),
-      gallery: resolveGallery(base.sku, base.gallery),
+      image: resolveImage(base.sku, base.image, blocked),
+      gallery: resolveGallery(base.sku, base.gallery, blocked),
       downloads: normalizeDownloads(base.downloads),
     };
   });
@@ -98,8 +179,8 @@ async function mergedCatalog(): Promise<Product[]> {
     bulk: [],
     downloads: [],
     ...(c as Partial<Product>),
-    image: resolveImage(String(c.sku), c.image),
-    gallery: resolveGallery(String(c.sku), c.gallery),
+    image: resolveImage(String(c.sku), c.image, blocked),
+    gallery: resolveGallery(String(c.sku), c.gallery, blocked),
   }));
 
   return stableShuffle([...merged, ...customProducts.map((p) => ({ ...p, downloads: normalizeDownloads(p.downloads) }))]);

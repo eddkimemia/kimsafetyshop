@@ -527,25 +527,29 @@ export function ProductDetail({
 
             {tab === "downloads" && (
               <div className="max-w-2xl space-y-3">
-                {product.downloads.map((d, i) => (
-                  <a
-                    key={d.name + i}
-                    href={`/api/documents/${encodeURIComponent(product.sku)}/${i}`}
-                    download={d.name}
-                    className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-safety-300 hover:bg-safety-50"
-                  >
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-card">
-                      <FileText className="h-5 w-5 text-danger" />
-                    </span>
-                    <span className="flex-1">
-                      <span className="block text-sm font-bold text-navy-900">{d.name}</span>
-                      <span className="block text-[11px] text-gray-400">
-                        {d.type} · {d.file ? "Download file" : "Free download"}
+                {product.downloads.map((d, i) => {
+                  const isDatasheet = /datasheet/i.test(d.name || "");
+                  const datasheetFilename = `kimsafety-datasheet-${product.slug}.pdf`;
+                  return (
+                    <a
+                      key={d.name + i}
+                      href={`/api/documents/${encodeURIComponent(product.sku)}/${i}`}
+                      download={isDatasheet ? datasheetFilename : d.name}
+                      className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-safety-300 hover:bg-safety-50"
+                    >
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-card">
+                        <FileText className="h-5 w-5 text-danger" />
                       </span>
-                    </span>
-                    <Button variant="outline" size="sm">Download</Button>
-                  </a>
-                ))}
+                      <span className="flex-1">
+                        <span className="block text-sm font-bold text-navy-900">{d.name}</span>
+                        <span className="block text-[11px] text-gray-400">
+                          {d.type} · {isDatasheet ? datasheetFilename : d.file ? "Download file" : "Free download"}
+                        </span>
+                      </span>
+                      <Button variant="outline" size="sm">Download</Button>
+                    </a>
+                  );
+                })}
               </div>
             )}
 

@@ -7,7 +7,8 @@ import { requireSuperAdmin } from "@/lib/api-helpers";
 import { qr } from "@/lib/db";
 import { deleteStoredFile } from "@/lib/file-store";
 import { productImages, productGalleries } from "@/lib/data/product-images";
-import { listAdminProducts, upsertAdminProduct } from "@/lib/db";
+import { getSetting, listAdminProducts, upsertAdminProduct } from "@/lib/db";
+import { addBlockedImages } from "@/lib/catalog";
 
 const IMAGE_RE = /\.(jpe?g|png|webp|gif)$/i;
 const SAFE_NAME = /^[\w .\-()\[\],&'@+]+\.(jpe?g|png|webp|gif)$/i;
@@ -61,9 +62,22 @@ function decodeFilenameFromUrl(url: string): string {
   }
 }
 
+async function getBlockedSet(): Promise<Set<string>> {
+  try {
+    const raw = await getSetting("blocked_images");
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr.filter((v) => typeof v === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
 export async function GET() {
   const denied = await requireSuperAdmin();
   if (denied) return denied;
+
+  const blocked = await getBlockedSet();
 
   // --- Filesystem ---
   const productFiles = listDirWithMeta("products");
@@ -98,12 +112,20 @@ export async function GET() {
       size: number;
       created_at: string;
     }[];
-    dbFiles = rows.filter((r) => IMAGE_RE.test(r.filename));
+    dbFiles = rows.filter((r) => IMAGE_RE.test(r.filename) && !blocked.has(r.filename));
   } catch (err) {
     const code = (err as { code?: string })?.code;
     if (code !== "42P01") throw err;
     dbFiles = [];
   }
+
+  // Filter blocked from filesystem lists so deleted images don't reappear after reload
+  const filterBlockedFs = (arr: typeof productFiles) => arr.filter((f) => !blocked.has(f.filename));
+  const fsProductFiles = filterBlockedFs(productFiles);
+  const fsBrandFiles = filterBlockedFs(brandFiles);
+  const fsHeroFiles = filterBlockedFs(heroFiles);
+  const fsLogoFiles = filterBlockedFs(logoFiles);
+  const fsUploadsDocFiles = filterBlockedFs(uploadsDocFiles);
 
   // --- Build reverse map for static productImages / galleries ---
   const staticRefMap = new Map<string, { sku: string; field: string }[]>();
@@ -196,11 +218,11 @@ export async function GET() {
     }
   };
 
-  pushFs(productFiles, "products", "/images/products");
-  pushFs(brandFiles, "brands", "/images/brands");
-  pushFs(heroFiles, "hero", "/images/hero");
-  pushFs(logoFiles, "logo", "/images/logo");
-  pushFs(uploadsDocFiles, "documents", "/uploads/documents");
+  pushFs(fsProductFiles, "products", "/images/products");
+  pushFs(fsBrandFiles, "brands", "/images/brands");
+  pushFs(fsHeroFiles, "hero", "/images/hero");
+  pushFs(fsLogoFiles, "logo", "/images/logo");
+  pushFs(fsUploadsDocFiles, "documents", "/uploads/documents");
 
   // DB files — merge or create
   for (const db of dbFiles) {
@@ -249,10 +271,10 @@ export async function GET() {
   }
 
   // Also include productImages filenames that may not have a file on disk/DB (orphaned mapping)
-  // So superadmin can see broken references.
+  // So superadmin can see broken references — but skip blocked (deleted) ones so they don't reload.
   for (const url of Object.values(productImages)) {
     const fn = decodeFilenameFromUrl(url);
-    if (!fn || map.has(fn)) continue;
+    if (!fn || map.has(fn) || blocked.has(fn)) continue;
     const detail = staticRefMap.get(fn) || [];
     map.set(fn, {
       filename: fn,
@@ -409,6 +431,18 @@ export async function DELETE(req: Request) {
       error: deleted ? undefined : error || "File not found",
       referencesCleared: refsCleared,
     });
+  }
+
+  // Block deleted images so catalog never serves the old file again (static productImages map is immutable on Vercel)
+  // and media library doesn't reload the deleted entry as "missing".
+  const succeeded = results.filter((r) => r.deleted).map((r) => r.filename);
+  if (succeeded.length) {
+    try {
+      await addBlockedImages(succeeded);
+      // Also bust the image-processor cache? Invalidate catalog already done inside addBlockedImages.
+    } catch (e) {
+      console.error("[media] addBlockedImages failed", e);
+    }
   }
 
   return NextResponse.json({ results });

@@ -10,7 +10,7 @@ import { Logo } from "@/components/layout/logo";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { useSettings } from "@/lib/settings";
 
-const nav = [
+const navPrimary = [
   ["/admin", "Dashboard", LayoutDashboard],
   ["/admin/products", "Products", Package],
   ["/admin/media", "Media", Images],
@@ -18,6 +18,12 @@ const nav = [
   ["/admin/purchases", "Purchases", Truck],
   ["/admin/quotes", "Quotes", ClipboardList],
   ["/admin/corporate", "Corporate", Building2],
+  ["/admin/users", "Users", Users],
+  ["/admin/newsletter", "Newsletter", Mail],
+  ["/admin/docs", "Docs", FileText],
+] as const;
+
+const navSecondary = [
   ["/admin/content", "Knowledge", BookOpen],
   ["/admin/blog", "Blog", Newspaper],
   ["/admin/reviews", "Reviews", Star],
@@ -87,9 +93,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const navItems = (
-    role === "superadmin" ? nav : nav.filter(([href]) => !["/admin/settings", "/admin/media"].includes(href as string))
-  ) as typeof nav;
+  const navPrimaryItems = (
+    role === "superadmin"
+      ? navPrimary
+      : navPrimary.filter(([href]) => !["/admin/media", "/admin/newsletter"].includes(href as string))
+  ) as typeof navPrimary;
+  const navSecondaryItems = navSecondary as typeof navSecondary;
 
   useEffect(() => {
     setDrawer(false);
@@ -120,41 +129,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <Link
-              href="/admin/users"
-              className={cn(
-                "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition-colors",
-                pathname.startsWith("/admin/users")
-                  ? "border-safety-300 bg-safety-50 text-safety-600"
-                  : "border-line text-navy-900 hover:bg-surface"
-              )}
-            >
-              <Users className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Users</span>
-            </Link>
-            {role === "superadmin" && (
-              <Link
-                href="/admin/newsletter"
-                className={cn(
-                  "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition-colors",
-                  pathname.startsWith("/admin/newsletter")
-                    ? "border-safety-300 bg-safety-50 text-safety-600"
-                    : "border-line text-navy-900 hover:bg-surface"
-                )}
-              >
-                <Mail className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Newsletter</span>
-              </Link>
-            )}
-            <Link
-              href="/admin/docs"
-              className={cn(
-                "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition-colors",
-                pathname.startsWith("/admin/docs")
-                  ? "border-safety-300 bg-safety-50 text-safety-600"
-                  : "border-line text-navy-900 hover:bg-surface"
-              )}
-            >
-              <FileText className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Docs</span>
-            </Link>
             <Link
               href="/admin/password"
               className={cn(
@@ -193,9 +167,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </div>
-        <nav className="hidden border-t border-line lg:block" aria-label="Admin navigation">
-          <div className="no-scrollbar mx-auto flex max-w-shell items-center gap-1 overflow-x-auto px-8">
-            {navItems.map(([href, label, Icon]) => {
+        {/* Primary row — commerce & inventory — distributed full width */}
+        <nav className="hidden border-t border-line bg-white lg:block" aria-label="Admin primary navigation">
+          <div className="mx-auto flex max-w-shell gap-1 px-6 lg:px-8">
+            {navPrimaryItems.map(([href, label, Icon]) => {
               const active = isActive(pathname, href);
               const badgeKey = badgeHrefs[href];
               return (
@@ -204,13 +179,38 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3.5 py-3 text-sm font-semibold transition-colors",
+                    "flex flex-1 items-center justify-center gap-2 whitespace-nowrap border-b-2 px-2 py-3 text-sm font-semibold transition-colors",
                     active
                       ? "border-safety-500 text-safety-600"
                       : "border-transparent text-navy-800 hover:text-safety-600"
                   )}
                 >
-                  <Icon className="h-4 w-4" /> {label}
+                  <Icon className="h-4 w-4 shrink-0" /> <span className="truncate">{label}</span>
+                  {badgeKey ? <NavBadge count={badges[badgeKey as keyof typeof badges]} /> : null}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+        {/* Secondary row — content & support — distributed full width */}
+        <nav className="hidden border-t border-line bg-surface/60 lg:block" aria-label="Admin secondary navigation">
+          <div className="mx-auto flex max-w-shell gap-1 px-6 lg:px-8">
+            {navSecondaryItems.map(([href, label, Icon]) => {
+              const active = isActive(pathname, href);
+              const badgeKey = badgeHrefs[href];
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-2 py-2.5 text-xs font-semibold tracking-wide transition-colors",
+                    active
+                      ? "border-safety-500 text-safety-600"
+                      : "border-transparent text-gray-600 hover:text-navy-800"
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{label}</span>
                   {badgeKey ? <NavBadge count={badges[badgeKey as keyof typeof badges]} /> : null}
                 </Link>
               );
@@ -244,29 +244,57 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <nav className="flex-1 space-y-1 overflow-auto p-4" aria-label="Mobile admin navigation">
-              <p className="mb-2 flex items-center gap-1.5 px-3 text-[10px] font-bold uppercase tracking-widest text-white/40">
-                <ShieldCheck className="h-3.5 w-3.5 text-safety-400" /> Admin Panel
-              </p>
-              {navItems.map(([href, label, Icon]) => {
-                const active = isActive(pathname, href);
-                const badgeKey = badgeHrefs[href];
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    aria-current={active ? "page" : undefined}
-                    onClick={() => setDrawer(false)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl px-3.5 py-3.5 text-sm font-semibold transition-colors",
-                      active ? "bg-safety-500 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
-                    )}
-                  >
-                    <Icon className="h-4.5 w-4.5" /> {label}
-                    {badgeKey ? <NavBadge count={badges[badgeKey as keyof typeof badges]} /> : null}
-                  </Link>
-                );
-              })}
+            <nav className="flex-1 space-y-4 overflow-auto p-4" aria-label="Mobile admin navigation">
+              <div>
+                <p className="mb-2 flex items-center gap-1.5 px-3 text-[10px] font-bold uppercase tracking-widest text-white/40">
+                  <ShieldCheck className="h-3.5 w-3.5 text-safety-400" /> Admin Panel
+                </p>
+                <div className="space-y-1">
+                  {navPrimaryItems.map(([href, label, Icon]) => {
+                    const active = isActive(pathname, href);
+                    const badgeKey = badgeHrefs[href];
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        aria-current={active ? "page" : undefined}
+                        onClick={() => setDrawer(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-colors",
+                          active ? "bg-safety-500 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+                        )}
+                      >
+                        <Icon className="h-4.5 w-4.5" /> {label}
+                        {badgeKey ? <NavBadge count={badges[badgeKey as keyof typeof badges]} /> : null}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-white/30">Content & Support</p>
+                <div className="space-y-1">
+                  {navSecondaryItems.map(([href, label, Icon]) => {
+                    const active = isActive(pathname, href);
+                    const badgeKey = badgeHrefs[href];
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        aria-current={active ? "page" : undefined}
+                        onClick={() => setDrawer(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-colors",
+                          active ? "bg-safety-500 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+                        )}
+                      >
+                        <Icon className="h-4.5 w-4.5" /> {label}
+                        {badgeKey ? <NavBadge count={badges[badgeKey as keyof typeof badges]} /> : null}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             </nav>
             <div className="space-y-2 border-t border-white/10 p-4">
               <Link

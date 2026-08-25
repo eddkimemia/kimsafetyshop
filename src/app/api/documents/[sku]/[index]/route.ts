@@ -11,6 +11,7 @@ import { readLogoBytes, getLogoSize, DEFAULT_LOGO } from "@/lib/logo";
 import { getStoredFile, readPublicFile } from "@/lib/file-store";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { productImages, productGalleries } from "@/lib/data/product-images";
+import { slugify } from "@/lib/utils";
 import type { Product } from "@/lib/types";
 
 const NAVY = "#0F2847";
@@ -67,12 +68,16 @@ type Token = {
   strike?: boolean;
 };
 
-function downloadFilename(sku: string, doc: { name: string; file?: string }): string {
+function downloadFilename(product: Product, doc: { name: string; file?: string }): string {
+  // Datasheet must always be kimsafety-datasheet-{slug}.pdf (e.g. kimsafety-datasheet-griptech-steel-toe-work-boots.pdf)
+  if (/datasheet/i.test(doc.name || "")) {
+    return `kimsafety-datasheet-${slugify(product.slug)}.pdf`;
+  }
   if (doc.file) {
     const base = path.basename(doc.file);
     return /\.\w{1,5}$/i.test(base) ? base : `${base}.pdf`;
   }
-  const stem = `${sku}-${(doc.name || "document").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "")}`;
+  const stem = `${product.sku}-${(doc.name || "document").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "")}`;
   return `${stem}.pdf`;
 }
 
@@ -85,7 +90,7 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
     return NextResponse.json({ error: "Document not found" }, { status: 404 });
   }
 
-  // Uploaded real file takes precedence
+  // Uploaded real file takes precedence — datasheet name overrides uploaded filename
   if (doc.file && doc.file.startsWith("/")) {
     const filename = decodeURIComponent(path.basename(doc.file));
     const stored = await getStoredFile(filename);
@@ -94,7 +99,7 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
       return new NextResponse(new Uint8Array(buf), {
         headers: {
           "Content-Type": stored?.mime ?? "application/octet-stream",
-          "Content-Disposition": `attachment; filename="${encodeURIComponent(downloadFilename(product.sku, doc))}"`,
+          "Content-Disposition": `attachment; filename="${encodeURIComponent(downloadFilename(product, doc))}"`,
         },
       });
     }
@@ -587,7 +592,7 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${encodeURIComponent(downloadFilename(product.sku, doc))}"`,
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(downloadFilename(product, doc))}"`,
     },
   });
 }
