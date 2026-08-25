@@ -7,6 +7,7 @@ import { ArrowLeft, Save, Trash2, Eye, EyeOff } from "lucide-react";
 import { AdminCard, adminField, useFetch } from "@/components/admin/ui";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { CoverImagePicker } from "@/components/admin/image-picker";
+import { SendNewsletterButton } from "@/components/admin/send-newsletter-button";
 
 type Guide = {
   slug: string;
@@ -103,6 +104,11 @@ export default function AdminContentEditorPage() {
           </div>
         </div>
         <div className="flex items-center gap-2.5">
+          <SendNewsletterButton
+            subject={form.title}
+            body={form.content}
+            disabledReason={isNew ? "Save the guide first" : form.content?.trim() ? undefined : "Guide has no body content"}
+          />
           <button
             onClick={() => setPreview((p) => !p)}
             className="flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-bold text-navy-900 hover:bg-surface"

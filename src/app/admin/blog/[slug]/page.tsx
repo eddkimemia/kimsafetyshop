@@ -7,6 +7,7 @@ import { ArrowLeft, Save, Eye, EyeOff, Trash2 } from "lucide-react";
 import { AdminCard, adminField, useFetch } from "@/components/admin/ui";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { CoverImagePicker } from "@/components/admin/image-picker";
+import { SendNewsletterButton } from "@/components/admin/send-newsletter-button";
 
 type AdminPost = {
   id: string;
@@ -113,6 +114,11 @@ export default function AdminBlogEditorPage() {
           </div>
         </div>
         <div className="flex items-center gap-2.5">
+          <SendNewsletterButton
+            subject={form.title}
+            body={form.content}
+            disabledReason={isNew ? "Save the post first" : form.content?.trim() ? undefined : "Post has no body content"}
+          />
           <button
             onClick={() => setPreview((p) => !p)}
             className="flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-bold text-navy-900 hover:bg-surface"
