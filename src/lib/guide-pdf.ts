@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
 import { getAllSettings } from "@/lib/db";
-import { readLogoBytes, DEFAULT_LOGO } from "@/lib/logo";
+import { readLogoBytes, getLogoSize, DEFAULT_LOGO } from "@/lib/logo";
 import { readPublicFile } from "@/lib/file-store";
 import { sanitizeGuideHtml } from "@/lib/knowledge";
 import { guideFallbackSections } from "@/lib/data/guide-fallback";
@@ -118,7 +118,10 @@ export async function buildGuidePdf(guide: GuidePdfInput): Promise<Buffer> {
       pdf.image(logoBuf, padL, 30, { height: 50 });
     } catch {}
   }
-  const textLeft = padL + 160;
+  // Measure the logo's real width so the text block never overlaps it.
+  const size = logoBuf ? getLogoSize(logoBuf) : null;
+  const logoWidth = size ? Math.round((size.width / size.height) * 50) : 50 * 3.34;
+  const textLeft = padL + Math.max(logoWidth, 140) + 14;
   const tagline = settings?.tagline || "";
   if (tagline) {
     pdf.font("Helvetica-Bold").fontSize(12).fillColor(NAVY).text(tagline, textLeft, 34, { width: padR - textLeft });

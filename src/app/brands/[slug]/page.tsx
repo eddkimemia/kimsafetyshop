@@ -6,6 +6,10 @@ import { liveCatalog } from "@/lib/catalog";
 import { siteUrl } from "@/lib/site";
 import { getLiveBrands, getLiveBrand } from "@/lib/brands";
 
+// ISR: prerender known brands at build, refresh every 60s so admin edits
+// (name/logo/tagline and newly added brands) reach the storefront quickly.
+export const revalidate = 60;
+
 export async function generateStaticParams() {
   const brands = await getLiveBrands();
   return brands.map((b) => ({ slug: b.slug }));

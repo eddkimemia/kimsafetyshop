@@ -7,6 +7,10 @@ import { products } from "@/lib/data/products";
 import { siteUrl } from "@/lib/site";
 import { getLiveBrands } from "@/lib/brands";
 
+// Re-render at most every 60s so brands added/edited in Admin → Brands
+// (stored in the settings table) appear on the public page without a rebuild.
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: "Shop by Brand — 3M, Honeywell, Ansell & More in Kenya | KimSafety",
   description:
