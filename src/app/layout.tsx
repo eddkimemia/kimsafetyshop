@@ -45,67 +45,73 @@ async function loadBrand(): Promise<{ site_name: string; logo: string; email: st
 
 const absoluteUrl = (p: string) => (p.startsWith("http") ? p : `${siteUrl}${p}`);
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya",
-    template: "%s | KimSafety",
-  },
-  description:
-    "Kenya's trusted marketplace for certified industrial PPE, medical safety, fire safety, road safety and laboratory equipment. 185+ products, bulk discounts, same-day Nairobi delivery, corporate procurement support. Serving 1,200+ organizations across 47 counties.",
-  keywords: [
-    "safety equipment Kenya",
-    "PPE Kenya",
-    "industrial safety Nairobi",
-    "fire extinguishers Kenya",
-    "medical gloves Kenya",
-    "safety helmets Kenya",
-    "lab equipment Kenya",
-    "KimSafety",
-    "safety boots Kenya",
-    "reflective vest Kenya",
-    "first aid kit Kenya",
-    "construction safety Kenya",
-  ],
-  alternates: {
-    canonical: siteUrl,
-    languages: {
-      "en-KE": siteUrl,
-      "en": siteUrl,
-    },
-  },
-  verification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION
-    ? { google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION }
-    : undefined,
-  category: "safety equipment",
-  openGraph: {
-    type: "website",
-    locale: "en_KE",
-    url: siteUrl,
-    siteName: "KimSafety",
-    title: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya",
-    description:
-      "Certified PPE, medical, fire, road and lab safety equipment. 185+ products, bulk discounts, same-day Nairobi delivery, corporate procurement support.",
-    images: [{ url: `${siteUrl}/og-image.jpg`, width: 1200, height: 630, alt: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya",
-    description:
-      "Certified PPE, medical, fire, road and lab safety equipment. 185+ products, bulk discounts, same-day Nairobi delivery.",
-    images: [`${siteUrl}/og-image.jpg`],
-  },
-  icons: {
-    icon: "/images/logo/fav.jpeg",
-    apple: "/images/logo/fav.jpeg",
-  },
-  manifest: "/manifest.webmanifest",
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-video-preview": -1, "max-snippet": -1 },
-  },
+// Live product count so metadata never goes stale as the catalog grows.
+const productCount = async () => {
+  const { getProductCount } = await import("@/lib/catalog");
+  return getProductCount();
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  const count = await productCount();
+  return {
+    metadataBase: new URL(siteUrl),
+    title: {
+      default: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya",
+      template: "%s | KimSafety",
+    },
+    description: `Kenya's trusted marketplace for certified industrial PPE, medical safety, fire safety, road safety and laboratory equipment. ${count} products, bulk discounts, same-day Nairobi delivery, corporate procurement support. Serving 1,200+ organizations across 47 counties.`,
+    keywords: [
+      "safety equipment Kenya",
+      "PPE Kenya",
+      "industrial safety Nairobi",
+      "fire extinguishers Kenya",
+      "medical gloves Kenya",
+      "safety helmets Kenya",
+      "lab equipment Kenya",
+      "KimSafety",
+      "safety boots Kenya",
+      "reflective vest Kenya",
+      "first aid kit Kenya",
+      "construction safety Kenya",
+    ],
+    alternates: {
+      canonical: siteUrl,
+      languages: {
+        "en-KE": siteUrl,
+        "en": siteUrl,
+      },
+    },
+    verification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION
+      ? { google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION }
+      : undefined,
+    category: "safety equipment",
+    openGraph: {
+      type: "website",
+      locale: "en_KE",
+      url: siteUrl,
+      siteName: "KimSafety",
+      title: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya",
+      description: `Certified PPE, medical, fire, road and lab safety equipment. ${count} products, bulk discounts, same-day Nairobi delivery, corporate procurement support.`,
+      images: [{ url: `${siteUrl}/og-image.jpg`, width: 1200, height: 630, alt: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya",
+      description: `Certified PPE, medical, fire, road and lab safety equipment. ${count} products, bulk discounts, same-day Nairobi delivery.`,
+      images: [`${siteUrl}/og-image.jpg`],
+    },
+    icons: {
+      icon: "/images/logo/fav.jpeg",
+      apple: "/images/logo/fav.jpeg",
+    },
+    manifest: "/manifest.webmanifest",
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, "max-image-preview": "large", "max-video-preview": -1, "max-snippet": -1 },
+    },
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -118,7 +124,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const brand = await loadBrand();
+  const [brand, count] = await Promise.all([loadBrand(), productCount()]);
 
   const organizationJsonLd = {
     "@context": "https://schema.org",
@@ -128,7 +134,7 @@ export default async function RootLayout({
     url: siteUrl,
     logo: absoluteUrl(brand.logo),
     description:
-      "Kenya's trusted marketplace for certified industrial PPE, medical safety, fire safety, road safety and laboratory equipment. 185+ products, 15 categories, 40+ authorized brands.",
+      `Kenya's trusted marketplace for certified industrial PPE, medical safety, fire safety, road safety and laboratory equipment. ${count} products, 15 categories, 40+ authorized brands.`,
     email: brand.email,
     telephone: brand.phone,
     address: {

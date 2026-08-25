@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Package, ShoppingCart, Users, ClipboardList, Building2, BookOpen, Newspaper, LogOut, ShieldCheck, Menu, X, ArrowLeft, Truck, Store, Settings, FileText, Megaphone, LifeBuoy, Star, Mail, KeyRound, Undo2, MessagesSquare, Inbox, Images } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, ClipboardList, Building2, BookOpen, Newspaper, LogOut, ShieldCheck, Menu, X, ArrowLeft, Truck, Store, Settings, FileText, Megaphone, LifeBuoy, Star, Mail, KeyRound, Undo2, MessagesSquare, Inbox, Images, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/logo";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
@@ -130,6 +130,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            {role === "superadmin" && (
+              <Link
+                href="/admin/payments"
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition-colors",
+                  pathname.startsWith("/admin/payments")
+                    ? "border-safety-300 bg-safety-50 text-safety-600"
+                    : "border-line text-navy-900 hover:bg-surface"
+                )}
+              >
+                <CreditCard className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Payments</span>
+              </Link>
+            )}
             <Link
               href="/admin/password"
               className={cn(

@@ -214,6 +214,20 @@ export async function liveCatalog(): Promise<Product[]> {
   return mergedCatalog();
 }
 
+/**
+ * Live product count for SEO copy — always reflects the current catalog
+ * (admin additions included). Falls back to the seed length if the DB is
+ * unreachable so metadata never renders "undefined".
+ */
+export async function getProductCount(): Promise<number> {
+  try {
+    return (await mergedCatalog()).length;
+  } catch {
+    const { products } = await import("@/lib/data/products");
+    return products.length;
+  }
+}
+
 export async function liveGetProduct(id: string): Promise<Product | undefined> {
   return (await mergedCatalog()).find((p) => p.id === id);
 }
