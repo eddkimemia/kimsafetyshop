@@ -37,3 +37,26 @@ export function guideFallbackSections(): { heading: string; body: string; points
     },
   ];
 }
+
+/**
+ * The same fallback content rendered as editable HTML — used by the admin
+ * guide editor to prefill the body so admins see (and can tweak) exactly
+ * what the frontend displays for guides without saved content.
+ */
+export function guideFallbackHtml(): string {
+  return guideFallbackSections()
+    .map((s) => {
+      let html = `<h2>${s.heading}</h2>\n<p>${s.body}</p>`;
+      if (s.points?.length) {
+        html += `\n<ul>\n${s.points.map((p) => `  <li>${p}</li>`).join("\n")}\n</ul>`;
+      }
+      if (s.table && s.table.length > 1) {
+        const [head, ...rows] = s.table;
+        html += `\n<table>\n  <thead>\n    <tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr>\n  </thead>\n  <tbody>\n${rows
+          .map((row) => `    <tr>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`)
+          .join("\n")}\n  </tbody>\n</table>`;
+      }
+      return html;
+    })
+    .join("\n");
+}

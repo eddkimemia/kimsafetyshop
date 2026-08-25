@@ -8,6 +8,7 @@ import { AdminCard, adminField, useFetch } from "@/components/admin/ui";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { CoverImagePicker } from "@/components/admin/image-picker";
 import { SendNewsletterButton } from "@/components/admin/send-newsletter-button";
+import { guideFallbackHtml } from "@/lib/data/guide-fallback";
 
 type Guide = {
   slug: string;
@@ -53,7 +54,14 @@ export default function AdminContentEditorPage() {
       setForm(empty);
       setLoaded(true);
     } else if (found) {
-      setForm({ ...empty, ...found });
+      setForm({
+        ...empty,
+        ...found,
+        // Guides without saved content render the shared fallback sections on
+        // the frontend — prefill the editor with that same content so admins
+        // see (and can edit) exactly what visitors see instead of a blank body.
+        content: found.content?.trim() ? found.content : guideFallbackHtml(),
+      });
       setLoaded(true);
     } else if (data) {
       setError(`Guide "${rawSlug}" not found.`);
