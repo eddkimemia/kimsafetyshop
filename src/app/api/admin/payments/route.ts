@@ -10,6 +10,9 @@ export type PaymentRow = {
   customer: string;
   email: string;
   phone: string;
+  /** "registered" when the order belongs to an account, else "guest". */
+  customer_type: "registered" | "guest";
+  user_id: string | null;
   method: string;
   method_label: string;
   /** Real gateway code only: M-Pesa TB… receipt or Paystack transaction ID. */
@@ -39,6 +42,8 @@ export async function GET() {
     customer: o.name,
     email: o.email,
     phone: o.phone,
+    customer_type: o.user_id ? "registered" : "guest",
+    user_id: o.user_id,
     method: o.payment,
     method_label:
       o.payment === "mpesa" ? "M-Pesa" : o.payment === "card" ? "Card (Paystack)" : o.payment === "po" ? "Purchase Order" : o.payment,
