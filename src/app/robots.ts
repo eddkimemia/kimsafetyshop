@@ -20,9 +20,16 @@ export default function robots(): MetadataRoute.Robots {
           "/account/",
           "/login",
           "/register",
+          "/track?*",
+          "/*?*discount=*",
         ],
+      },
+      {
+        userAgent: "Googlebot-Image",
+        allow: "/",
       },
     ],
     sitemap: `${siteUrl}/sitemap.xml`,
+    host: siteUrl,
   };
 }

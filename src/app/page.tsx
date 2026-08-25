@@ -11,8 +11,40 @@ import { DealsBanner } from "@/components/home/deals-banner";
 import { CampaignStrip } from "@/components/home/campaign-strip";
 import { getActiveBanners, getActiveCampaigns } from "@/lib/db";
 import { liveCatalog } from "@/lib/catalog";
+import { siteUrl } from "@/lib/site";
+import type { Metadata } from "next";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "KimSafety — Buy Industrial & Medical Safety Equipment in Kenya | PPE, Fire Safety, Lab Equipment",
+  description:
+    "Shop 185+ certified safety products in Kenya — PPE, helmets, boots, gloves, fire extinguishers, medical supplies & lab equipment. Bulk discounts, same-day Nairobi delivery, 1,200+ organizations served across 47 counties.",
+  keywords: [
+    "buy safety equipment Kenya",
+    "PPE Nairobi",
+    "industrial safety equipment Kenya",
+    "safety helmet Kenya",
+    "safety boots Kenya",
+    "fire extinguisher Kenya",
+  ],
+  alternates: { canonical: siteUrl },
+  openGraph: {
+    title: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya",
+    description:
+      "185+ certified safety products — PPE, helmets, boots, gloves, fire extinguishers & lab equipment. Bulk discounts, same-day Nairobi delivery.",
+    type: "website",
+    url: siteUrl,
+    siteName: "KimSafety",
+    images: [{ url: `${siteUrl}/og-image.jpg`, width: 1200, height: 630, alt: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "KimSafety — Industrial & Medical Safety Equipment in Kenya",
+    description: "185+ certified safety products — PPE, fire safety, medical & lab equipment with bulk discounts & same-day delivery.",
+    images: [`${siteUrl}/og-image.jpg`],
+  },
+};
 
 export default async function Home() {
   let bannerSlides: HeroSlide[] = [];

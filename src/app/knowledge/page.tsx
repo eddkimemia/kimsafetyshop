@@ -4,13 +4,30 @@ import Image from "next/image";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { mergedGuides } from "@/lib/knowledge";
+import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Safety Knowledge Center",
+  title: "Safety Knowledge Center — Guides & Regulations Kenya | KimSafety",
   description:
-    "Buying guides, safety standards, PPE selection and Kenyan workplace regulations — free resources for safety officers and facility managers.",
+    "Buying guides, safety standards, PPE selection and Kenyan workplace regulations — free resources for safety officers and facility managers. OSH Act 2007, PPE matrices & checklists.",
+  keywords: ["safety knowledge center", "Kenya OSH Act", "PPE buying guide", "safety standards Kenya"],
+  alternates: { canonical: `${siteUrl}/knowledge` },
+  openGraph: {
+    title: "Safety Knowledge Center — KimSafety Kenya",
+    description: "Buying guides, safety standards & Kenyan workplace regulations for safety officers.",
+    type: "website",
+    url: `${siteUrl}/knowledge`,
+    siteName: "KimSafety",
+    images: [{ url: `${siteUrl}/og-image.jpg`, width: 1200, height: 630, alt: "Safety Knowledge Center — KimSafety" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Safety Knowledge Center — KimSafety Kenya",
+    description: "Guides on buying, standards & compliance for Kenyan safety officers.",
+    images: [`${siteUrl}/og-image.jpg`],
+  },
 };
 
 export default async function KnowledgePage() {

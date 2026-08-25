@@ -4,13 +4,30 @@ import Image from "next/image";
 import { ArrowRight, Clock, CalendarDays, User, Newspaper } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { listPosts } from "@/lib/db";
+import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Blog — Safety News & Insights",
+  title: "Blog — Safety News & Insights in Kenya | KimSafety",
   description:
-    "Safety news, product updates, compliance insights and practical tips from the KimSafety team.",
+    "Safety news, product updates, compliance insights and practical tips from the KimSafety team. PPE, fire safety & Kenyan workplace regulations.",
+  keywords: ["KimSafety blog", "safety news Kenya", "PPE insights", "workplace safety Kenya"],
+  alternates: { canonical: `${siteUrl}/blog` },
+  openGraph: {
+    title: "Blog — Safety News & Insights — KimSafety Kenya",
+    description: "Product updates, workplace safety tips & compliance news from KimSafety's HSE specialists.",
+    type: "website",
+    url: `${siteUrl}/blog`,
+    siteName: "KimSafety",
+    images: [{ url: `${siteUrl}/og-image.jpg`, width: 1200, height: 630, alt: "KimSafety Blog" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Blog — Safety News & Insights — KimSafety Kenya",
+    description: "Safety news & practical tips from KimSafety.",
+    images: [`${siteUrl}/og-image.jpg`],
+  },
 };
 
 export default async function BlogPage() {

@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/layout/page-header";
+import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy",
+  title: "Privacy Policy — KimSafety Kenya",
+  description: "KimSafety privacy policy — how we collect, use and protect your personal data under Kenya's Data Protection Act, 2019.",
+  alternates: { canonical: `${siteUrl}/privacy` },
+  robots: { index: true, follow: true },
 };
 
 const sections: [string, string][] = [

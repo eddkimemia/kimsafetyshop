@@ -4,8 +4,13 @@ import { PageHeader } from "@/components/layout/page-header";
 import { megaCategories, brands } from "@/lib/data/catalog";
 import { products } from "@/lib/data/products";
 
+import { siteUrl } from "@/lib/site";
+
 export const metadata: Metadata = {
-  title: "Sitemap",
+  title: "Sitemap — KimSafety Kenya",
+  description: "Sitemap: all KimSafety pages — categories, brands, products & guides for easy navigation.",
+  alternates: { canonical: `${siteUrl}/sitemap` },
+  robots: { index: true, follow: true },
 };
 
 const topPages: [string, string][] = [

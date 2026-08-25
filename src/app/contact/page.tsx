@@ -4,11 +4,28 @@ import { PageHeader } from "@/components/layout/page-header";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { ContactForm } from "@/components/contact/contact-form";
 import { getAllSettings } from "@/lib/db";
+import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Contact KimSafety",
+  title: "Contact KimSafety — Nairobi Industrial Area | Sales, Quotes & Support",
   description:
-    "Reach KimSafety — Nairobi warehouse in Industrial Area. Sales, quotes, support and technical advice via phone, email or WhatsApp.",
+    "Reach KimSafety — Nairobi warehouse in Industrial Area. Sales, quotes, support and technical advice via phone +254 715 135 141, email sales@kimsafety.co.ke or WhatsApp. Mon–Sat 8am–6pm.",
+  keywords: ["contact KimSafety", "KimSafety phone", "KimSafety Nairobi Industrial Area", "KimSafety sales"],
+  alternates: { canonical: `${siteUrl}/contact` },
+  openGraph: {
+    title: "Contact KimSafety — Nairobi Industrial Area",
+    description: "Sales, quotes & support via phone, email or WhatsApp.",
+    type: "website",
+    url: `${siteUrl}/contact`,
+    siteName: "KimSafety",
+    images: [{ url: `${siteUrl}/og-image.jpg`, width: 1200, height: 630, alt: "Contact KimSafety" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Contact KimSafety — Nairobi",
+    description: "Phone +254 715 135 141 · sales@kimsafety.co.ke",
+    images: [`${siteUrl}/og-image.jpg`],
+  },
 };
 
 export default async function ContactPage() {

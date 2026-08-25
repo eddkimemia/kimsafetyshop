@@ -2,11 +2,28 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ShieldCheck, Truck, BadgeCheck, HeartHandshake, Target, Eye } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
+import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "About KimSafety",
+  title: "About KimSafety — Certified Safety Equipment Supplier Since 2019 | Kenya",
   description:
-    "KimSafety is Kenya's leading supplier of certified industrial PPE, medical safety, fire safety and laboratory equipment — serving 1,200+ organizations across 47 counties.",
+    "KimSafety is Kenya's leading supplier of certified industrial PPE, medical safety, fire safety and laboratory equipment — serving 1,200+ organizations across 47 counties since 2019. Industrial Area, Nairobi.",
+  keywords: ["about KimSafety", "safety supplier Nairobi", "industrial Area KimSafety", "KimSafety Kenya history"],
+  alternates: { canonical: `${siteUrl}/about` },
+  openGraph: {
+    title: "About KimSafety — Certified Safety Equipment Since 2019",
+    description: "Kenya's leading supplier of certified safety equipment — 1,200+ organizations across 47 counties.",
+    type: "website",
+    url: `${siteUrl}/about`,
+    siteName: "KimSafety",
+    images: [{ url: `${siteUrl}/og-image.jpg`, width: 1200, height: 630, alt: "About KimSafety" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "About KimSafety — Kenya's Safety Supplier Since 2019",
+    description: "1,200+ organizations across 47 counties trust KimSafety.",
+    images: [`${siteUrl}/og-image.jpg`],
+  },
 };
 
 const values = [

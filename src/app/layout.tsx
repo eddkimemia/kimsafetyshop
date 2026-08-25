@@ -52,17 +52,32 @@ export const metadata: Metadata = {
     template: "%s | KimSafety",
   },
   description:
-    "Kenya's trusted marketplace for certified industrial PPE, medical safety, fire safety, road safety and laboratory equipment. Bulk discounts, same-day Nairobi delivery, corporate procurement support.",
+    "Kenya's trusted marketplace for certified industrial PPE, medical safety, fire safety, road safety and laboratory equipment. 185+ products, bulk discounts, same-day Nairobi delivery, corporate procurement support. Serving 1,200+ organizations across 47 counties.",
   keywords: [
     "safety equipment Kenya",
     "PPE Kenya",
     "industrial safety Nairobi",
     "fire extinguishers Kenya",
     "medical gloves Kenya",
-    "safety helmets",
+    "safety helmets Kenya",
     "lab equipment Kenya",
     "KimSafety",
+    "safety boots Kenya",
+    "reflective vest Kenya",
+    "first aid kit Kenya",
+    "construction safety Kenya",
   ],
+  alternates: {
+    canonical: siteUrl,
+    languages: {
+      "en-KE": siteUrl,
+      "en": siteUrl,
+    },
+  },
+  verification: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION }
+    : undefined,
+  category: "safety equipment",
   openGraph: {
     type: "website",
     locale: "en_KE",
@@ -70,15 +85,15 @@ export const metadata: Metadata = {
     siteName: "KimSafety",
     title: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya",
     description:
-      "Certified PPE, medical, fire, road and lab safety equipment. Bulk discounts, same-day Nairobi delivery, corporate procurement support.",
-    images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya" }],
+      "Certified PPE, medical, fire, road and lab safety equipment. 185+ products, bulk discounts, same-day Nairobi delivery, corporate procurement support.",
+    images: [{ url: `${siteUrl}/og-image.jpg`, width: 1200, height: 630, alt: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "KimSafety — Industrial & Medical Safety Equipment Supplier in Kenya",
     description:
-      "Certified PPE, medical, fire, road and lab safety equipment. Bulk discounts, same-day Nairobi delivery, corporate procurement support.",
-    images: ["/og-image.jpg"],
+      "Certified PPE, medical, fire, road and lab safety equipment. 185+ products, bulk discounts, same-day Nairobi delivery.",
+    images: [`${siteUrl}/og-image.jpg`],
   },
   icons: {
     icon: "/images/logo/fav.jpeg",
@@ -88,7 +103,7 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-video-preview": -1, "max-snippet": -1 },
   },
 };
 
@@ -113,16 +128,41 @@ export default async function RootLayout({
     url: siteUrl,
     logo: absoluteUrl(brand.logo),
     description:
-      "Kenya's trusted marketplace for certified industrial PPE, medical safety, fire safety, road safety and laboratory equipment.",
+      "Kenya's trusted marketplace for certified industrial PPE, medical safety, fire safety, road safety and laboratory equipment. 185+ products, 15 categories, 40+ authorized brands.",
     email: brand.email,
     telephone: brand.phone,
-    address: { "@type": "PostalAddress", addressLocality: "Nairobi", addressCountry: "KE" },
-    contactPoint: {
-      "@type": "ContactPoint",
-      telephone: brand.phone,
-      contactType: "sales",
-      availableLanguage: ["en"],
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "Industrial Area",
+      addressLocality: "Nairobi",
+      addressRegion: "Nairobi",
+      postalCode: "00100",
+      addressCountry: "KE",
     },
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        telephone: brand.phone,
+        contactType: "sales",
+        availableLanguage: ["en"],
+        areaServed: "KE",
+      },
+      {
+        "@type": "ContactPoint",
+        telephone: brand.phone,
+        contactType: "customer service",
+        availableLanguage: ["en"],
+      },
+    ],
+    sameAs: [
+      "https://facebook.com/kimsafetyltdke",
+      "https://instagram.com/kimsafetyltdke",
+      "https://linkedin.com/company/kimsafetyltdke",
+      "https://youtube.com/@kimsafetyltdke",
+    ],
+    areaServed: { "@type": "Country", name: "Kenya" },
+    foundingDate: "2019",
+    slogan: "Protect Every Worker, Every Shift",
   };
 
   const websiteJsonLd = {
@@ -132,6 +172,7 @@ export default async function RootLayout({
     url: siteUrl,
     name: brand.site_name,
     publisher: { "@id": `${siteUrl}/#organization` },
+    inLanguage: "en-KE",
     potentialAction: {
       "@type": "SearchAction",
       target: { "@type": "EntryPoint", urlTemplate: `${siteUrl}/search?q={search_term_string}` },
@@ -150,20 +191,23 @@ export default async function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
-        {process.env.NEXT_PUBLIC_GA_ID ? (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
-              strategy="afterInteractive"
-            />
-            <Script id="ga-init" strategy="afterInteractive">
-              {`window.dataLayer = window.dataLayer || [];
+        {(() => {
+          const gaId = process.env.NEXT_PUBLIC_GA_ID || "G-3X3CZ6B428";
+          return (
+            <>
+              <Script
+                src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+                strategy="afterInteractive"
+              />
+              <Script id="ga-init" strategy="afterInteractive">
+                {`window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');`}
-            </Script>
-          </>
-        ) : null}
+gtag('config', '${gaId}');`}
+              </Script>
+            </>
+          );
+        })()}
         <StoreProvider>
           <a
             href="#main"

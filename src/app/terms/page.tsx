@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/layout/page-header";
+import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Terms & Conditions",
+  title: "Terms & Conditions — KimSafety Kenya",
+  description: "Terms & Conditions for KimSafety — orders, pricing in KES, payment, delivery, returns, warranty & governing law (Kenya).",
+  alternates: { canonical: `${siteUrl}/terms` },
+  robots: { index: true, follow: true },
 };
 
 const sections: [string, string][] = [

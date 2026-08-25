@@ -4,10 +4,28 @@ import { ChevronDown, LifeBuoy } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 
+import { siteUrl } from "@/lib/site";
+
 export const metadata: Metadata = {
-  title: "Help & Support",
+  title: "Help & Support — Delivery, Payment & Returns | KimSafety Kenya",
   description:
-    "Delivery, payment, returns and product FAQs from KimSafety. Same-day Nairobi delivery, M-Pesa & card payments, 7-day returns.",
+    "Delivery, payment, returns and product FAQs from KimSafety. Same-day Nairobi delivery, M-Pesa & card payments, 7-day returns. Bulk & corporate support.",
+  keywords: ["KimSafety support", "KimSafety delivery", "KimSafety returns", "M-Pesa Kenya safety equipment"],
+  alternates: { canonical: `${siteUrl}/support` },
+  openGraph: {
+    title: "Help & Support — KimSafety Kenya",
+    description: "Delivery, payment, returns & product FAQs — same-day Nairobi delivery & 7-day returns.",
+    type: "website",
+    url: `${siteUrl}/support`,
+    siteName: "KimSafety",
+    images: [{ url: `${siteUrl}/og-image.jpg`, width: 1200, height: 630, alt: "Help & Support — KimSafety" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Help & Support — KimSafety Kenya",
+    description: "Delivery, payment & returns FAQs from KimSafety.",
+    images: [`${siteUrl}/og-image.jpg`],
+  },
 };
 
 const faqs = [
@@ -46,8 +64,28 @@ const faqs = [
 ];
 
 export default function SupportPage() {
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+      { "@type": "ListItem", position: 2, name: "Support", item: `${siteUrl}/support` },
+    ],
+  };
   return (
-    <div className="bg-surface pb-20">
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <div className="bg-surface pb-20">
       <PageHeader
         bg="/images/hero/hero2.jpg"
         title="Help & Support"
@@ -102,6 +140,7 @@ export default function SupportPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

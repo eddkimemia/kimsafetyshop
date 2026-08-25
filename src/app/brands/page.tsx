@@ -5,11 +5,28 @@ import { ArrowRight, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { brands } from "@/lib/data/catalog";
 import { products } from "@/lib/data/products";
+import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Shop by Brand",
+  title: "Shop by Brand — 3M, Honeywell, Ansell & More in Kenya | KimSafety",
   description:
-    "Authorized KimSafety stockist for 3M, Honeywell, Ansell, Uvex, MSA, Dräger, Kimberly-Clark, DuPont, Karam and Delta Plus safety equipment in Kenya.",
+    "Authorized KimSafety stockist for 3M, Honeywell, Ansell, Uvex, MSA, Dräger, Kimberly-Clark, DuPont, Karam and Delta Plus safety equipment in Kenya. Certified stock, bulk pricing.",
+  keywords: ["3M Kenya", "Honeywell Kenya", "Ansell Kenya", "safety brands Nairobi", "buy 3M safety equipment Kenya"],
+  alternates: { canonical: `${siteUrl}/brands` },
+  openGraph: {
+    title: "Shop by Brand — KimSafety Kenya",
+    description: "Authorized stockist for 3M, Honeywell, Ansell, Uvex, MSA & more — certified safety equipment with bulk pricing.",
+    type: "website",
+    url: `${siteUrl}/brands`,
+    siteName: "KimSafety",
+    images: [{ url: `${siteUrl}/og-image.jpg`, width: 1200, height: 630, alt: "Shop by Brand — KimSafety Kenya" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Shop by Brand — KimSafety Kenya",
+    description: "3M, Honeywell, Ansell, Uvex & more — certified stock with bulk pricing.",
+    images: [`${siteUrl}/og-image.jpg`],
+  },
 };
 
 export default function BrandsPage() {

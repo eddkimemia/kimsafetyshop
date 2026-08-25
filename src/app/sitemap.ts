@@ -33,12 +33,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { productImages } = await import("@/lib/data/product-images");
     products = seed.map((p) => ({ ...p, image: productImages[p.sku] ?? `/images/products/${p.sku}.jpg` })) as typeof products;
   }
-  const productRoutes = products.map((p) => ({
-    url: `${base}/product/${p.slug}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.7,
-  }));
+  const productRoutes = products.map((p) => {
+    const imgRaw = (p as unknown as { image?: string }).image || `/images/products/${(p as { sku: string }).sku}.jpg`;
+    const img = imgRaw.startsWith("http") ? imgRaw : `${base}${imgRaw}`;
+    return {
+      url: `${base}/product/${p.slug}`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+      images: [img],
+    };
+  });
 
   const categoryRoutes = categories.map((c) => ({
     url: `${base}/category/${c.slug}`,

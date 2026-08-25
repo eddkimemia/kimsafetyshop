@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { CatalogView } from "@/components/catalog/catalog-view";
 import { brands } from "@/lib/data/catalog";
 import { liveCatalog } from "@/lib/catalog";
+import { siteUrl } from "@/lib/site";
 
 export function generateStaticParams() {
   return brands.map((b) => ({ slug: b.slug }));
@@ -12,23 +13,25 @@ export function generateStaticParams() {
 export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
   const brand = brands.find((b) => b.slug === params.slug);
   if (!brand) return { title: "Brand not found" };
-  const description = `Shop genuine ${brand.name} safety equipment in Kenya. ${brand.tagline}. Certified stock with full documentation.`;
+  const description = `Shop genuine ${brand.name} safety equipment in Kenya. ${brand.tagline}. Certified stock with full documentation, bulk pricing & same-day Nairobi delivery.`;
   return {
-    title: `${brand.name} — ${brand.tagline}`,
+    title: `Buy ${brand.name} Safety Equipment in Kenya — ${brand.tagline} | KimSafety`,
     description,
-    alternates: { canonical: `/brands/${brand.slug}` },
+    keywords: [brand.name, `${brand.name} Kenya`, `${brand.name} safety equipment`, `buy ${brand.name} Nairobi`, brand.tagline],
+    alternates: { canonical: `${siteUrl}/brands/${brand.slug}` },
     openGraph: {
       title: `${brand.name} — KimSafety Kenya`,
       description,
       type: "website",
-      url: `/brands/${brand.slug}`,
-      images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: `${brand.name} safety equipment` }],
+      url: `${siteUrl}/brands/${brand.slug}`,
+      siteName: "KimSafety",
+      images: [{ url: `${siteUrl}/og-image.jpg`, width: 1200, height: 630, alt: `${brand.name} safety equipment Kenya` }],
     },
     twitter: {
       card: "summary_large_image",
       title: `${brand.name} — KimSafety Kenya`,
       description,
-      images: ["/og-image.jpg"],
+      images: [`${siteUrl}/og-image.jpg`],
     },
   };
 }
@@ -36,31 +39,46 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
 export default async function BrandPage({ params }: { params: { slug: string } }) {
   const brand = brands.find((b) => b.slug === params.slug);
   if (!brand) return notFound();
+  const catalog = await liveCatalog();
+  const filtered = catalog.filter((p) => p.brand === brand.name).slice(0, 30);
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: `${brand.name} Safety Equipment`,
+    "@id": `${siteUrl}/brands/${brand.slug}#collection`,
+    name: `${brand.name} Safety Equipment in Kenya`,
     description: `${brand.tagline} — authorized KimSafety stock with certification documents.`,
-    url: `/brands/${brand.slug}`,
-    isPartOf: { "@type": "WebSite", name: "KimSafety", url: "/" },
+    url: `${siteUrl}/brands/${brand.slug}`,
+    isPartOf: { "@type": "WebSite", name: "KimSafety", url: siteUrl },
     mainEntity: {
       "@type": "ItemList",
-      itemListElement: (await liveCatalog())
-        .filter((p) => p.brand === brand.name)
-        .slice(0, 30)
-        .map((p, i) => ({
-          "@type": "ListItem",
-          position: i + 1,
-          url: `/product/${p.slug}`,
-          name: p.name,
-        })),
+      numberOfItems: filtered.length,
+      itemListElement: filtered.map((p, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: `${siteUrl}/product/${p.slug}`,
+        name: p.name,
+        image: `${siteUrl}/images/products/${p.sku}.jpg`,
+      })),
     },
+  };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+      { "@type": "ListItem", position: 2, name: "Brands", item: `${siteUrl}/brands` },
+      { "@type": "ListItem", position: 3, name: brand.name, item: `${siteUrl}/brands/${brand.slug}` },
+    ],
   };
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <Suspense fallback={null}>
         <CatalogView
