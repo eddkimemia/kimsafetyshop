@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Package, ShoppingCart, Users, ClipboardList, Building2, BookOpen, Newspaper, LogOut, ShieldCheck, Menu, X, ArrowLeft, Truck, Store, Settings, FileText, Megaphone, LifeBuoy, Star, Mail, KeyRound, Undo2, MessagesSquare, Inbox } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, ClipboardList, Building2, BookOpen, Newspaper, LogOut, ShieldCheck, Menu, X, ArrowLeft, Truck, Store, Settings, FileText, Megaphone, LifeBuoy, Star, Mail, KeyRound, Undo2, MessagesSquare, Inbox, Images } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/logo";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
@@ -13,6 +13,7 @@ import { useSettings } from "@/lib/settings";
 const nav = [
   ["/admin", "Dashboard", LayoutDashboard],
   ["/admin/products", "Products", Package],
+  ["/admin/media", "Media", Images],
   ["/admin/orders", "Orders", ShoppingCart],
   ["/admin/purchases", "Purchases", Truck],
   ["/admin/quotes", "Quotes", ClipboardList],
@@ -86,7 +87,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const navItems = (role === "superadmin" ? nav : nav.filter(([href]) => (href as string) !== "/admin/settings")) as typeof nav;
+  const navItems = (
+    role === "superadmin" ? nav : nav.filter(([href]) => !["/admin/settings", "/admin/media"].includes(href as string))
+  ) as typeof nav;
 
   useEffect(() => {
     setDrawer(false);
