@@ -24,6 +24,7 @@ const navPrimary = [
 ] as const;
 
 const navSecondary = [
+  ["/admin/brands", "Brands", Store],
   ["/admin/content", "Knowledge", BookOpen],
   ["/admin/blog", "Blog", Newspaper],
   ["/admin/reviews", "Reviews", Star],

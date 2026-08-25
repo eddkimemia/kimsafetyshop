@@ -7,6 +7,8 @@ import { readLogoBytes, getLogoSize, DEFAULT_LOGO } from "@/lib/logo";
 import { readPublicFile } from "@/lib/file-store";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { productImages, productGalleries } from "@/lib/data/product-images";
+import { brands as staticBrands } from "@/lib/data/catalog";
+import { getLiveBrands } from "@/lib/brands";
 import type { Product } from "@/lib/types";
 
 const NAVY = "#0F2847";
@@ -95,6 +97,12 @@ export async function buildBrandedDatasheetPdf(products: Product[]): Promise<Buf
 
   let y = 132;
   let currentSku = products[0]?.sku ?? "";
+
+  // Live brands (admin-edited logos/taglines) with fallback to static
+  let liveBrandsList = staticBrands;
+  try {
+    liveBrandsList = await getLiveBrands();
+  } catch {}
 
   const ensure = (h: number) => {
     if (y + h > usableBottom) {
@@ -326,6 +334,18 @@ export async function buildBrandedDatasheetPdf(products: Product[]): Promise<Buf
     // Meta row
     pdf.font("Helvetica-Bold").fontSize(9).fillColor(NAVY).text(`Ref: ${product.sku}`, padL, y, { width: 200 });
     pdf.font("Helvetica").fontSize(9).fillColor(GRAY).text(`Date: ${fmtDate(new Date())}`, padR - 220, y, { width: 220, align: "right" });
+    // Brand logo floating below date — right-aligned, no tagline, does not push content
+    {
+      const brandEntry = liveBrandsList.find((b) => b.name === product.brand) || staticBrands.find((b) => b.name === product.brand);
+      if (brandEntry?.image) {
+        const brandBuf = await readPublicFile(brandEntry.image);
+        if (isSupportedImage(brandBuf)) {
+          const bx = padR - 70;
+          const by = y + 8;
+          safeImage(pdf, brandBuf!, bx, by, { height: 28 });
+        }
+      }
+    }
     y += 30;
 
     // Title

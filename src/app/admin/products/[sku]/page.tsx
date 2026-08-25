@@ -324,8 +324,8 @@ export default function AdminProductEditPage() {
                   <input className={adminField} value={form.model ?? ""} onChange={(e) => set({ model: e.target.value })} placeholder="e.g. Microflex 93-260" />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-bold text-gray-500">Brand</span>
-                  <input className={adminField} value={form.brand} onChange={(e) => set({ brand: e.target.value })} />
+                  <span className="mb-1 block text-xs font-bold text-gray-500">Brand *</span>
+                  <BrandSelect value={form.brand} onChange={(v) => set({ brand: v })} />
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-xs font-bold text-gray-500">Country of origin</span>
@@ -1028,6 +1028,142 @@ function UploadZone({
         </button>
       )}
       {error && <p className="mt-2 text-[11px] font-semibold text-danger">{error}</p>}
+    </div>
+  );
+}
+
+
+function BrandSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [brands, setBrands] = useState<{ slug: string; name: string; tagline: string; origin: string; image: string }[]>([]);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/brands")
+      .then((r) => r.json())
+      .then((j) => {
+        if (Array.isArray(j.brands)) setBrands(j.brands);
+      })
+      .catch(() => {});
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (!q) return brands;
+    return brands.filter((b) => `${b.name} ${b.slug} ${b.tagline} ${b.origin}`.toLowerCase().includes(q));
+  }, [brands, query]);
+
+  const selected = brands.find((b) => b.name === value) || null;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`${adminField} flex items-center justify-between gap-2 text-left`}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          {selected ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={selected.image} alt={selected.name} className="h-6 w-6 shrink-0 rounded border border-line object-contain bg-white p-0.5" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
+              <span className="truncate font-semibold text-navy-900">{selected.name}</span>
+              <span className="hidden truncate text-xs text-gray-400 sm:inline">· {selected.origin}</span>
+            </>
+          ) : value ? (
+            <span className="truncate font-semibold text-navy-900">{value} <span className="font-normal text-gray-400">(custom)</span></span>
+          ) : (
+            <span className="text-gray-400">Select a brand…</span>
+          )}
+        </span>
+        <ChevronRight className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform ${open ? "rotate-90" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 z-20 mt-2 max-h-80 overflow-hidden rounded-xl border border-line bg-white shadow-lg">
+          <div className="border-b border-line p-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                autoFocus
+                placeholder="Search brands or type custom…"
+                className="w-full rounded-lg border border-line bg-surface px-8 py-2 text-sm outline-none focus:border-safety-400 focus:bg-white"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="max-h-64 overflow-auto p-1">
+            {filtered.length === 0 && query.trim() ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(query.trim());
+                  setOpen(false);
+                  setQuery("");
+                }}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-surface"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-dashed border-line bg-surface text-gray-400">
+                  <Plus className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-navy-900">Use &quot;{query.trim()}&quot;</span>
+                  <span className="block text-xs text-gray-400">Create custom brand (add it properly at /admin/brands)</span>
+                </span>
+              </button>
+            ) : (
+              filtered.map((b) => {
+                const active = b.name === value;
+                return (
+                  <button
+                    key={b.slug}
+                    type="button"
+                    onClick={() => {
+                      onChange(b.name);
+                      setOpen(false);
+                      setQuery("");
+                    }}
+                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${active ? "bg-navy-900 text-white" : "hover:bg-surface"}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={b.image} alt={b.name} className="h-8 w-8 shrink-0 rounded-lg border border-line bg-white object-contain p-1" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
+                    <span className="min-w-0 flex-1">
+                      <span className={`block truncate text-sm font-bold ${active ? "text-white" : "text-navy-900"}`}>{b.name}</span>
+                      <span className={`block truncate text-xs ${active ? "text-white/70" : "text-gray-400"}`}>{b.tagline || "—"} · {b.origin}</span>
+                    </span>
+                    {active && <Check className="h-4 w-4 shrink-0 text-white" />}
+                  </button>
+                );
+              })
+            )}
+            {filtered.length > 0 && query.trim() && !filtered.some((b) => b.name.toLowerCase() === query.trim().toLowerCase()) && (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(query.trim());
+                  setOpen(false);
+                  setQuery("");
+                }}
+                className="mt-1 flex w-full items-center gap-2 rounded-lg border border-dashed border-line px-3 py-2 text-left text-xs font-bold text-gray-500 hover:bg-surface"
+              >
+                <Plus className="h-3.5 w-3.5" /> Use &quot;{query.trim()}&quot; as custom
+              </button>
+            )}
+          </div>
+          <div className="flex items-center justify-between border-t border-line bg-surface/50 px-3 py-2">
+            <a href="/admin/brands" target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-safety-600 hover:underline">
+              Manage brands →
+            </a>
+            <button type="button" onClick={() => setOpen(false)} className="rounded-lg bg-white px-3 py-1 text-xs font-bold text-gray-500 hover:text-navy-900">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+      {value && !selected && (
+        <p className="mt-1.5 text-[11px] text-amber-600">Custom brand — will be saved as typed. Add it properly at /admin/brands for logo/tagline.</p>
+      )}
     </div>
   );
 }

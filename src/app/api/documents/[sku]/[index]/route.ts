@@ -11,6 +11,8 @@ import { readLogoBytes, getLogoSize, DEFAULT_LOGO } from "@/lib/logo";
 import { getStoredFile, readPublicFile } from "@/lib/file-store";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
 import { productImages, productGalleries } from "@/lib/data/product-images";
+import { brands as staticBrands } from "@/lib/data/catalog";
+import { getLiveBrands } from "@/lib/brands";
 import { slugify } from "@/lib/utils";
 import type { Product } from "@/lib/types";
 
@@ -89,6 +91,12 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
   if (!product || !doc) {
     return NextResponse.json({ error: "Document not found" }, { status: 404 });
   }
+
+  // Live brands (admin-edited) for brand logo in datasheet
+  let liveBrandsList = staticBrands;
+  try {
+    liveBrandsList = await getLiveBrands();
+  } catch {}
 
   // Uploaded real file takes precedence — datasheet name overrides uploaded filename
   if (doc.file && doc.file.startsWith("/")) {
@@ -199,6 +207,18 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
   // ---- Meta row ----
   pdf.font("Helvetica-Bold").fontSize(9).fillColor(NAVY).text(`Ref: ${product.sku}`, padL, y, { width: 200 });
   pdf.font("Helvetica").fontSize(9).fillColor(GRAY).text(`Date: ${fmtDate(new Date())}`, padR - 220, y, { width: 220, align: "right" });
+  // Brand logo floating below date — right-aligned, no tagline, does not push content
+  {
+    const brandEntry = liveBrandsList.find((b) => b.name === product.brand) || staticBrands.find((b) => b.name === product.brand);
+    if (brandEntry?.image) {
+      const brandBuf = await readPublicFile(brandEntry.image);
+      if (isSupportedImage(brandBuf)) {
+        const bx = padR - 70;
+        const by = y + 8;
+        safeImage(pdf, brandBuf!, bx, by, { height: 28 });
+      }
+    }
+  }
   y += 30;
 
   // ---- Title ----

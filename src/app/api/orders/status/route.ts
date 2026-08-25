@@ -98,10 +98,12 @@ export async function GET(req: Request) {
     mpesaPushCount: order.mpesa_push_count ?? 0,
     mpesaLastResult: order.mpesa_last_result,
     mpesaLastResultDesc: order.mpesa_last_result_desc,
+    // REAL transaction codes only (e.g. TB17CVOCY9 for M-Pesa, Paystack transaction ID)
+    // No fallback to checkout ID / initialization reference.
     transactionId:
       order.payment === "mpesa"
-        ? order.mpesa_transaction_id || order.mpesa_checkout_id
-        : order.paystack_transaction_id ?? order.paystack_reference,
+        ? order.mpesa_transaction_id || null
+        : order.paystack_transaction_id || null,
     canResend,
     retryAfterMs,
     queried,

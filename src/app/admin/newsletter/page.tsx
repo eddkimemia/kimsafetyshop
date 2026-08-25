@@ -219,10 +219,7 @@ export default function AdminNewsletterPage() {
           {notice && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{notice}</p>}
           {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">{error}</p>}
 
-      <AdminCard
-        title="Send a briefing"
-        subtitle="Uses SMTP — configure SMTP_HOST / SMTP_USER / SMTP_PASS in the .env file (or Vercel environment), not in Settings"
-      >
+      <AdminCard title="Send a briefing">
         <div className="space-y-4">
           <input
             className={inputCls}

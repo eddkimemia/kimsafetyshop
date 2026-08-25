@@ -83,30 +83,41 @@ export async function PATCH(req: Request) {
   }
 
   if (body.paid !== undefined) {
-    // Record the payment reference BEFORE flagging paid and re-fetching —
-    // the paid invoice PDF and receipt must show it.
+    // Record the REAL payment reference BEFORE flagging paid and re-fetching —
+    // the paid invoice PDF and receipt must show the real TB... / Paystack ID.
+    // No fallback to checkout ID or initialization reference.
     const ref = body.txn_ref?.trim();
-    let effectiveRef = ref || null;
-    if (!effectiveRef && order.payment === "mpesa") {
-      // Admin left the reference blank: pull the transaction code straight
-      // from Daraja (Transaction Status API, keyed by CheckoutRequestID) so a
-      // paid M-Pesa order NEVER ends up with a blank transaction ID.
-      if (order.mpesa_transaction_id) {
-        effectiveRef = order.mpesa_transaction_id;
-      } else if (order.mpesa_checkout_id) {
-        try {
-          const receipt = await mpesaFetchReceipt(order.mpesa_checkout_id);
-          if (receipt) {
-            await setMpesaTransaction(body.id, receipt);
-            effectiveRef = receipt;
+    let effectiveRef: string | null = ref || null;
+    if (!effectiveRef) {
+      if (order.payment === "mpesa") {
+        // Admin left the reference blank: try to pull the real M-Pesa receipt
+        // (e.g. TB17CVOCY9) from Daraja. If not available, require manual entry.
+        if (order.mpesa_transaction_id) {
+          effectiveRef = order.mpesa_transaction_id;
+        } else if (order.mpesa_checkout_id) {
+          try {
+            const receipt = await mpesaFetchReceipt(order.mpesa_checkout_id);
+            if (receipt) {
+              await setMpesaTransaction(body.id, receipt);
+              effectiveRef = receipt;
+            }
+          } catch (err) {
+            console.error(`[admin] mpesa receipt lookup failed for ${order.id}:`, (err as Error).message);
           }
-        } catch (err) {
-          console.error(`[admin] mpesa receipt lookup failed for ${order.id}:`, (err as Error).message);
         }
       }
-      if (!effectiveRef) {
+      // Card has no auto-fetch — must be entered
+    }
+    if (!effectiveRef) {
+      if (order.payment === "mpesa") {
         return NextResponse.json(
-          { error: "M-Pesa transaction code could not be fetched automatically. Enter it from the customer's confirmation SMS." },
+          { error: "M-Pesa transaction code (e.g. TB17CVOCY9) is required — could not be fetched automatically. Enter it from the customer's confirmation SMS." },
+          { status: 400 }
+        );
+      }
+      if (order.payment === "card") {
+        return NextResponse.json(
+          { error: "Paystack transaction code is required — enter the Paystack transaction ID (e.g. from Paystack dashboard / verification)." },
           { status: 400 }
         );
       }

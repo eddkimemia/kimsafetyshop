@@ -204,7 +204,8 @@ export async function mpesaFetchReceipt(checkoutId: string): Promise<string | nu
       for (const item of items) {
         if (item?.Key === "MpesaReceiptNumber" && item.Value != null) return String(item.Value);
       }
-      return json.Result?.TransactionID || null;
+      // No fallback to TransactionID/checkoutId — must be real TB... receipt
+      return null;
     } catch {
       return null;
     }
@@ -238,11 +239,18 @@ export async function mpesaFetchReceipt(checkoutId: string): Promise<string | nu
       ResultCode?: string | number;
       ResultDesc?: string;
       errorMessage?: string;
+      Result?: {
+        ResultParameters?: { ResultParameter?: { Key?: string; Value?: unknown }[] | { Key?: string; Value?: unknown } };
+      };
     };
     if (String(json.ResultCode ?? json.errorMessage ?? "1") !== "0") return null;
-    // When TransactionID was the receipt itself, Daraja echoes it; for STK
-    // checkoutId lookups some setups return ResultParameters with receipt.
-    return checkoutId;
+    // Only return real MpesaReceiptNumber — never fallback to checkoutId (not a real TB... code)
+    const raw2 = (json as unknown as { Result?: { ResultParameters?: { ResultParameter?: { Key?: string; Value?: unknown }[] } } }).Result?.ResultParameters?.ResultParameter;
+    const items2 = Array.isArray(raw2) ? raw2 : raw2 ? [raw2] : [];
+    for (const item of items2) {
+      if (item?.Key === "MpesaReceiptNumber" && item.Value != null) return String(item.Value);
+    }
+    return null;
   } catch {
     return null;
   }

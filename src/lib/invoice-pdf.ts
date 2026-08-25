@@ -185,21 +185,17 @@ export async function buildInvoicePdf(order: InvoiceOrder): Promise<Buffer> {
     );
 
   // ---- Meta line ----
-  // Paid invoices carry the gateway transaction code: the M-Pesa transaction
-  // code (receipt number) captured from the STK callback, the Paystack
-  // transaction ID (falling back to our initialization reference), or the
-  // purchase-order reference for corporate orders.
-  // For M-Pesa, the checkout ID is always known (set at STK initiation) and
-  // serves as an interim reference when the gateway receipt has not yet been
-  // captured (STK-query fallback carries no receipt; callback may still be
-  // in-flight). Falling back to it ensures a paid invoice never prints a
-  // blank "Ref" — the real receipt overwrites it when the late callback
-  // backfills mpesa_transaction_id.
+  // Paid invoices carry the REAL gateway transaction code only:
+  // - M-Pesa: MpesaReceiptNumber (e.g. TB17CVOCY9) captured from the STK callback
+  // - Paystack: Paystack transaction ID (e.g. 1234567890) from verification/webhook
+  // No fallback to checkout ID / initialization reference — a paid invoice with
+  // a missing real code must be completed via admin manual entry or late
+  // callback backfill, never with a fake interim reference.
   const txnId = paid
     ? order.payment === "mpesa"
-      ? order.mpesa_transaction_id || order.mpesa_checkout_id
+      ? order.mpesa_transaction_id
       : order.payment === "card"
-        ? order.paystack_transaction_id || order.paystack_reference
+        ? order.paystack_transaction_id
         : order.payment === "po"
           ? order.po_ref
           : null

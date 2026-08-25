@@ -3,9 +3,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import { brands } from "@/lib/data/catalog";
 import { products } from "@/lib/data/products";
 import { siteUrl } from "@/lib/site";
+import { getLiveBrands } from "@/lib/brands";
 
 export const metadata: Metadata = {
   title: "Shop by Brand — 3M, Honeywell, Ansell & More in Kenya | KimSafety",
@@ -29,7 +29,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function BrandsPage() {
+export default async function BrandsPage() {
+  const brands = await getLiveBrands();
   return (
     <div className="bg-surface pb-20">
       <PageHeader

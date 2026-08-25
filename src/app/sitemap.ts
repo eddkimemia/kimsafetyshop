@@ -1,9 +1,11 @@
 import type { MetadataRoute } from "next";
 import { liveCatalog } from "@/lib/catalog";
-import { categories, brands } from "@/lib/data/catalog";
+import { categories } from "@/lib/data/catalog";
+import { brands as staticBrands } from "@/lib/data/catalog";
 import { guides } from "@/lib/data/content";
 import { listPosts } from "@/lib/db";
 import { siteUrl } from "@/lib/site";
+import { getLiveBrands } from "@/lib/brands";
 
 const base = siteUrl;
 
@@ -52,7 +54,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.9,
   }));
 
-  const brandRoutes = brands.map((b) => ({
+  let liveBrands: Awaited<ReturnType<typeof getLiveBrands>> = staticBrands;
+  try {
+    liveBrands = await getLiveBrands();
+  } catch (err) {
+    console.error("[sitemap] getLiveBrands failed, using static:", (err as Error).message);
+    liveBrands = staticBrands;
+  }
+  const brandRoutes = liveBrands.map((b) => ({
     url: `${base}/brands/${b.slug}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,

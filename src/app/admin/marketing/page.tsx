@@ -13,10 +13,9 @@ import {
   Tag,
   Trash2,
 } from "lucide-react";
-import { AdminCard, Modal, adminField, useFetch } from "@/components/admin/ui";
+import { AdminCard, useFetch } from "@/components/admin/ui";
 import type { Banner } from "@/components/admin/marketing/banner-editor";
 import type { Campaign } from "@/components/admin/marketing/campaign-editor";
-import { CoverImagePicker } from "@/components/admin/image-picker";
 import { cn } from "@/lib/utils";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -36,8 +35,6 @@ export default function AdminMarketingPage() {
   const campaigns = useFetch<{ campaigns: Campaign[] }>("/api/admin/marketing/campaigns");
   const featured = useFetch<{ items: FeaturedItem[]; categories: CategoryOption[] }>("/api/admin/marketing/featured-categories");
   const [me, setMe] = useState<{ id: string; role?: string } | null>(null);
-  const [editIndex, setEditIndex] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", caption: "", image: "", category: "" });
   const [addCat, setAddCat] = useState("");
 
   useEffect(() => {
@@ -98,7 +95,6 @@ export default function AdminMarketingPage() {
 
   const featuredItems = featured.data?.items ?? [];
   const categoryOptions = featured.data?.categories ?? [];
-  const editingItem = editIndex !== null && editIndex < featuredItems.length ? featuredItems[editIndex] : null;
 
   const saveFeatured = async (items: FeaturedItem[]) => {
     await fetch("/api/admin/marketing/featured-categories", {
@@ -129,22 +125,11 @@ export default function AdminMarketingPage() {
     const next = [...featuredItems, item];
     await saveFeatured(next);
     setAddCat("");
-    openFeaturedEdit(next.length - 1);
+    router.push(`/admin/marketing/featured-categories/${next.length - 1}`);
   };
 
   const openFeaturedEdit = (index: number) => {
-    const item = featuredItems[index];
-    if (!item) return;
-    setEditForm({ name: item.name, caption: item.caption, image: item.image, category: item.category });
-    setEditIndex(index);
-  };
-
-  const saveFeaturedEdit = () => {
-    if (editIndex === null || editIndex >= featuredItems.length) return;
-    saveFeatured(
-      featuredItems.map((i, idx) => (idx === editIndex ? { ...i, name: editForm.name, caption: editForm.caption, image: editForm.image, category: editForm.category } : i))
-    );
-    setEditIndex(null);
+    router.push(`/admin/marketing/featured-categories/${index}`);
   };
 
   const bannerList = banners.data?.banners ?? [];
@@ -482,47 +467,6 @@ export default function AdminMarketingPage() {
         )}
       </AdminCard>
 
-      <Modal
-        open={!!editingItem}
-        onClose={() => setEditIndex(null)}
-        title={editingItem ? `Edit tile: ${editingItem.name}` : "Edit featured category"}
-      >
-        <div className="space-y-3.5">
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-bold text-gray-500">Display name *</span>
-              <input className={adminField} value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-bold text-gray-500">Category *</span>
-              <select
-                className={adminField}
-                value={editForm.category}
-                onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
-              >
-                {categoryOptions.map((c) => (
-                  <option key={c.slug} value={c.slug}>{c.name}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <label className="block">
-            <span className="mb-1 block text-xs font-bold text-gray-500">Caption (small text under the name)</span>
-            <input className={adminField} value={editForm.caption} onChange={(e) => setEditForm((f) => ({ ...f, caption: e.target.value }))} />
-          </label>
-          <div>
-            <span className="mb-1 block text-xs font-bold text-gray-500">Tile image</span>
-            <CoverImagePicker current={editForm.image} onPick={(path) => setEditForm((f) => ({ ...f, image: path }))} />
-          </div>
-          <button
-            onClick={saveFeaturedEdit}
-            disabled={!editForm.name.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-6 py-3 text-sm font-bold text-white hover:bg-safety-500 disabled:opacity-60"
-          >
-            Save tile
-          </button>
-        </div>
-      </Modal>
     </div>
   );
 }

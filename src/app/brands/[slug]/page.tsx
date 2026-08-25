@@ -2,16 +2,17 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { CatalogView } from "@/components/catalog/catalog-view";
-import { brands } from "@/lib/data/catalog";
 import { liveCatalog } from "@/lib/catalog";
 import { siteUrl } from "@/lib/site";
+import { getLiveBrands, getLiveBrand } from "@/lib/brands";
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
+  const brands = await getLiveBrands();
   return brands.map((b) => ({ slug: b.slug }));
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
-  const brand = brands.find((b) => b.slug === params.slug);
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const brand = await getLiveBrand(params.slug);
   if (!brand) return { title: "Brand not found" };
   const description = `Shop genuine ${brand.name} safety equipment in Kenya. ${brand.tagline}. Certified stock with full documentation, bulk pricing & same-day Nairobi delivery.`;
   return {
@@ -37,7 +38,7 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
 }
 
 export default async function BrandPage({ params }: { params: { slug: string } }) {
-  const brand = brands.find((b) => b.slug === params.slug);
+  const brand = await getLiveBrand(params.slug);
   if (!brand) return notFound();
   const catalog = await liveCatalog();
   const filtered = catalog.filter((p) => p.brand === brand.name).slice(0, 30);

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
-import { megaCategories, brands } from "@/lib/data/catalog";
+import { megaCategories } from "@/lib/data/catalog";
 import { products } from "@/lib/data/products";
-
+import { getLiveBrands } from "@/lib/brands";
 import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -31,7 +31,8 @@ const topPages: [string, string][] = [
   ["Terms & Conditions", "/terms"],
 ];
 
-export default function SitemapPage() {
+export default async function SitemapPage() {
+  const brands = await getLiveBrands();
   return (
     <div className="bg-surface pb-20">
       <PageHeader bg="/images/hero/hero4.jpg" title="Sitemap">

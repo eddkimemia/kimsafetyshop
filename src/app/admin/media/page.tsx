@@ -387,9 +387,7 @@ export default function AdminMediaPage() {
             })}
           </div>
         )}
-        <p className="mt-4 rounded-xl bg-surface px-4 py-3 text-xs leading-relaxed text-gray-500">
-          <span className="font-bold text-navy-900">How this fixes old photos loading first:</span> Product pages prefer <code className="rounded bg-white px-1 py-0.5 font-mono text-[11px]">live.image</code> (DB upload at <code className="font-mono text-[11px]">/api/uploads/…</code>) over the committed file at <code className="font-mono text-[11px]">/images/products/…</code>. If an old file still exists at the same name or is still referenced in <code className="font-mono text-[11px]">productImages</code>/<code className="font-mono text-[11px]">productGalleries</code>, the browser may show it first or the picker shows stale entries. Delete the stale file here — the product will then render the new upload (or a generated placeholder if no new file) without the old photo flashing first. References in product <code className="font-mono text-[11px]">image</code>/<code className="font-mono text-[11px]">gallery</code> are automatically cleared on delete.
-        </p>
+
       </AdminCard>
 
       {preview && (

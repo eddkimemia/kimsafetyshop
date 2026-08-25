@@ -111,9 +111,8 @@ export default function AdminOrderDetailPage() {
 
   const openEditRef = () => {
     if (!order) return;
-    // Card orders edit the gateway's own transaction ID (falling back to the
-    // initialization reference when the gateway ID hasn't been captured yet).
-    setTxnRef((order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id || order.paystack_reference) ?? "");
+    // Edit the REAL gateway transaction code only (e.g. TB17CVOCY9 for M-Pesa, Paystack transaction ID)
+    setTxnRef((order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id) ?? "");
     setDialog("edit-ref");
   };
 
@@ -185,9 +184,11 @@ export default function AdminOrderDetailPage() {
                     <p className="mt-1 text-sm text-gray-500">
                       {order?.payment === "mpesa"
                         ? order?.mpesa_checkout_id
-                          ? "The M-Pesa transaction code is fetched automatically from Safaricom when you confirm — leave blank to auto-fetch, or type it from the customer's confirmation SMS. It prints on the paid invoice and receipt."
-                          : "Enter the M-Pesa transaction / receipt number from the confirmation SMS (e.g. QGH7XYZ1K2). It will be printed on the paid invoice and receipt."
-                        : "Optionally enter the payment reference — it will be printed on the paid invoice and receipt."}
+                          ? "The real M-Pesa transaction code (e.g. TB17CVOCY9) will be fetched automatically from Safaricom when you confirm — leave blank to auto-fetch the TB... code, or paste it from the customer's confirmation SMS. It prints on the paid invoice and receipt."
+                          : "Enter the real M-Pesa transaction code from the confirmation SMS (e.g. TB17CVOCY9). It will be printed on the paid invoice and receipt."
+                        : order?.payment === "card"
+                          ? "Enter the real Paystack transaction ID (e.g. 1234567890 from Paystack dashboard — not the initialization reference like KS-...). It will be printed on the paid invoice and receipt."
+                          : "Optionally enter the payment reference — it will be printed on the paid invoice and receipt."}
                     </p>
                   </>
                 ) : (
@@ -195,8 +196,10 @@ export default function AdminOrderDetailPage() {
                     <h3 className="font-display text-lg font-extrabold text-navy-900">Transaction ID for #{id}</h3>
                     <p className="mt-1 text-sm text-gray-500">
                       {order?.payment === "mpesa"
-                        ? "Auto-confirmed M-Pesa payments can lack a receipt number (the status-query fallback carries none). Paste it here from the customer's confirmation SMS — it prints on the invoice and receipt."
-                        : "Paste the Paystack transaction reference. It prints on the paid invoice and receipt. The gateway reference is filled automatically when a card payment verifies."}
+                        ? "Paste the real M-Pesa transaction code (e.g. TB17CVOCY9) from the customer's confirmation SMS — it prints on the invoice and receipt."
+                        : order?.payment === "card"
+                          ? "Paste the real Paystack transaction ID (numeric ID from Paystack dashboard/verification, e.g. 1234567890 — not the initialization reference). It prints on the paid invoice and receipt."
+                          : "Paste the payment reference. It prints on the paid invoice and receipt."}
                     </p>
                   </>
                 )}
@@ -208,11 +211,20 @@ export default function AdminOrderDetailPage() {
                     if (e.key === "Enter") (dialog === "mark-paid" ? confirmMarkPaid : saveRefOnly)();
                     if (e.key === "Escape") setDialog(null);
                   }}
-                  placeholder={order?.payment === "mpesa" ? "M-Pesa receipt number *" : "Payment reference"}
+                  placeholder={
+                    order?.payment === "mpesa"
+                      ? "M-Pesa transaction code e.g. TB17CVOCY9 *"
+                      : order?.payment === "card"
+                        ? "Paystack transaction ID e.g. 1234567890 *"
+                        : "Payment reference"
+                  }
                   className="mt-4 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm outline-none transition-all focus:border-safety-400 focus:bg-white focus:ring-4 focus:ring-safety-500/10"
                 />
                 {order?.payment === "mpesa" && !txnRef.trim() && !order?.mpesa_checkout_id && (
-                  <p className="mt-2 text-[11px] font-semibold text-danger">M-Pesa receipt number is required.</p>
+                  <p className="mt-2 text-[11px] font-semibold text-danger">M-Pesa transaction code e.g. TB17CVOCY9 is required.</p>
+                )}
+                {order?.payment === "card" && !txnRef.trim() && (
+                  <p className="mt-2 text-[11px] font-semibold text-danger">Paystack transaction ID is required.</p>
                 )}
                 <div className="mt-5 flex justify-end gap-2">
                   <button
@@ -224,7 +236,10 @@ export default function AdminOrderDetailPage() {
                   </button>
                   <button
                     onClick={dialog === "mark-paid" ? confirmMarkPaid : saveRefOnly}
-                    disabled={marking || (order?.payment === "mpesa" && !txnRef.trim() && !(dialog === "mark-paid" && order?.mpesa_checkout_id))}
+                    disabled={
+                      marking ||
+                      (order?.payment !== "po" && !txnRef.trim() && !(dialog === "mark-paid" && order?.payment === "mpesa" && order?.mpesa_checkout_id))
+                    }
                     className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
                   >
                     {marking ? "Saving…" : dialog === "mark-paid" ? "Confirm payment" : "Save transaction ID"}
@@ -375,14 +390,14 @@ export default function AdminOrderDetailPage() {
                         {order.payment === "mpesa" ? "Transaction code" : "Transaction ID"}
                       </span>
                       <span className="flex min-w-0 items-center gap-2">
-                        <span className={`truncate font-mono text-xs ${order.mpesa_transaction_id || order.paystack_transaction_id || order.paystack_reference ? "font-bold text-navy-900" : "text-gray-300"}`}>
-                          {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id || order.paystack_reference) || "— not set"}
+                        <span className={`truncate font-mono text-xs ${order.mpesa_transaction_id || order.paystack_transaction_id ? "font-bold text-navy-900" : "text-gray-300"}`}>
+                          {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id) || "— not set"}
                         </span>
                         <button
                           onClick={openEditRef}
                           className="shrink-0 rounded-lg border border-line px-2 py-1 text-[10px] font-bold text-navy-900 hover:border-safety-400 hover:text-safety-600"
                         >
-                          {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id || order.paystack_reference) ? "Edit" : "Add"}
+                          {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id) ? "Edit" : "Add"}
                         </button>
                       </span>
                     </p>
@@ -404,8 +419,8 @@ export default function AdminOrderDetailPage() {
                   {order.paid !== 1 && (
                     <button
                       onClick={() => {
-                        // Pre-fill with any code the gateways already captured.
-                        setTxnRef(order.payment === "mpesa" ? order.mpesa_transaction_id || "" : order.paystack_transaction_id || order.paystack_reference || "");
+                        // Pre-fill with REAL gateway transaction code only (e.g. TB17CVOCY9, Paystack ID)
+                        setTxnRef((order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id) || "");
                         setDialog("mark-paid");
                       }}
                       className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700"
