@@ -35,6 +35,8 @@ export async function GET() {
     // Letterhead already carries the site logo + tagline — drop the duplicated
     // hero-section logo/tagline below it; keep the PRODUCT CATALOG title.
     hideBrandLogoAndTagline: true,
+    // Order products per category with heading rows between groups.
+    groupByCategory: true,
   });
 
   return new NextResponse(new Uint8Array(buffer), {

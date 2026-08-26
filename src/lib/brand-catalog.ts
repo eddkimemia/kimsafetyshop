@@ -45,6 +45,11 @@ export type BrandCatalogMeta = {
    * so its logo/tagline would just duplicate the letterhead above.
    */
   hideBrandLogoAndTagline?: boolean;
+  /**
+   * Order products by category (alphabetical, best-selling within each) and
+   * print a small category heading above each group. Used by the full catalog.
+   */
+  groupByCategory?: boolean;
 };
 
 /**
@@ -57,7 +62,13 @@ export async function buildBrandCatalogPdf(
   productsRaw: Product[],
   meta?: BrandCatalogMeta
 ): Promise<Buffer> {
-  const products = [...productsRaw].sort((a, b) => b.sold - a.sold);
+  // Full catalog: group by category (alphabetical, best-selling first within
+  // each). Brand catalogs: flat best-selling order.
+  const products = meta?.groupByCategory
+    ? [...productsRaw].sort(
+        (a, b) => a.categoryName.localeCompare(b.categoryName) || b.sold - a.sold || a.name.localeCompare(b.name)
+      )
+    : [...productsRaw].sort((a, b) => b.sold - a.sold);
 
   const pdf = new PDFDocument({
     size: "A4",
@@ -222,7 +233,22 @@ export async function buildBrandCatalogPdf(
     y += 40;
   }
 
+  let lastCategory: string | null = null;
   for (const p of products) {
+    // Category heading above each new group (full catalog only).
+    if (meta?.groupByCategory && p.categoryName !== lastCategory) {
+      lastCategory = p.categoryName;
+      ensure(46);
+      pdf
+        .font("Helvetica-Bold")
+        .fontSize(13)
+        .fillColor(NAVY)
+        .text(lastCategory ?? "", padL, y, { width: BODY_W });
+      y += 20;
+      pdf.rect(padL, y, BODY_W, 0.8).fill(SAFETY);
+      y += 14;
+    }
+
     const thumb = 56;
     const adminProduct = p as Product & { image?: string; gallery?: string[] };
     const candidates = [

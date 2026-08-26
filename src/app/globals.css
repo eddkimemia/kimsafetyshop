@@ -73,8 +73,42 @@ input[type="number"]::-webkit-inner-spin-button {
   line-height: 1.8;
   overflow-wrap: break-word;
 }
-.blog-prose p {
+/* Editor surface mirrors .blog-prose so content keeps its frontend
+   formatting while being edited (paragraph spacing, size, tables, etc.). */
+.prose-editor {
+  color: #334155;
+  font-size: 0.95rem;
+  line-height: 1.8;
+  overflow-wrap: break-word;
+}
+.blog-prose p,
+.prose-editor p {
   margin: 0 0 1.1em;
+}
+.blog-prose table,
+.prose-editor table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1.2em;
+  font-size: 0.9em;
+}
+.blog-prose th,
+.prose-editor th,
+.blog-prose td,
+.prose-editor td {
+  border: 1px solid #e2e8f0;
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+.blog-prose th,
+.prose-editor th {
+  background: #0b1b2f;
+  color: #ffffff;
+  font-weight: 700;
+}
+.blog-prose tr:nth-child(even) td,
+.prose-editor tr:nth-child(even) td {
+  background: #f8fafc;
 }
 .blog-prose h2,
 .prose-editor h2 {

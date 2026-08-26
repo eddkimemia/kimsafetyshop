@@ -80,6 +80,34 @@ export async function GET(req: Request) {
     }
   }
 
+  // --- Self-heal receipt lookup ---
+  // If an order was marked paid via the STK-query fallback (no receipt in that
+  // response), keep retrying Daraja's Transaction Status API on later polls so
+  // the blank reference auto-fills with the real M-Pesa receipt number
+  // (e.g. TB17CVOCY9) once Daraja can answer.
+  if (
+    order.paid === 1 &&
+    order.payment === "mpesa" &&
+    !order.mpesa_transaction_id &&
+    order.mpesa_checkout_id
+  ) {
+    const rKey = `receipt:${order.id}`;
+    const lastR = lastQueryAt.get(rKey) ?? 0;
+    if (Date.now() - lastR > QUERY_MIN_GAP_MS * 4) {
+      lastQueryAt.set(rKey, Date.now());
+      try {
+        const receipt = await mpesaFetchReceipt(order.mpesa_checkout_id);
+        if (receipt) {
+          await setMpesaTransaction(order.id, receipt);
+          order.mpesa_transaction_id = receipt;
+          console.info(`[status] backfilled receipt ${receipt} for ${order.id}`);
+        }
+      } catch {
+        /* best-effort — the late callback or manual entry can still fill it */
+      }
+    }
+  }
+
   // Retry info for the M-Pesa "Resend STK push" flow: when the last push was
   // declined (mpesa_last_result set) or the cooldown hasn't elapsed, the
   // checkout screen uses these to render the failure reason + countdown.
