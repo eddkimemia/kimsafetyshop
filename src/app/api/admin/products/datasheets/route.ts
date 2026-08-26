@@ -70,7 +70,9 @@ async function buildPdf(skus: string[] | null): Promise<{ buffer: Buffer; count:
     throw new Error("No products matched the selection.");
   }
 
-  const buffer = await buildBrandedDatasheetPdf(products);
+  // Compact: one downscaled photo per product, no gallery grid — keeps the
+  // merged PDF a downloadable size (185 full-res photos ≈ 225 MB otherwise).
+  const buffer = await buildBrandedDatasheetPdf(products, { compact: true });
 
   return { buffer, count: products.length, filtered };
 }

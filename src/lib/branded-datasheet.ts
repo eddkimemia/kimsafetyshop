@@ -11,6 +11,45 @@ import { brands as staticBrands } from "@/lib/data/catalog";
 import { getLiveBrands } from "@/lib/brands";
 import type { Product } from "@/lib/types";
 
+/**
+ * Downscale an image for embedding so multi-product bundles stay a sane size.
+ * PDFKit embeds the ORIGINAL file bytes (avg product photo ≈ 400 KB), which
+ * made 185-product bundles ~225 MB. Resizing to maxDim + JPEG q62 brings each
+ * embedded photo to ~25-45 KB. Gracefully returns the original on any failure.
+ */
+async function downscaleForPdf(buf: Buffer, maxDim = 480): Promise<Buffer> {
+  try {
+    const mod = (await import(/* webpackIgnore: true */ "sharp")) as unknown as {
+      default?: SharpFactory;
+    } & SharpFactory;
+    const sharpFn: SharpFactory = mod.default ?? mod;
+    return await sharpFn(buf)
+      .resize(maxDim, maxDim, { fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 62 })
+      .toBuffer();
+  } catch (e) {
+    console.error("[datasheet] image downscale skipped:", (e as Error).message);
+    return buf;
+  }
+}
+
+type SharpFactory = (input: Buffer) => {
+  resize: (
+    w: number,
+    h: number,
+    opts?: { fit?: "inside" | "cover"; withoutEnlargement?: boolean }
+  ) => { jpeg: (opts: { quality: number }) => { toBuffer: () => Promise<Buffer> } };
+};
+
+export type DatasheetOptions = {
+  /**
+   * Compact mode for multi-product bundles: skip the 3-up gallery grid and
+   * embed a single downscaled photo per product. Single datasheets keep full
+   * quality and the gallery.
+   */
+  compact?: boolean;
+};
+
 const NAVY = "#0F2847";
 const SAFETY = "#F57C00";
 const GREEN = "#1A9A5E";
@@ -75,7 +114,11 @@ type Token = {
   strike?: boolean;
 };
 
-export async function buildBrandedDatasheetPdf(products: Product[]): Promise<Buffer> {
+export async function buildBrandedDatasheetPdf(
+  products: Product[],
+  options?: DatasheetOptions
+): Promise<Buffer> {
+  const compact = options?.compact === true;
   if (products.length === 0) throw new Error("No products");
 
   const pdf = new PDFDocument({
@@ -97,6 +140,9 @@ export async function buildBrandedDatasheetPdf(products: Product[]): Promise<Buf
 
   let y = 132;
   let currentSku = products[0]?.sku ?? "";
+
+  // Per-run caches: downscaled brand logos keyed by brand slug.
+  const brandLogoCache = new Map<string, Buffer | null>();
 
   // Live brands (admin-edited logos/taglines) with fallback to static
   let liveBrandsList = staticBrands;
@@ -156,17 +202,22 @@ export async function buildBrandedDatasheetPdf(products: Product[]): Promise<Buf
     }
   }
   let logoWidth = 0;
+  // Downscale + cache the letterhead logo ONCE — it's re-drawn on every
+  // product's page and PDFKit embeds a fresh copy of the full-resolution
+  // original each time otherwise (main source of bundle bloat).
+  let headLogo: Buffer | undefined;
   if (logoBuf && isSupportedImage(logoBuf)) {
     const size = getLogoSize(logoBuf);
     logoWidth = size ? Math.round((size.width / size.height) * 50) : 50 * 3.34;
+    headLogo = await downscaleForPdf(logoBuf, 500);
   }
   const tagline = ((await getSetting("tagline").catch(() => null)) as string | null) || DEFAULT_SETTINGS.tagline || "";
 
   const drawLetterhead = () => {
-    if (logoBuf && isSupportedImage(logoBuf)) {
+    if (headLogo && isSupportedImage(headLogo)) {
       // Wrap in try/catch — a valid header must survive even if the logo buffer is corrupt.
       try {
-        pdf.image(logoBuf, padL, 30, { height: 50 });
+        pdf.image(headLogo, padL, 30, { height: 50 });
       } catch {}
     }
     const textLeft = padL + Math.max(logoWidth, 140) + 14;
@@ -338,11 +389,19 @@ export async function buildBrandedDatasheetPdf(products: Product[]): Promise<Buf
     {
       const brandEntry = liveBrandsList.find((b) => b.name === product.brand) || staticBrands.find((b) => b.name === product.brand);
       if (brandEntry?.image) {
-        const brandBuf = await readPublicFile(brandEntry.image);
-        if (isSupportedImage(brandBuf)) {
+        // Cache the downscaled logo per brand — PDFKit embeds a fresh XObject
+        // for every pdf.image() call, so reusing the buffer avoids hundreds of
+        // duplicate copies across the bundle.
+        let cached = brandLogoCache.get(brandEntry.slug);
+        if (cached === undefined) {
+          const brandBuf = await readPublicFile(brandEntry.image);
+          cached = brandBuf && isSupportedImage(brandBuf) ? await downscaleForPdf(brandBuf, 240) : null;
+          brandLogoCache.set(brandEntry.slug, cached);
+        }
+        if (cached && isSupportedImage(cached)) {
           const bx = padR - 70;
           const by = y + 8;
-          safeImage(pdf, brandBuf!, bx, by, { height: 28 });
+          safeImage(pdf, cached, bx, by, { height: 28 });
         }
       }
     }
@@ -356,34 +415,36 @@ export async function buildBrandedDatasheetPdf(products: Product[]): Promise<Buf
     pdf.text(product.name, padL, y, { width: BODY_W });
     y += titleH + 8;
 
-    // Image grid (3-up)
+    // Image grid (3-up) — skipped in compact (bundle) mode to keep size sane
     const adminProduct = product as Product & { image?: string; gallery?: string[] };
-    const gridCandidates = [
-      ...((adminProduct.gallery ?? []) as string[]),
-      adminProduct.image,
-      ...(productGalleries[product.sku] ?? []),
-      productImages[product.sku],
-      `/images/products/${product.sku}.jpg`,
-    ].filter((u): u is string => typeof u === "string" && !!u);
-    const galleryBufs = (await Promise.all(gridCandidates.map((u) => readPublicFile(u)))).filter(
-      (b): b is Buffer => !!b && isSupportedImage(b)
-    );
-    const gallery = galleryBufs.slice(0, 3);
+    if (!compact) {
+      const gridCandidates = [
+        ...((adminProduct.gallery ?? []) as string[]),
+        adminProduct.image,
+        ...(productGalleries[product.sku] ?? []),
+        productImages[product.sku],
+        `/images/products/${product.sku}.jpg`,
+      ].filter((u): u is string => typeof u === "string" && !!u);
+      const galleryBufs = (
+        await Promise.all(gridCandidates.map((u) => readPublicFile(u)))
+      ).filter((b): b is Buffer => !!b && isSupportedImage(b));
+      const gallery = await Promise.all(galleryBufs.slice(0, 3).map((b) => downscaleForPdf(b, 360)));
 
-    if (gallery.length > 0) {
-      const gridGap = 12;
-      const cellW = (BODY_W - gridGap * 2) / 3;
-      ensure(cellW + 16);
-      gallery.forEach((buf, i) => {
-        const cx = padL + i * (cellW + gridGap);
-        pdf.rect(cx, y, cellW, cellW).lineWidth(1).strokeColor("#E2E8F0").stroke();
-        if (isSupportedImage(buf)) {
-          try {
-            pdf.image(buf, cx, y, { width: cellW, height: cellW });
-          } catch {}
-        }
-      });
-      y += cellW + 16;
+      if (gallery.length > 0) {
+        const gridGap = 12;
+        const cellW = (BODY_W - gridGap * 2) / 3;
+        ensure(cellW + 16);
+        gallery.forEach((buf, i) => {
+          const cx = padL + i * (cellW + gridGap);
+          pdf.rect(cx, y, cellW, cellW).lineWidth(1).strokeColor("#E2E8F0").stroke();
+          if (isSupportedImage(buf)) {
+            try {
+              pdf.image(buf, cx, y, { width: cellW, height: cellW });
+            } catch {}
+          }
+        });
+        y += cellW + 16;
+      }
     }
 
     // Product photo + summary rows
@@ -395,24 +456,24 @@ export async function buildBrandedDatasheetPdf(products: Product[]): Promise<Buf
       `/images/products/${product.sku}.jpg`,
     ].filter((u): u is string => typeof u === "string" && !!u);
     for (const cand of imageCandidates) {
-      const buf = await readPublicFile(cand);
-      if (buf && isSupportedImage(buf)) {
-        imageW = 118;
-        imageH = 118;
-        pdf.rect(padR - imageW, y, imageW, imageH).lineWidth(1).strokeColor("#E2E8F0").stroke();
-        try {
-          pdf.image(buf, padR - imageW, y, { width: imageW, height: imageH });
-        } catch {
-          // Leave the bordered box empty if the file is not a valid JPEG/PNG for PDFKit.
-        }
-        pdf.rect(padR - imageW, y, imageW, 16).fill(NAVY);
-        pdf
-          .font("Helvetica-Bold")
-          .fontSize(6.5)
-          .fillColor("white")
-          .text(product.sku, padR - imageW + 4, y + 4, { width: imageW - 8 });
-        break;
+      let buf = await readPublicFile(cand);
+      if (!buf || !isSupportedImage(buf)) continue;
+      buf = await downscaleForPdf(buf, compact ? 420 : 640);
+      imageW = 118;
+      imageH = 118;
+      pdf.rect(padR - imageW, y, imageW, imageH).lineWidth(1).strokeColor("#E2E8F0").stroke();
+      try {
+        pdf.image(buf, padR - imageW, y, { width: imageW, height: imageH });
+      } catch {
+        // Leave the bordered box empty if the file is not a valid JPEG/PNG for PDFKit.
       }
+      pdf.rect(padR - imageW, y, imageW, 16).fill(NAVY);
+      pdf
+        .font("Helvetica-Bold")
+        .fontSize(6.5)
+        .fillColor("white")
+        .text(product.sku, padR - imageW + 4, y + 4, { width: imageW - 8 });
+      break;
     }
 
     const infoRows: [string, string][] = [
@@ -602,7 +663,6 @@ export async function buildBrandedDatasheetPdf(products: Product[]): Promise<Buf
   };
 
   // Render each product sequentially, each starting on a fresh page (except first).
-  // Stamp now appears at the end of every product, matching per-product documents.
   for (let idx = 0; idx < products.length; idx++) {
     const product = products[idx];
     if (idx === 0) {
@@ -615,8 +675,10 @@ export async function buildBrandedDatasheetPdf(products: Product[]): Promise<Buf
       y = 132;
       await renderProduct(product);
     }
-    drawStampOnLastPage();
   }
+  // Stamp ONCE at the very end — per-product stamps re-embedded the 146KB PNG
+  // hundreds of times and were the main source of bundle bloat.
+  drawStampOnLastPage();
 
   pdf.end();
   const buffer = await new Promise<Buffer>((resolve) => {
