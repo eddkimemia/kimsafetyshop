@@ -55,7 +55,7 @@ async function maybeConvertWebp(buf: Buffer): Promise<Buffer> {
   return buf;
 }
 
-async function stampPdfBuffer(pdfBuffer: Buffer, orderCreatedAt?: string): Promise<Buffer> {
+async function stampPdfBuffer(pdfBuffer: Buffer): Promise<Buffer> {
   try {
     const stampPath = path.join(process.cwd(), "public", "images", "logo", "stamp.png");
     if (!fs.existsSync(stampPath)) return pdfBuffer;
@@ -80,15 +80,15 @@ async function stampPdfBuffer(pdfBuffer: Buffer, orderCreatedAt?: string): Promi
       width: stampW,
       height: stampH,
     });
-    // Date centred over the stamp — same Courier-Bold 14 red as other documents
+    // Date centred over the stamp — same Courier-Bold 14 red as other documents, using upload date (now) at the vertical middle
     try {
       const font = await pdfDoc.embedFont(StandardFonts.CourierBold);
-      const base = orderCreatedAt ? new Date(orderCreatedAt) : new Date();
-      const dateStr = base
+      const dateStr = new Date()
         .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
         .toUpperCase();
       const fontSize = 14;
       const textWidth = font.widthOfTextAtSize(dateStr, fontSize);
+      // Middle of the stamp: (stampH - fontSize) / 2 from bottom of stamp, same as invoice PDFs (uses 16 as approx font height)
       lastPage.drawText(dateStr, {
         x: stampX + (stampW - textWidth) / 2,
         y: stampY + (stampH - fontSize) / 2,
@@ -165,9 +165,9 @@ export async function POST(req: Request) {
     filename = safeOrderFilename(orderId, type, ".pdf");
   }
 
-  // KRA invoices are stamped with the company seal before saving (same seal/date as invoices)
+  // KRA invoices are stamped with the company seal before saving (same seal/date as invoices, date = upload date)
   if (type === "kra_invoice") {
-    pdfBuffer = await stampPdfBuffer(pdfBuffer, order.created_at);
+    pdfBuffer = await stampPdfBuffer(pdfBuffer);
   }
 
   // Store in DB-backed file store
