@@ -46,6 +46,11 @@ export type DbOrder = {
   paystack_transaction_id: string | null;
   payment_token: string | null;
   referrer_code: string | null;
+  delivery_note_file: string | null;
+  kra_invoice_file: string | null;
+  delivered_by: string | null;
+  delivered_by_name: string | null;
+  delivered_at: string | null;
   created_at: string;
 };
 
@@ -63,6 +68,7 @@ export type DbQuote = {
   notes: string | null;
   valid_until: string | null;
   created_by_id: string | null;
+  created_by_name: string | null;
   created_at: string;
 };
 
@@ -77,6 +83,8 @@ export type DbCorporateApplication = {
   notes: string | null;
   documents: string;
   status: string;
+  handled_by: string | null;
+  handled_by_name: string | null;
   created_at: string;
 };
 
@@ -88,6 +96,8 @@ export type DbPurchaseOrder = {
   email: string | null;
   po_file: string;
   status: string;
+  created_by_id: string | null;
+  created_by_name: string | null;
   created_at: string;
 };
 
@@ -107,6 +117,7 @@ export type DbSupplierOrder = {
   notes: string | null;
   status: string;
   created_by_id: string | null;
+  created_by_name: string | null;
   created_at: string;
 };
 
@@ -609,9 +620,14 @@ export async function createOrder(input: { user_id?: string | null; name: string
     paystack_transaction_id: null,
     payment_token: input.payment_token ?? null,
     referrer_code: input.referrer_code ?? null,
+    delivery_note_file: null,
+    kra_invoice_file: null,
+    delivered_by: null,
+    delivered_by_name: null,
+    delivered_at: null,
     created_at: new Date().toISOString(),
   };
-  await qe("INSERT INTO orders (id, user_id, name, email, phone, address, items, total, subtotal, discount, shipping, status, payment, paid, po_ref, company, po_file, payment_phone, mpesa_checkout_id, mpesa_merchant_id, paystack_reference, paystack_transaction_id, payment_token, referrer_code, created_at) VALUES (@id, @user_id, @name, @email, @phone, @address, @items, @total, @subtotal, @discount, @shipping, @status, @payment, @paid, @po_ref, @company, @po_file, @payment_phone, @mpesa_checkout_id, @mpesa_merchant_id, @paystack_reference, @paystack_transaction_id, @payment_token, @referrer_code, @created_at)", order);
+  await qe("INSERT INTO orders (id, user_id, name, email, phone, address, items, total, subtotal, discount, shipping, status, payment, paid, po_ref, company, po_file, payment_phone, mpesa_checkout_id, mpesa_merchant_id, paystack_reference, paystack_transaction_id, payment_token, referrer_code, delivery_note_file, kra_invoice_file, delivered_by, delivered_by_name, delivered_at, created_at) VALUES (@id, @user_id, @name, @email, @phone, @address, @items, @total, @subtotal, @discount, @shipping, @status, @payment, @paid, @po_ref, @company, @po_file, @payment_phone, @mpesa_checkout_id, @mpesa_merchant_id, @paystack_reference, @paystack_transaction_id, @payment_token, @referrer_code, @delivery_note_file, @kra_invoice_file, @delivered_by, @delivered_by_name, @delivered_at, @created_at)", order);
   return order;
 }
 
@@ -672,6 +688,18 @@ export async function setOrderStatus(id: string, status: string) {
   await qe("UPDATE orders SET status = ? WHERE id = ?", status, id);
 }
 
+export async function setOrderDeliveryNote(id: string, filePath: string) {
+  await qe("UPDATE orders SET delivery_note_file = ? WHERE id = ?", filePath, id);
+}
+
+export async function setOrderKraInvoice(id: string, filePath: string) {
+  await qe("UPDATE orders SET kra_invoice_file = ? WHERE id = ?", filePath, id);
+}
+
+export async function setOrderDelivered(id: string, deliveredBy: string, deliveredByName: string) {
+  await qe("UPDATE orders SET status = 'Delivered', delivered_by = ?, delivered_by_name = ?, delivered_at = ? WHERE id = ?", deliveredBy, deliveredByName, new Date().toISOString(), id);
+}
+
 // ---- Quotes ----
 
 export async function createQuote(input: {
@@ -686,6 +714,7 @@ export async function createQuote(input: {
   notes?: string | null;
   valid_until?: string | null;
   created_by_id?: string | null;
+  created_by_name?: string | null;
 }): Promise<DbQuote> {  const quote: DbQuote = {
     id: `QUO-${Math.floor(1000 + Math.random() * 9000)}`,
     user_id: input.user_id ?? null,
@@ -700,9 +729,10 @@ export async function createQuote(input: {
     notes: input.notes ?? null,
     valid_until: input.valid_until ?? null,
     created_by_id: input.created_by_id ?? null,
+    created_by_name: input.created_by_name ?? null,
     created_at: new Date().toISOString(),
   };
-  await qe("INSERT INTO quotes (id, user_id, name, company, items, total, status, attachment, email, phone, notes, valid_until, created_by_id, created_at) VALUES (@id, @user_id, @name, @company, @items, @total, @status, @attachment, @email, @phone, @notes, @valid_until, @created_by_id, @created_at)", quote);
+  await qe("INSERT INTO quotes (id, user_id, name, company, items, total, status, attachment, email, phone, notes, valid_until, created_by_id, created_by_name, created_at) VALUES (@id, @user_id, @name, @company, @items, @total, @status, @attachment, @email, @phone, @notes, @valid_until, @created_by_id, @created_by_name, @created_at)", quote);
   return quote;
 }
 
@@ -951,17 +981,23 @@ export async function createCorporateApplication(input: {
     notes: input.notes ?? null,
     documents: JSON.stringify(input.documents ?? []),
     status: "Pending",
+    handled_by: null,
+    handled_by_name: null,
     created_at: new Date().toISOString(),
   };
-  await qe("INSERT INTO corporate_applications (id, company, kra_pin, industry, contact_name, phone, email, notes, documents, status, created_at) VALUES (@id, @company, @kra_pin, @industry, @contact_name, @phone, @email, @notes, @documents, @status, @created_at)", app);
+  await qe("INSERT INTO corporate_applications (id, company, kra_pin, industry, contact_name, phone, email, notes, documents, status, handled_by, handled_by_name, created_at) VALUES (@id, @company, @kra_pin, @industry, @contact_name, @phone, @email, @notes, @documents, @status, @handled_by, @handled_by_name, @created_at)", app);
   return app;
 }
 
 export async function listCorporateApplications(): Promise<DbCorporateApplication[]> {  return (await qr("SELECT * FROM corporate_applications ORDER BY created_at DESC")) as DbCorporateApplication[];
 }
 
-export async function setCorporateApplicationStatus(id: string, status: string) {
-  await qe("UPDATE corporate_applications SET status = ? WHERE id = ?", status, id);
+export async function setCorporateApplicationStatus(id: string, status: string, handledBy?: string | null, handledByName?: string | null) {
+  if (handledBy !== undefined) {
+    await qe("UPDATE corporate_applications SET status = ?, handled_by = ?, handled_by_name = ? WHERE id = ?", status, handledBy, handledByName, id);
+  } else {
+    await qe("UPDATE corporate_applications SET status = ? WHERE id = ?", status, id);
+  }
 }
 
 // ---- Corporate accounts (configured by the superadmin) ----
@@ -981,6 +1017,8 @@ export type DbCorporateAccount = {
   account_manager: string | null;
   notes: string | null;
   status: string;
+  created_by_id: string | null;
+  created_by_name: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -999,6 +1037,8 @@ export async function createCorporateAccount(input: {
   account_manager?: string | null;
   notes?: string | null;
   status?: string;
+  created_by_id?: string | null;
+  created_by_name?: string | null;
 }): Promise<DbCorporateAccount> {  const now = new Date().toISOString();
   const account: DbCorporateAccount = {
     id: `ACC-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -1015,10 +1055,12 @@ export async function createCorporateAccount(input: {
     account_manager: input.account_manager ?? null,
     notes: input.notes ?? null,
     status: input.status ?? "Active",
+    created_by_id: input.created_by_id ?? null,
+    created_by_name: input.created_by_name ?? null,
     created_at: now,
     updated_at: now,
   };
-  await qe("INSERT INTO corporate_accounts (id, user_id, application_id, company, kra_pin, industry, contact_name, phone, email, discount_rate, credit_terms, account_manager, notes, status, created_at, updated_at) VALUES (@id, @user_id, @application_id, @company, @kra_pin, @industry, @contact_name, @phone, @email, @discount_rate, @credit_terms, @account_manager, @notes, @status, @created_at, @updated_at)", account);
+  await qe("INSERT INTO corporate_accounts (id, user_id, application_id, company, kra_pin, industry, contact_name, phone, email, discount_rate, credit_terms, account_manager, notes, status, created_by_id, created_by_name, created_at, updated_at) VALUES (@id, @user_id, @application_id, @company, @kra_pin, @industry, @contact_name, @phone, @email, @discount_rate, @credit_terms, @account_manager, @notes, @status, @created_by_id, @created_by_name, @created_at, @updated_at)", account);
   return account;
 }
 
@@ -1084,6 +1126,8 @@ export async function createPurchaseOrder(input: {
   phone?: string | null;
   email?: string | null;
   po_file: string;
+  created_by_id?: string | null;
+  created_by_name?: string | null;
 }): Promise<DbPurchaseOrder> {  const po: DbPurchaseOrder = {
     id: `PO-${Math.floor(1000 + Math.random() * 9000)}`,
     company: input.company,
@@ -1092,9 +1136,11 @@ export async function createPurchaseOrder(input: {
     email: input.email ?? null,
     po_file: input.po_file,
     status: "Pending",
+    created_by_id: input.created_by_id ?? null,
+    created_by_name: input.created_by_name ?? null,
     created_at: new Date().toISOString(),
   };
-  await qe("INSERT INTO purchase_orders (id, company, contact_name, phone, email, po_file, status, created_at) VALUES (@id, @company, @contact_name, @phone, @email, @po_file, @status, @created_at)", po);
+  await qe("INSERT INTO purchase_orders (id, company, contact_name, phone, email, po_file, status, created_by_id, created_by_name, created_at) VALUES (@id, @company, @contact_name, @phone, @email, @po_file, @status, @created_by_id, @created_by_name, @created_at)", po);
   return po;
 }
 
@@ -1117,6 +1163,7 @@ export async function createSupplierOrder(input: {
   expected_date?: string | null;
   notes?: string | null;
   created_by_id?: string | null;
+  created_by_name?: string | null;
 }): Promise<DbSupplierOrder> {  const subtotal = Math.round(
     input.items.reduce((sum, i) => sum + (i.qty || 0) * (i.unitPrice || 0), 0)
   );
@@ -1135,9 +1182,10 @@ export async function createSupplierOrder(input: {
     notes: input.notes ?? null,
     status: "Draft",
     created_by_id: input.created_by_id ?? null,
+    created_by_name: input.created_by_name ?? null,
     created_at: new Date().toISOString(),
   };
-  await qe("INSERT INTO supplier_orders (id, supplier, contact_name, phone, email, items, subtotal, shipping, total, expected_date, notes, status, created_by_id, created_at) VALUES (@id, @supplier, @contact_name, @phone, @email, @items, @subtotal, @shipping, @total, @expected_date, @notes, @status, @created_by_id, @created_at)", po);
+  await qe("INSERT INTO supplier_orders (id, supplier, contact_name, phone, email, items, subtotal, shipping, total, expected_date, notes, status, created_by_id, created_by_name, created_at) VALUES (@id, @supplier, @contact_name, @phone, @email, @items, @subtotal, @shipping, @total, @expected_date, @notes, @status, @created_by_id, @created_by_name, @created_at)", po);
   return po;
 }
 

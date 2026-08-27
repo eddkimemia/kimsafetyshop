@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/api-helpers";
+import { getSessionUser, requireAdmin } from "@/lib/api-helpers";
 import {
   createNotification,
   getOrderById,
   listOrders,
   restoreProductStock,
   setMpesaTransaction,
+  setOrderDelivered,
   setOrderPaid,
   setOrderStatus,
   setPaystackTransaction,
@@ -59,6 +60,7 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
+  const me = await getSessionUser();
   let body: { id?: string; status?: string; paid?: number; txn_ref?: string };
   try {
     body = await req.json();
@@ -69,16 +71,119 @@ export async function PATCH(req: Request) {
   const order = await getOrderById(body.id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-  // Reference-only update (add/edit the transaction ID on an order without
-  // changing its paid state). Card codes are stored as the Paystack
-  // transaction ID — overwriting paystack_reference would break webhook
-  // matching, which is keyed on the initialization reference.
-  if (body.paid === undefined) {
+  // ---- Status update (fulfilment) — handled first so it doesn't get swallowed
+  // by the reference-only branch. Delivered requires a signed delivery note.
+  if (body.status !== undefined) {
+    if (!VALID.includes(body.status ?? "")) {
+      return NextResponse.json({ error: "Invalid order id or status" }, { status: 400 });
+    }
+    if (body.status === "Delivered") {
+      if (!order.delivery_note_file) {
+        return NextResponse.json(
+          { error: "Upload the signed delivery note (PDF or image) before marking as Delivered." },
+          { status: 400 }
+        );
+      }
+      // Record who delivered + when
+      const deliverer = me?.name ?? me?.email ?? "Admin";
+      const delivererId = me?.id ?? null;
+      await setOrderDelivered(body.id, delivererId ?? deliverer, deliverer);
+      if (order.user_id) {
+        await createNotification({
+          user_id: order.user_id,
+          type: "order",
+          title: `Order ${order.id} is now Delivered`,
+          message: `Your order status changed to Delivered.`,
+          link: "/account/orders",
+        });
+      }
+      try {
+        await sendOrderStatusEmail({
+          to: order.email,
+          name: order.name,
+          orderId: order.id,
+          status: "Delivered",
+          orderTotal: order.total,
+        });
+      } catch (err) {
+        console.error(`[admin] status email failed for ${order.id}:`, (err as Error).message);
+      }
+      return NextResponse.json({ ok: true });
+    }
+    const wasCancelled = order.status === "Cancelled";
+    const willCancel = body.status === "Cancelled";
+    await setOrderStatus(body.id, body.status as string);
+    // Auto-restore inventory when an order transitions into Cancelled (once only).
+    if (!wasCancelled && willCancel) {
+      try {
+        const rawItems = JSON.parse(order.items) as { productId: string; qty: number }[];
+        const restores = await Promise.all(
+          rawItems.map(async (i) => {
+            const p = await liveGetProduct(i.productId);
+            return {
+              sku: p?.sku ?? i.productId,
+              qty: Math.floor(Number(i.qty) || 0),
+              fallbackStock: p?.stock ?? 0,
+              fallbackSold: p?.sold ?? 0,
+              isSeed: Boolean(p?.id && !String(p.id).startsWith("custom-")),
+            };
+          })
+        );
+        const valid = restores.filter((r) => r.sku && r.qty > 0);
+        if (valid.length) {
+          await restoreProductStock(valid);
+          invalidateCatalogCache();
+        }
+      } catch (err) {
+        console.error(`[admin] stock restore failed for cancelled order ${order.id}:`, (err as Error).message);
+      }
+    }
+    if (order.user_id) {
+      await createNotification({
+        user_id: order.user_id,
+        type: "order",
+        title: `Order ${order.id} is now ${body.status}`,
+        message: `Your order status changed to ${body.status}.`,
+        link: "/account/orders",
+      });
+    }
+    try {
+      await sendOrderStatusEmail({
+        to: order.email,
+        name: order.name,
+        orderId: order.id,
+        status: body.status as string,
+        orderTotal: order.total,
+      });
+    } catch (err) {
+      console.error(`[admin] status email failed for ${order.id}:`, (err as Error).message);
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  // Reference-only update (add transaction ID without changing paid state).
+  // For M-Pesa, once Daraja has delivered the receipt (mpesa_transaction_id set),
+  // it cannot be edited — only manually-paid orders with no receipt may be set.
+  if (body.paid === undefined && body.txn_ref !== undefined) {
     const ref = body.txn_ref?.trim();
     if (!ref) return NextResponse.json({ error: "Missing transaction reference" }, { status: 400 });
-    if (order.payment === "mpesa") await setMpesaTransaction(body.id, ref);
-    else if (order.payment === "card") await setPaystackTransaction(body.id, ref);
-    else return NextResponse.json({ error: "This payment method does not take a transaction reference" }, { status: 400 });
+    if (order.payment === "mpesa") {
+      if (order.mpesa_transaction_id) {
+        return NextResponse.json(
+          { error: "M-Pesa transaction code was auto-captured from Daraja and cannot be edited. Only manually-paid orders without a receipt can be set." },
+          { status: 400 }
+        );
+      }
+      await setMpesaTransaction(body.id, ref);
+    } else if (order.payment === "card") {
+      if (order.paystack_transaction_id) {
+        return NextResponse.json(
+          { error: "Paystack transaction ID was auto-captured and cannot be edited." },
+          { status: 400 }
+        );
+      }
+      await setPaystackTransaction(body.id, ref);
+    } else return NextResponse.json({ error: "This payment method does not take a transaction reference" }, { status: 400 });
     return NextResponse.json({ ok: true });
   }
 
@@ -152,58 +257,5 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  if (!VALID.includes(body.status ?? "")) {
-    return NextResponse.json({ error: "Invalid order id or status" }, { status: 400 });
-  }
-  const wasCancelled = order.status === "Cancelled";
-  const willCancel = body.status === "Cancelled";
-  await setOrderStatus(body.id, body.status as string);
-  // Auto-restore inventory when an order transitions into Cancelled (once only).
-  if (!wasCancelled && willCancel) {
-    try {
-      const rawItems = JSON.parse(order.items) as { productId: string; qty: number }[];
-      const restores = await Promise.all(
-        rawItems.map(async (i) => {
-          const p = await liveGetProduct(i.productId);
-          return {
-            sku: p?.sku ?? i.productId,
-            qty: Math.floor(Number(i.qty) || 0),
-            fallbackStock: p?.stock ?? 0,
-            fallbackSold: p?.sold ?? 0,
-            isSeed: Boolean(p?.id && !String(p.id).startsWith("custom-")),
-          };
-        })
-      );
-      const valid = restores.filter((r) => r.sku && r.qty > 0);
-      if (valid.length) {
-        await restoreProductStock(valid);
-        invalidateCatalogCache();
-      }
-    } catch (err) {
-      console.error(`[admin] stock restore failed for cancelled order ${order.id}:`, (err as Error).message);
-    }
-  }
-  if (order.user_id) {
-    await createNotification({
-      user_id: order.user_id,
-      type: "order",
-      title: `Order ${order.id} is now ${body.status}`,
-      message: `Your order status changed to ${body.status}.`,
-      link: "/account/orders",
-    });
-  }
-  // Email the customer the status change — awaited so the SMTP send completes
-  // before the serverless function returns.
-  try {
-    await sendOrderStatusEmail({
-      to: order.email,
-      name: order.name,
-      orderId: order.id,
-      status: body.status as string,
-      orderTotal: order.total,
-    });
-  } catch (err) {
-    console.error(`[admin] status email failed for ${order.id}:`, (err as Error).message);
-  }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ error: "Invalid request — provide status, paid, or txn_ref" }, { status: 400 });
 }

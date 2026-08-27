@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Download, Gift, Mail, MapPin, Package, Phone, Receipt, Truck, User } from "lucide-react";
+import { ArrowLeft, Download, Gift, Mail, MapPin, Package, Phone, Receipt, Truck, User, Upload, FileText, CheckCircle2, ExternalLink } from "lucide-react";
 import { useFetch, AdminCard, StatusBadge, orderStatusTones } from "@/components/admin/ui";
 import { formatKES } from "@/lib/utils";
 
@@ -30,6 +30,11 @@ type Order = {
   paystack_reference?: string | null;
   paystack_transaction_id?: string | null;
   referrer_code?: string | null;
+  delivery_note_file?: string | null;
+  kra_invoice_file?: string | null;
+  delivered_by?: string | null;
+  delivered_by_name?: string | null;
+  delivered_at?: string | null;
   created_at: string;
 };
 
@@ -46,13 +51,10 @@ export default function AdminOrderDetailPage() {
   const id = decodeURIComponent(params.id ?? "");
   const { data, loading, refresh } = useFetch<{ order: Order }>(`/api/admin/orders?id=${encodeURIComponent(id)}`);
   const [notice, setNotice] = useState<string | null>(null);
-  // Which dialog the txn-ref input serves: marking an unpaid order paid, or
-  // adding/correcting the transaction ID on any order (auto-confirmed orders
-  // can be paid WITHOUT a gateway reference — the STK-query fallback carries
-  // no receipt number — so admins must be able to add it afterwards).
   const [dialog, setDialog] = useState<null | "mark-paid" | "edit-ref">(null);
   const [txnRef, setTxnRef] = useState("");
   const [marking, setMarking] = useState(false);
+  const [uploading, setUploading] = useState<"delivery_note" | "kra_invoice" | null>(null);
 
   const setStatus = async (status: string) => {
     const res = await fetch("/api/admin/orders", {
@@ -66,9 +68,6 @@ export default function AdminOrderDetailPage() {
   };
 
   const confirmMarkPaid = async () => {
-    // Blank is allowed ONLY when an M-Pesa checkout exists — the server then
-    // fetches the transaction code from Daraja automatically. Otherwise a
-    // typed reference is required so paid orders never show a blank one.
     const canAutoFetch = order?.payment === "mpesa" && Boolean(order?.mpesa_checkout_id);
     if (!canAutoFetch && order?.payment === "mpesa" && !txnRef.trim()) return;
     setMarking(true);
@@ -88,8 +87,6 @@ export default function AdminOrderDetailPage() {
     }
   };
 
-  // Reference-only update (order paid state untouched). The API already
-  // supports PATCHing just the txn_ref; this is its UI.
   const saveRefOnly = async () => {
     if (!txnRef.trim()) return;
     setMarking(true);
@@ -111,9 +108,35 @@ export default function AdminOrderDetailPage() {
 
   const openEditRef = () => {
     if (!order) return;
-    // Edit the REAL gateway transaction code only (e.g. TB17CVOCY9 for M-Pesa, Paystack transaction ID)
     setTxnRef((order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id) ?? "");
     setDialog("edit-ref");
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "delivery_note" | "kra_invoice") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 12 * 1024 * 1024) {
+      setNotice("File too large (max 12MB)");
+      return;
+    }
+    setUploading(type);
+    setNotice(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("orderId", id);
+      fd.append("type", type);
+      const res = await fetch("/api/admin/orders/upload", { method: "POST", body: fd });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Upload failed");
+      setNotice(`${type === "delivery_note" ? "Delivery note" : "KRA invoice"} uploaded — ${file.name} → PDF saved.`);
+      refresh();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(null);
+      e.target.value = "";
+    }
   };
 
   const order = data?.order;
@@ -121,6 +144,11 @@ export default function AdminOrderDetailPage() {
   const dateStr = order
     ? new Date(order.created_at).toLocaleString("en-KE", { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" })
     : "";
+
+  const mpesaAutoCaptured = order?.payment === "mpesa" && Boolean(order?.mpesa_transaction_id);
+  const cardAutoCaptured = order?.payment === "card" && Boolean(order?.paystack_transaction_id);
+  const canEditRef = !mpesaAutoCaptured && !cardAutoCaptured && (order?.payment === "mpesa" || order?.payment === "card");
+  const needsDeliveryNote = order?.status !== "Delivered" && !order?.delivery_note_file;
 
   return (
     <div className="-mx-2 space-y-6 lg:-mx-4">
@@ -138,14 +166,34 @@ export default function AdminOrderDetailPage() {
             <p className="text-sm text-gray-500">{dateStr} · {itemCount} item{itemCount === 1 ? "" : "s"}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <a
             href={`/api/orders/${encodeURIComponent(id)}/delivery-note`}
             download={`delivery-note-${id}.pdf`}
             className="flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-xs font-bold text-navy-900 hover:bg-surface"
           >
-            <Truck className="h-4 w-4" /> Delivery note
+            <Truck className="h-4 w-4" /> Delivery note (template)
           </a>
+          {order?.delivery_note_file && (
+            <a
+              href={order.delivery_note_file}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+            >
+              <FileText className="h-4 w-4" /> Signed delivery note
+            </a>
+          )}
+          {order?.kra_invoice_file && (
+            <a
+              href={order.kra_invoice_file}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-xs font-bold text-navy-900 hover:bg-surface"
+            >
+              <Receipt className="h-4 w-4" /> KRA Invoice
+            </a>
+          )}
           <a
             href={`/api/orders/${encodeURIComponent(id)}/invoice`}
             download={`invoice-${id}.pdf`}
@@ -173,7 +221,7 @@ export default function AdminOrderDetailPage() {
         </AdminCard>
       ) : (
         <>
-          {notice && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{notice}</p>}
+          {notice && <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-700 border border-amber-200">{notice}</p>}
 
           {dialog && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-900/50 p-4" role="dialog" aria-modal="true">
@@ -184,10 +232,10 @@ export default function AdminOrderDetailPage() {
                     <p className="mt-1 text-sm text-gray-500">
                       {order?.payment === "mpesa"
                         ? order?.mpesa_checkout_id
-                          ? "The real M-Pesa transaction code (e.g. TB17CVOCY9) will be fetched automatically from Safaricom when you confirm — leave blank to auto-fetch the TB... code, or paste it from the customer's confirmation SMS. It prints on the paid invoice and receipt."
+                          ? "The real M-Pesa transaction code (e.g. TB17CVOCY9) will be fetched automatically from Safaricom when you confirm — leave blank to auto-fetch, or paste it from the customer's confirmation SMS."
                           : "Enter the real M-Pesa transaction code from the confirmation SMS (e.g. TB17CVOCY9). It will be printed on the paid invoice and receipt."
                         : order?.payment === "card"
-                          ? "Enter the real Paystack transaction ID (e.g. 1234567890 from Paystack dashboard — not the initialization reference like KS-...). It will be printed on the paid invoice and receipt."
+                          ? "Enter the real Paystack transaction ID (e.g. 1234567890 from Paystack dashboard — not the initialization reference like KS-...)."
                           : "Optionally enter the payment reference — it will be printed on the paid invoice and receipt."}
                     </p>
                   </>
@@ -196,10 +244,10 @@ export default function AdminOrderDetailPage() {
                     <h3 className="font-display text-lg font-extrabold text-navy-900">Transaction ID for #{id}</h3>
                     <p className="mt-1 text-sm text-gray-500">
                       {order?.payment === "mpesa"
-                        ? "Paste the real M-Pesa transaction code (e.g. TB17CVOCY9) from the customer's confirmation SMS — it prints on the invoice and receipt."
+                        ? "Paste the real M-Pesa transaction code (e.g. TB17CVOCY9) — only for manually-paid orders without an auto-captured receipt."
                         : order?.payment === "card"
-                          ? "Paste the real Paystack transaction ID (numeric ID from Paystack dashboard/verification, e.g. 1234567890 — not the initialization reference). It prints on the paid invoice and receipt."
-                          : "Paste the payment reference. It prints on the paid invoice and receipt."}
+                          ? "Paste the real Paystack transaction ID — only for manually-paid orders."
+                          : "Paste the payment reference."}
                     </p>
                   </>
                 )}
@@ -393,12 +441,16 @@ export default function AdminOrderDetailPage() {
                         <span className={`truncate font-mono text-xs ${order.mpesa_transaction_id || order.paystack_transaction_id ? "font-bold text-navy-900" : "text-gray-300"}`}>
                           {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id) || "— not set"}
                         </span>
-                        <button
-                          onClick={openEditRef}
-                          className="shrink-0 rounded-lg border border-line px-2 py-1 text-[10px] font-bold text-navy-900 hover:border-safety-400 hover:text-safety-600"
-                        >
-                          {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id) ? "Edit" : "Add"}
-                        </button>
+                        {canEditRef ? (
+                          <button
+                            onClick={openEditRef}
+                            className="shrink-0 rounded-lg border border-line px-2 py-1 text-[10px] font-bold text-navy-900 hover:border-safety-400 hover:text-safety-600"
+                          >
+                            {(order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id) ? "Edit" : "Add"}
+                          </button>
+                        ) : (mpesaAutoCaptured || cardAutoCaptured) ? (
+                          <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700" title="Auto-captured from gateway — cannot be edited">auto-captured</span>
+                        ) : null}
                       </span>
                     </p>
                   )}
@@ -407,6 +459,9 @@ export default function AdminOrderDetailPage() {
                       <span className="shrink-0 text-gray-400">Checkout ID</span>
                       <span className="truncate font-mono text-gray-500">{order.mpesa_checkout_id}</span>
                     </p>
+                  )}
+                  {mpesaAutoCaptured && (
+                    <p className="text-[11px] text-emerald-600">M-Pesa receipt auto-captured via Daraja callback — editing disabled. Only manually-paid orders without a receipt can be set.</p>
                   )}
                   <p className="flex items-center justify-between">
                     <span className="text-gray-600">Status</span>
@@ -419,7 +474,6 @@ export default function AdminOrderDetailPage() {
                   {order.paid !== 1 && (
                     <button
                       onClick={() => {
-                        // Pre-fill with REAL gateway transaction code only (e.g. TB17CVOCY9, Paystack ID)
                         setTxnRef((order.payment === "mpesa" ? order.mpesa_transaction_id : order.paystack_transaction_id) || "");
                         setDialog("mark-paid");
                       }}
@@ -431,12 +485,63 @@ export default function AdminOrderDetailPage() {
                 </div>
               </AdminCard>
 
+              <AdminCard title="Delivery documents">
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <p className="mb-1 flex items-center gap-2 text-xs font-bold text-navy-900">
+                      <Truck className="h-3.5 w-3.5 text-safety-600" /> Signed delivery note
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-danger">Required before Delivered</span>
+                    </p>
+                    <p className="text-[11px] text-gray-500">Upload the customer&apos;s signed delivery note. Images (JPG/PNG/WEBP) are auto-converted to PDF.</p>
+                    {order.delivery_note_file ? (
+                      <a href={order.delivery_note_file} target="_blank" rel="noopener noreferrer" className="mt-2 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 border border-emerald-200">
+                        <CheckCircle2 className="h-4 w-4" /> View signed delivery note <ExternalLink className="h-3 w-3 ml-auto" />
+                      </a>
+                    ) : (
+                      <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 border border-amber-200">No delivery note uploaded yet — required to mark Delivered.</p>
+                    )}
+                    <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line bg-surface px-3 py-2.5 text-xs font-bold text-navy-900 hover:border-safety-400 hover:text-safety-600">
+                      <Upload className="h-4 w-4" />
+                      {uploading === "delivery_note" ? "Uploading…" : order.delivery_note_file ? "Replace delivery note (PDF/image)" : "Upload delivery note (PDF or image)"}
+                      <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="sr-only" onChange={(e) => handleUpload(e, "delivery_note")} disabled={uploading !== null} />
+                    </label>
+                  </div>
+                  <div className="border-t border-line pt-4">
+                    <p className="mb-1 flex items-center gap-2 text-xs font-bold text-navy-900">
+                      <Receipt className="h-3.5 w-3.5 text-safety-600" /> KRA invoice (optional)
+                    </p>
+                    <p className="text-[11px] text-gray-500">Optional KRA-compliant invoice PDF for this order.</p>
+                    {order.kra_invoice_file ? (
+                      <a href={order.kra_invoice_file} target="_blank" rel="noopener noreferrer" className="mt-2 flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-xs font-bold text-navy-900 border border-line hover:bg-white">
+                        <FileText className="h-4 w-4 text-safety-600" /> View KRA invoice <ExternalLink className="h-3 w-3 ml-auto" />
+                      </a>
+                    ) : (
+                      <p className="mt-2 text-[11px] text-gray-400">No KRA invoice uploaded.</p>
+                    )}
+                    <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line bg-surface px-3 py-2.5 text-xs font-bold text-navy-900 hover:border-safety-400 hover:text-safety-600">
+                      <Upload className="h-4 w-4" />
+                      {uploading === "kra_invoice" ? "Uploading…" : order.kra_invoice_file ? "Replace KRA invoice" : "Upload KRA invoice (PDF)"}
+                      <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="sr-only" onChange={(e) => handleUpload(e, "kra_invoice")} disabled={uploading !== null} />
+                    </label>
+                  </div>
+                </div>
+              </AdminCard>
+
               <AdminCard title="Fulfilment">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Current status</span>
                     <StatusBadge status={order.status} map={orderStatusTones} />
                   </div>
+                  {order.delivered_by_name && (
+                    <p className="rounded-lg bg-surface px-3 py-2 text-xs text-gray-600">
+                      Delivered by <span className="font-bold text-navy-900">{order.delivered_by_name}</span>
+                      {order.delivered_at ? ` · ${new Date(order.delivered_at).toLocaleString("en-KE")}` : ""}
+                    </p>
+                  )}
+                  {needsDeliveryNote && (
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-700 border border-amber-200">Upload the signed delivery note above before marking as Delivered.</p>
+                  )}
                   <label className="block">
                     <span className="mb-1 block text-xs font-bold text-gray-500">Update status</span>
                     <select
@@ -449,6 +554,7 @@ export default function AdminOrderDetailPage() {
                       ))}
                     </select>
                   </label>
+                  <p className="text-[11px] text-gray-400">Delivered requires a signed delivery note. KRA invoice is optional.</p>
                 </div>
               </AdminCard>
             </div>

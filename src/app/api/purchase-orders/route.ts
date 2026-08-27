@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createPurchaseOrder, getSetting } from "@/lib/db";
+import { getSessionUser } from "@/lib/api-helpers";
 import { sendNewPOAlert } from "@/lib/mailer";
 
 export const runtime = "nodejs";
@@ -15,12 +16,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid purchase order file" }, { status: 400 });
     }
 
+    const me = await getSessionUser();
     const po = await createPurchaseOrder({
       company,
       contact_name: body.contact_name ? String(body.contact_name).trim() : null,
       phone: body.phone ? String(body.phone).trim() : null,
       email: body.email ? String(body.email).trim() : null,
       po_file: poFile,
+      created_by_id: me?.id ?? null,
+      created_by_name: me?.name ?? me?.email ?? null,
     });
 
     // Alert staff a guest PO was uploaded — awaited so the SMTP send completes

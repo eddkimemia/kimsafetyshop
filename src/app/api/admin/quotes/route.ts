@@ -77,6 +77,7 @@ export async function POST(req: Request) {
     notes: body.notes?.trim() || null,
     valid_until: validUntil,
     created_by_id: me?.id ?? null,
+    created_by_name: me?.name ?? me?.email ?? null,
   });
 
   return NextResponse.json(

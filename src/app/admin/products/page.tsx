@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, ChevronsUpDown, Download, ExternalLink, FileStack, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useFetch, AdminCard, adminField } from "@/components/admin/ui";
@@ -48,6 +48,10 @@ export default function AdminProductsPage() {
   const [sort, setSort] = useState<SortState>({ key: "name", dir: "asc" });
   const [notice, setNotice] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [isSuper, setIsSuper] = useState(false);
+  useEffect(() => {
+    fetch("/api/admin/me").then((r) => r.json()).then((s) => setIsSuper(s?.user?.role === "superadmin")).catch(() => {});
+  }, []);
 
   const all = useMemo(() => data?.products ?? [], [data]);
 
@@ -250,37 +254,32 @@ export default function AdminProductsPage() {
                       </span>
                     </span>
                   </button>
-                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-line/60 pt-3">
-                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${p.static ? "bg-slate-100 text-slate-600" : "bg-safety-50 text-safety-700"}`}>
-                      {p.static ? "Seed" : "Custom"}
-                    </span>
-                    <div className="flex gap-1.5">
-                      <a
-                        href={`/product/${encodeURIComponent(p.slug ?? p.sku)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`View ${p.name} on the shop`}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-300 hover:text-safety-600"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
+                  <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-line/60 pt-3">
+                    <a
+                      href={`/product/${encodeURIComponent(p.slug ?? p.sku)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`View ${p.name} on the shop`}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-300 hover:text-safety-600"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                    <button
+                      onClick={() => router.push(`/admin/products/${encodeURIComponent(p.sku)}`)}
+                      aria-label={`Edit ${p.name}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-300 hover:text-safety-600"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    {isSuper && (
                       <button
-                        onClick={() => router.push(`/admin/products/${encodeURIComponent(p.sku)}`)}
-                        aria-label={`Edit ${p.name}`}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-300 hover:text-safety-600"
+                        onClick={() => remove(p)}
+                        aria-label={`Delete ${p.name}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-danger/40 hover:text-danger"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
-                      {!p.static && (
-                        <button
-                          onClick={() => remove(p)}
-                          aria-label={`Delete ${p.name}`}
-                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-danger/40 hover:text-danger"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -289,7 +288,7 @@ export default function AdminProductsPage() {
               )}
             </div>
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full min-w-[680px] text-sm">
                 <thead>
                   <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                     <SortTh label="Product" k="name" />
@@ -297,7 +296,6 @@ export default function AdminProductsPage() {
                     <SortTh label="SKU" k="sku" />
                     <SortTh label="Price" k="price" />
                     <SortTh label="Stock" k="stock" />
-                    <th className="pb-3">Type</th>
                     <th className="pb-3 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -331,11 +329,6 @@ export default function AdminProductsPage() {
                         <span className="text-[11px] text-gray-400"> / low at {p.lowStockAt}</span>
                       </td>
                       <td className="py-3">
-                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${p.static ? "bg-slate-100 text-slate-600" : "bg-safety-50 text-safety-700"}`}>
-                          {p.static ? "Seed" : "Custom"}
-                        </span>
-                      </td>
-                      <td className="py-3">
                         <div className="flex justify-end gap-1.5">
                           <a
                             href={`/product/${encodeURIComponent(p.slug ?? p.sku)}`}
@@ -354,7 +347,7 @@ export default function AdminProductsPage() {
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
-                          {!p.static && (
+                          {isSuper && (
                             <button
                               onClick={() => remove(p)}
                               aria-label={`Delete ${p.name}`}
@@ -368,7 +361,7 @@ export default function AdminProductsPage() {
                     </tr>
                   ))}
                   {products.length === 0 && (
-                    <tr><td colSpan={7} className="py-10 text-center text-sm text-gray-400">No products match.</td></tr>
+                    <tr><td colSpan={6} className="py-10 text-center text-sm text-gray-400">No products match.</td></tr>
                   )}
                 </tbody>
               </table>

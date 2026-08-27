@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/api-helpers";
+import { getSessionUser, requireAdmin } from "@/lib/api-helpers";
 import {
   createCorporateAccount,
   getCorporateAccountByApplicationId,
@@ -33,7 +33,8 @@ export async function PATCH(req: Request) {
   if (!body.id || !VALID.includes(body.status ?? "")) {
     return NextResponse.json({ error: "Invalid application id or status" }, { status: 400 });
   }
-  await setCorporateApplicationStatus(body.id, body.status as string);
+  const me = await getSessionUser();
+  await setCorporateApplicationStatus(body.id, body.status as string, me?.id ?? null, me?.name ?? me?.email ?? null);
 
   let accountCreated = false;
   let tempPassword: string | undefined;
@@ -62,6 +63,8 @@ export async function PATCH(req: Request) {
           phone: app.phone,
           email: app.email,
           notes: app.notes,
+          created_by_id: me?.id ?? null,
+          created_by_name: me?.name ?? me?.email ?? null,
         });
         if (provision.createdLogin) {
           // AWAITED — on Vercel serverless un-awaited SMTP sends are frozen

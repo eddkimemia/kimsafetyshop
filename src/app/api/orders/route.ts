@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { attachGuestOrdersToUser, createOrder, createNotification, getAllSettings, getOrderById, getSetting, ordersForUser, provisionUserLogin, subscribeNewsletter, adjustProductStock } from "@/lib/db";
+import { attachGuestOrdersToUser, createOrder, createNotification, getAllSettings, getCorporateAccountByUserId, getOrderById, getSetting, ordersForUser, provisionUserLogin, subscribeNewsletter, adjustProductStock } from "@/lib/db";
 import { invalidateCatalogCache } from "@/lib/catalog";
 import { getSessionUser } from "@/lib/api-helpers";
 import { liveGetProduct } from "@/lib/catalog";
@@ -127,7 +127,8 @@ export async function POST(req: Request) {
       };
     })
   );
-  const { subtotal, discount } = totals;
+  const subtotal = totals.subtotal;
+  let discount = totals.discount;
   let shipping = totals.shipping;
   let total = totals.total;
 
@@ -139,6 +140,21 @@ export async function POST(req: Request) {
   if (user && ["admin", "superadmin"].includes(user.role) && body.delivery_fee === false) {
     shipping = 0;
     total = subtotal;
+  }
+
+  // Corporate discount: if the signed-in user has an active corporate account,
+  // apply its discount_rate to the subtotal (stacks with bulk pricing).
+  if (user?.id) {
+    try {
+      const corp = await getCorporateAccountByUserId(user.id);
+      if (corp && corp.status === "Active" && corp.discount_rate > 0) {
+        const rate = Math.max(0, Math.min(100, corp.discount_rate));
+        const corpDiscount = Math.round((subtotal * rate) / 100);
+        discount += corpDiscount;
+        total = Math.max(0, subtotal - corpDiscount + shipping);
+        // Keep subtotal as pre-corp total for display; discount captures corp savings.
+      }
+    } catch {}
   }
 
   const order = await createOrder({

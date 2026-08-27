@@ -3,13 +3,14 @@ import { revalidatePath } from "next/cache";
 
 // Never cache: a stale GET here would make the admin form re-save OLD values.
 export const dynamic = "force-dynamic";
-import { requireAdmin } from "@/lib/api-helpers";
+import { requireAdmin, requireSuperAdmin } from "@/lib/api-helpers";
 import { products } from "@/lib/data/products";
 import { getAdminProduct, upsertAdminProduct, deleteAdminProduct, listPendingRestockRequests, markRestockNotified } from "@/lib/db";
 import { mergedCatalog, invalidateCatalogCache } from "@/lib/admin-products";
 import { liveGetProduct } from "@/lib/catalog";
 import { sendBackInStockEmail } from "@/lib/mailer";
 import { siteUrl } from "@/lib/site";
+import { addDeletedSku, removeDeletedSku } from "@/lib/catalog";
 
 /**
  * Busts every ISR page that can display product data (home, search, category,
@@ -105,6 +106,7 @@ export async function POST(req: Request) {
     static: false,
   };
   await upsertAdminProduct(sku, record);
+  await removeDeletedSku(sku);
   invalidateCatalogCache();
   revalidateProductPages();
   try {
@@ -135,6 +137,7 @@ export async function PATCH(req: Request) {
   const merged = { ...existing, ...body, sku, static: isStatic };
   delete merged.id;
   await upsertAdminProduct(sku, merged);
+  await removeDeletedSku(sku);
   invalidateCatalogCache();
   revalidateProductPages();
   try {
@@ -146,17 +149,19 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const denied = await requireAdmin();
+  const denied = await requireSuperAdmin();
   if (denied) return denied;
   const url = new URL(req.url);
   const sku = url.searchParams.get("sku");
   if (!sku) return NextResponse.json({ error: "Missing SKU" }, { status: 400 });
   const existing = await getAdminProduct(sku);
-  if (!existing) return NextResponse.json({ error: "Product not found" }, { status: 404 });
-  if (existing.static) {
-    return NextResponse.json({ error: "Seed products cannot be deleted — adjust stock to 0 instead" }, { status: 400 });
+  // Fully uniform: any product can be deleted, including seed. If no admin row exists yet (pure seed), we still allow delete by blocking the SKU.
+  if (!existing) {
+    const seedExists = products.some((p) => p.sku === sku);
+    if (!seedExists) return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
-  await deleteAdminProduct(sku);
+  if (existing) await deleteAdminProduct(sku);
+  await addDeletedSku(sku);
   invalidateCatalogCache();
   revalidateProductPages();
   return NextResponse.json({ ok: true });

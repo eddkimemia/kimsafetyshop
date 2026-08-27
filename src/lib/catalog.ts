@@ -36,6 +36,7 @@ export function invalidateCatalogCache() {
   cachedAdminRows = null;
   lastDbFailAt = 0;
   cachedBlocked = null;
+  cachedDeleted = null;
 }
 
 let cachedBlocked: { at: number; set: Set<string> } | null = null;
@@ -74,6 +75,47 @@ export async function addBlockedImages(filenames: string[]) {
     cachedBlocked = { at: Date.now(), set };
     invalidateCatalogCache();
   }
+}
+
+let cachedDeleted: { at: number; set: Set<string> } | null = null;
+const DELETED_TTL_MS = 30 * 1000;
+
+async function getDeletedSet(): Promise<Set<string>> {
+  const now = Date.now();
+  if (cachedDeleted && now - cachedDeleted.at < DELETED_TTL_MS) return cachedDeleted.set;
+  try {
+    const raw = await getSetting("deleted_product_skus");
+    if (!raw) {
+      cachedDeleted = { at: now, set: new Set() };
+      return cachedDeleted.set;
+    }
+    const arr = JSON.parse(raw);
+    const set = new Set<string>(Array.isArray(arr) ? arr.filter((v) => typeof v === "string") : []);
+    cachedDeleted = { at: now, set };
+    return set;
+  } catch {
+    return cachedDeleted?.set ?? new Set();
+  }
+}
+
+export async function addDeletedSku(sku: string) {
+  const set = await getDeletedSet();
+  if (set.has(sku)) return;
+  set.add(sku);
+  const { setSetting } = await import("@/lib/db");
+  await setSetting("deleted_product_skus", JSON.stringify(Array.from(set)));
+  cachedDeleted = { at: Date.now(), set };
+  invalidateCatalogCache();
+}
+
+export async function removeDeletedSku(sku: string) {
+  const set = await getDeletedSet();
+  if (!set.has(sku)) return;
+  set.delete(sku);
+  const { setSetting } = await import("@/lib/db");
+  await setSetting("deleted_product_skus", JSON.stringify(Array.from(set)));
+  cachedDeleted = { at: Date.now(), set };
+  invalidateCatalogCache();
 }
 
 // Resolves the final image/gallery URLs server-side so the browser receives
@@ -136,52 +178,61 @@ function resolveGallery(sku: string, value: unknown, blocked: Set<string>): stri
 }
 
 async function mergedCatalog(): Promise<Product[]> {
-  const [rows, blocked] = await Promise.all([getCachedAdminRows().then((r) => r ?? []), getBlockedSet()]);
+  const [rows, blocked, deleted] = await Promise.all([
+    getCachedAdminRows().then((r) => r ?? []),
+    getBlockedSet(),
+    getDeletedSet(),
+  ]);
   const overrides = new Map<string, Record<string, unknown>>();
   const customs: Record<string, unknown>[] = [];
   for (const row of rows) {
     const data = JSON.parse(String(row.data)) as Record<string, unknown> & { sku: string; static?: boolean };
+    if (deleted.has(data.sku)) continue;
     if (data.static) overrides.set(data.sku, data);
     else customs.push(data);
   }
 
-  const merged = products.map((p) => {
-    const override = overrides.get(p.sku);
-    const base = override ? { ...p, ...override } : p;
-    return {
-      ...base,
-      image: resolveImage(base.sku, base.image, blocked),
-      gallery: resolveGallery(base.sku, base.gallery, blocked),
-      downloads: normalizeDownloads(base.downloads),
-    };
-  });
+  const merged = products
+    .filter((p) => !deleted.has(p.sku))
+    .map((p) => {
+      const override = overrides.get(p.sku);
+      const base = override ? { ...p, ...override } : p;
+      return {
+        ...base,
+        image: resolveImage(base.sku, base.image, blocked),
+        gallery: resolveGallery(base.sku, base.gallery, blocked),
+        downloads: normalizeDownloads(base.downloads),
+      };
+    });
 
-  const customProducts: Product[] = customs.map((c) => ({
-    id: `custom-${c.sku}`,
-    slug: typeof c.slug === "string" && c.slug ? c.slug : slugify(String(c.name ?? c.sku)),
-    sku: String(c.sku),
-    name: String(c.name ?? c.sku),
-    brand: String(c.brand ?? "KimSafety"),
-    category: String(c.category ?? "industrial-safety"),
-    categoryName: String(c.categoryName ?? "Industrial Safety"),
-    categories: Array.isArray(c.categories) ? (c.categories as string[]) : undefined,
-    price: Number(c.price ?? 0),
-    oldPrice: typeof c.oldPrice === "number" ? c.oldPrice : undefined,
-    stock: Number(c.stock ?? 0),
-    lowStockAt: Number(c.lowStockAt ?? 10),
-    rating: Number(c.rating ?? 4.5),
-    reviews: Number(c.reviews ?? 0),
-    sold: Number(c.sold ?? 0),
-    tags: Array.isArray(c.tags) ? (c.tags as string[]) : ["safety"],
-    description: String(c.description ?? ""),
-    features: Array.isArray(c.features) ? (c.features as string[]) : [],
-    specs: [],
-    bulk: [],
-    downloads: [],
-    ...(c as Partial<Product>),
-    image: resolveImage(String(c.sku), c.image, blocked),
-    gallery: resolveGallery(String(c.sku), c.gallery, blocked),
-  }));
+  const customProducts: Product[] = customs
+    .filter((c) => !deleted.has(String(c.sku)))
+    .map((c) => ({
+      id: `custom-${c.sku}`,
+      slug: typeof c.slug === "string" && c.slug ? c.slug : slugify(String(c.name ?? c.sku)),
+      sku: String(c.sku),
+      name: String(c.name ?? c.sku),
+      brand: String(c.brand ?? "KimSafety"),
+      category: String(c.category ?? "industrial-safety"),
+      categoryName: String(c.categoryName ?? "Industrial Safety"),
+      categories: Array.isArray(c.categories) ? (c.categories as string[]) : undefined,
+      price: Number(c.price ?? 0),
+      oldPrice: typeof c.oldPrice === "number" ? c.oldPrice : undefined,
+      stock: Number(c.stock ?? 0),
+      lowStockAt: Number(c.lowStockAt ?? 10),
+      rating: Number(c.rating ?? 4.5),
+      reviews: Number(c.reviews ?? 0),
+      sold: Number(c.sold ?? 0),
+      tags: Array.isArray(c.tags) ? (c.tags as string[]) : ["safety"],
+      description: String(c.description ?? ""),
+      features: Array.isArray(c.features) ? (c.features as string[]) : [],
+      specs: [],
+      bulk: [],
+      downloads: [],
+      ...(c as Partial<Product>),
+      image: resolveImage(String(c.sku), c.image, blocked),
+      gallery: resolveGallery(String(c.sku), c.gallery, blocked),
+    }));
 
   return stableShuffle([...merged, ...customProducts.map((p) => ({ ...p, downloads: normalizeDownloads(p.downloads) }))]);
 }

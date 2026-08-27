@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSuperAdmin } from "@/lib/api-helpers";
+import { getSessionUser, requireSuperAdmin } from "@/lib/api-helpers";
 import {
   createCorporateAccount,
   deleteCorporateAccount,
@@ -65,6 +65,7 @@ export async function POST(req: Request) {
     if (provision.createdLogin) tempPassword = provision.tempPassword;
   }
 
+  const me = await getSessionUser();
   const account = await createCorporateAccount({
     user_id,
     company,
@@ -77,6 +78,8 @@ export async function POST(req: Request) {
     credit_terms: body.credit_terms?.trim() || "30 days",
     account_manager: body.account_manager?.trim() || null,
     notes: body.notes?.trim() || null,
+    created_by_id: me?.id ?? null,
+    created_by_name: me?.name ?? me?.email ?? null,
   });
 
   // Best-effort welcome email with credentials; the temp password is still

@@ -60,6 +60,7 @@ export async function POST(req: Request) {
     expected_date: body.expected_date || null,
     notes: body.notes ? String(body.notes).trim() : null,
     created_by_id: me?.id ?? null,
+    created_by_name: me?.name ?? me?.email ?? null,
   });
 
   return NextResponse.json({ order: { ...order, items: JSON.parse(order.items) } }, { status: 201 });
