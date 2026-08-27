@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { getOrderById, setOrderDeliveryNote, setOrderKraInvoice } from "@/lib/db";
 import { saveStoredFile, sniffType } from "@/lib/file-store";
+import { sendKraInvoiceEmail } from "@/lib/mailer";
 import PDFDocument from "pdfkit";
+import fs from "fs";
+import path from "path";
+import { PDFDocument as PdfLibDocument, StandardFonts, rgb } from "pdf-lib";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,6 +52,55 @@ async function maybeConvertWebp(buf: Buffer): Promise<Buffer> {
     }
   }
   return buf;
+}
+
+async function stampPdfBuffer(pdfBuffer: Buffer): Promise<Buffer> {
+  try {
+    const stampPath = path.join(process.cwd(), "public", "images", "logo", "stamp.png");
+    if (!fs.existsSync(stampPath)) return pdfBuffer;
+    const stampBytes = fs.readFileSync(stampPath);
+    const pdfDoc = await PdfLibDocument.load(pdfBuffer);
+    const stampImage = await pdfDoc.embedPng(stampBytes);
+    const pages = pdfDoc.getPages();
+    if (pages.length === 0) return pdfBuffer;
+    // Stamp the last page (mirrors invoice/delivery-note stamping)
+    const lastPage = pages[pages.length - 1];
+    const { width } = lastPage.getSize();
+    // Scale stamp to ~130pt width (keeps file reasonable)
+    const targetW = 130;
+    const scale = targetW / stampImage.width;
+    const targetH = stampImage.height * scale;
+    // Bottom-right corner, 28pt margin
+    lastPage.drawImage(stampImage, {
+      x: width - targetW - 28,
+      y: 28,
+      width: targetW,
+      height: targetH,
+      opacity: 0.92,
+    });
+    // Date text centered over the stamp area
+    try {
+      const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const dateStr = new Date()
+        .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+        .toUpperCase();
+      const fontSize = 9;
+      const textWidth = font.widthOfTextAtSize(dateStr, fontSize);
+      lastPage.drawText(dateStr, {
+        x: width - targetW - 28 + (targetW - textWidth) / 2,
+        y: 28 + targetH / 2 - 4,
+        size: fontSize,
+        font,
+        color: rgb(0.86, 0.15, 0.15),
+        opacity: 0.95,
+      });
+    } catch {}
+    const out = await pdfDoc.save();
+    return Buffer.from(out);
+  } catch (e) {
+    console.error("[upload] stampPdf failed, serving original", (e as Error).message);
+    return pdfBuffer;
+  }
 }
 
 export async function POST(req: Request) {
@@ -109,16 +162,21 @@ export async function POST(req: Request) {
     filename = safeOrderFilename(orderId, type, ".pdf");
   }
 
+  // KRA invoices are stamped with the company seal before saving
+  if (type === "kra_invoice") {
+    pdfBuffer = await stampPdfBuffer(pdfBuffer);
+  }
+
   // Store in DB-backed file store
   await saveStoredFile(filename, pdfBuffer, "application/pdf");
 
   // Also mirror to public/uploads/documents for local dev inspection
   try {
-    const fs = await import("fs");
-    const path = await import("path");
-    const dir = path.join(process.cwd(), "public", "uploads", "documents");
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, filename), pdfBuffer);
+    const fs2 = await import("fs");
+    const path2 = await import("path");
+    const dir = path2.join(process.cwd(), "public", "uploads", "documents");
+    fs2.mkdirSync(dir, { recursive: true });
+    fs2.writeFileSync(path2.join(dir, filename), pdfBuffer);
   } catch {}
 
   const publicPath = `/uploads/documents/${filename}`;
@@ -127,6 +185,17 @@ export async function POST(req: Request) {
     await setOrderDeliveryNote(orderId, publicPath);
   } else {
     await setOrderKraInvoice(orderId, publicPath);
+    // Auto-send the stamped KRA invoice to the customer
+    try {
+      await sendKraInvoiceEmail({
+        to: order.email,
+        name: order.name,
+        orderId: order.id,
+        pdf: pdfBuffer,
+      });
+    } catch (e) {
+      console.error(`[upload] KRA email failed for ${orderId}:`, (e as Error).message);
+    }
   }
 
   return NextResponse.json({ ok: true, file: publicPath, filename });

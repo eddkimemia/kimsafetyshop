@@ -150,6 +150,16 @@ export default function AdminOrderDetailPage() {
   const canEditRef = !mpesaAutoCaptured && !cardAutoCaptured && (order?.payment === "mpesa" || order?.payment === "card");
   const needsDeliveryNote = order?.status !== "Delivered" && !order?.delivery_note_file;
 
+  const viewAndDownload = (url: string, filename: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
   return (
     <div className="-mx-2 space-y-6 lg:-mx-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -175,24 +185,20 @@ export default function AdminOrderDetailPage() {
             <Truck className="h-4 w-4" /> Delivery note (template)
           </a>
           {order?.delivery_note_file && (
-            <a
-              href={order.delivery_note_file}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => viewAndDownload(order.delivery_note_file!, `kimsafety-signed-delivery-${id}.pdf`)}
               className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
             >
               <FileText className="h-4 w-4" /> Signed delivery note
-            </a>
+            </button>
           )}
           {order?.kra_invoice_file && (
-            <a
-              href={order.kra_invoice_file}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => viewAndDownload(order.kra_invoice_file!, `kimsafety-kra-invoice-${id}.pdf`)}
               className="flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-xs font-bold text-navy-900 hover:bg-surface"
             >
               <Receipt className="h-4 w-4" /> KRA Invoice
-            </a>
+            </button>
           )}
           <a
             href={`/api/orders/${encodeURIComponent(id)}/invoice`}
@@ -494,9 +500,9 @@ export default function AdminOrderDetailPage() {
                     </p>
                     <p className="text-[11px] text-gray-500">Upload the customer&apos;s signed delivery note. Images (JPG/PNG/WEBP) are auto-converted to PDF.</p>
                     {order.delivery_note_file ? (
-                      <a href={order.delivery_note_file} target="_blank" rel="noopener noreferrer" className="mt-2 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 border border-emerald-200">
+                      <button onClick={() => viewAndDownload(order.delivery_note_file!, `kimsafety-signed-delivery-${id}.pdf`)} className="mt-2 flex w-full items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-left">
                         <CheckCircle2 className="h-4 w-4" /> View signed delivery note <ExternalLink className="h-3 w-3 ml-auto" />
-                      </a>
+                      </button>
                     ) : (
                       <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 border border-amber-200">No delivery note uploaded yet — required to mark Delivered.</p>
                     )}
@@ -512,9 +518,9 @@ export default function AdminOrderDetailPage() {
                     </p>
                     <p className="text-[11px] text-gray-500">Optional KRA-compliant invoice PDF for this order.</p>
                     {order.kra_invoice_file ? (
-                      <a href={order.kra_invoice_file} target="_blank" rel="noopener noreferrer" className="mt-2 flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-xs font-bold text-navy-900 border border-line hover:bg-white">
+                      <button onClick={() => viewAndDownload(order.kra_invoice_file!, `kimsafety-kra-invoice-${id}.pdf`)} className="mt-2 flex w-full items-center gap-2 rounded-lg bg-surface px-3 py-2 text-xs font-bold text-navy-900 border border-line hover:bg-white text-left">
                         <FileText className="h-4 w-4 text-safety-600" /> View KRA invoice <ExternalLink className="h-3 w-3 ml-auto" />
-                      </a>
+                      </button>
                     ) : (
                       <p className="mt-2 text-[11px] text-gray-400">No KRA invoice uploaded.</p>
                     )}

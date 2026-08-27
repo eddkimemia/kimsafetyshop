@@ -1100,6 +1100,69 @@ export async function sendOrderStatusEmail(input: {
   return true;
 }
 
+export async function sendDeliveryNoteEmail(input: {
+  to: string;
+  name: string;
+  orderId: string;
+  pdf: Buffer;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, name, orderId, pdf } = input;
+  const firstName = (name ?? "").split(" ")[0] || "there";
+  await sendBrandedMail(cfg, {
+    from: cfg.from,
+    to,
+    subject: `Your order ${orderId} has been delivered — signed delivery note attached — KimSafety`,
+    text: `Hi ${firstName},\n\nYour order ${orderId} has been marked as Delivered. The signed delivery note is attached to this email.\n\nThank you for choosing KimSafety!\n\n— KimSafety Team`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("Delivered")}
+      <h1 style="font-size:24px;color:${NAVY};margin:0 0 14px 0;">Your order is delivered</h1>
+      <p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 18px 0;">Hi ${esc(firstName)}, your order <strong>${esc(orderId)}</strong> has been marked as <strong>Delivered</strong>. The signed delivery note confirming receipt is attached to this email.</p>
+      ${summaryCard([{ label: "Order number", value: esc(orderId), highlight: true }])}
+      <p style="font-size:13px;line-height:1.7;color:${GRAY};margin:0 0 18px 0;">Keep this document for your records. Questions? Reply to this email or reach us on WhatsApp ${esc(brand.phone)}.</p>
+      ${btn(`${siteUrl}/account/orders`, "View your orders")}
+      `
+    ),
+    attachments: [{ filename: `kimsafety-delivery-note-${orderId}.pdf`, content: pdf, contentType: "application/pdf" }],
+  });
+  return true;
+}
+
+export async function sendKraInvoiceEmail(input: {
+  to: string;
+  name: string;
+  orderId: string;
+  pdf: Buffer;
+}): Promise<boolean> {
+  const cfg = await getSmtpConfig();
+  if (!cfg || !isSmtpConfigured(cfg)) return false;
+  const brand = await getBrand();
+  const { to, name, orderId, pdf } = input;
+  const firstName = (name ?? "").split(" ")[0] || "there";
+  await sendBrandedMail(cfg, {
+    from: cfg.from,
+    to,
+    subject: `KRA invoice for order ${orderId} — KimSafety`,
+    text: `Hi ${firstName},\n\nYour KRA-compliant invoice for order ${orderId} is attached to this email. It carries our official stamp.\n\n— KimSafety Team`,
+    html: renderShell(
+      brand,
+      `
+      ${eyebrow("KRA invoice")}
+      <h1 style="font-size:24px;color:${NAVY};margin:0 0 14px 0;">Your KRA invoice</h1>
+      <p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 18px 0;">Hi ${esc(firstName)}, your stamped KRA invoice for order <strong>${esc(orderId)}</strong> is attached. It is ready for your accounts / KRA filing.</p>
+      ${summaryCard([{ label: "Order number", value: esc(orderId), highlight: true }])}
+      ${btn(`${siteUrl}/account/orders`, "View your orders")}
+      `
+    ),
+    attachments: [{ filename: `kimsafety-kra-invoice-${orderId}.pdf`, content: pdf, contentType: "application/pdf" }],
+  });
+  return true;
+}
+
 export async function sendQuoteStatusEmail(input: {
   to: string;
   name: string;

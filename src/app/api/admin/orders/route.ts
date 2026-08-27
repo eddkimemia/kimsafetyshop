@@ -15,7 +15,9 @@ import { invalidateCatalogCache, liveGetProduct } from "@/lib/catalog";
 import { productImages } from "@/lib/data/product-images";
 import { bulkUnitPrice } from "@/lib/utils";
 import { mpesaFetchReceipt } from "@/lib/payments/mpesa";
-import { sendOrderStatusEmail, sendPaidInvoiceEmail } from "@/lib/mailer";
+import { getStoredFile } from "@/lib/file-store";
+import { sendDeliveryNoteEmail, sendOrderStatusEmail, sendPaidInvoiceEmail } from "@/lib/mailer";
+import path from "path";
 
 const VALID = ["Processing", "In transit", "Delivered", "Cancelled"];
 
@@ -97,6 +99,7 @@ export async function PATCH(req: Request) {
           link: "/account/orders",
         });
       }
+      // Status email
       try {
         await sendOrderStatusEmail({
           to: order.email,
@@ -107,6 +110,36 @@ export async function PATCH(req: Request) {
         });
       } catch (err) {
         console.error(`[admin] status email failed for ${order.id}:`, (err as Error).message);
+      }
+      // Auto-send the signed delivery note PDF to the customer
+      try {
+        const file = order.delivery_note_file ? path.basename(order.delivery_note_file) : null;
+        const stored = file ? await getStoredFile(file) : null;
+        if (stored?.data) {
+          await sendDeliveryNoteEmail({
+            to: order.email,
+            name: order.name,
+            orderId: order.id,
+            pdf: stored.data,
+          });
+        } else if (order.delivery_note_file) {
+          // Fallback: try reading from filesystem mirror
+          try {
+            const fs2 = await import("fs");
+            const p = path.join(process.cwd(), "public", "uploads", "documents", file!);
+            if (fs2.existsSync(p)) {
+              const buf = fs2.readFileSync(p);
+              await sendDeliveryNoteEmail({
+                to: order.email,
+                name: order.name,
+                orderId: order.id,
+                pdf: buf,
+              });
+            }
+          } catch {}
+        }
+      } catch (err) {
+        console.error(`[admin] delivery note email failed for ${order.id}:`, (err as Error).message);
       }
       return NextResponse.json({ ok: true });
     }
