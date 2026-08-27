@@ -78,7 +78,6 @@ async function stampPdfBuffer(pdfBuffer: Buffer, orderCreatedAt?: string): Promi
       y: stampY,
       width: stampW,
       height: stampH,
-      opacity: 0.92,
     });
     // Date centred over the stamp — same Courier-Bold 14 red as other documents
     try {
