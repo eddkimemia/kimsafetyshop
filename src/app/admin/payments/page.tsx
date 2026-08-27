@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import Link from "next/link";
 import {
   Check,
+  ChevronRight,
   CreditCard,
   Download,
   Search,
@@ -368,13 +370,22 @@ export default function AdminPaymentsPage() {
                     {p.method_label} · {formatKES(p.amount)}
                   </p>
                   <p className="mt-1 truncate font-mono text-[11px] text-gray-500">Ref: {p.reference || "—"}</p>
+                  <div className="mt-3 flex justify-end">
+                    <Link
+                      href={`/admin/orders/${encodeURIComponent(p.order_id)}`}
+                      aria-label={`View order ${p.order_id}`}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 transition-colors hover:border-safety-400 hover:text-safety-600"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </div>
                 </div>
               ))}
             </div>
 
             {/* Desktop table */}
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[920px] text-sm">
+              <table className="w-full min-w-[980px] text-sm">
                 <thead>
                   <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                     <th className="pb-3">Order</th>
@@ -385,6 +396,7 @@ export default function AdminPaymentsPage() {
                     <th className="pb-3 text-right">Amount</th>
                     <th className="pb-3">Status</th>
                     <th className="pb-3">Date</th>
+                    <th className="pb-3 text-right">View</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -433,6 +445,15 @@ export default function AdminPaymentsPage() {
                       </td>
                       <td className="py-3 text-[11px] text-gray-500">
                         {new Date(p.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
+                      </td>
+                      <td className="py-3 text-right">
+                        <Link
+                          href={`/admin/orders/${encodeURIComponent(p.order_id)}`}
+                          aria-label={`View order ${p.order_id}`}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 transition-colors hover:border-safety-400 hover:text-safety-600"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
                       </td>
                     </tr>
                   ))}
