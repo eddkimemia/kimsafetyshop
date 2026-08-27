@@ -54,7 +54,7 @@ async function maybeConvertWebp(buf: Buffer): Promise<Buffer> {
   return buf;
 }
 
-async function stampPdfBuffer(pdfBuffer: Buffer): Promise<Buffer> {
+async function stampPdfBuffer(pdfBuffer: Buffer, orderCreatedAt?: string): Promise<Buffer> {
   try {
     const stampPath = path.join(process.cwd(), "public", "images", "logo", "stamp.png");
     if (!fs.existsSync(stampPath)) return pdfBuffer;
@@ -63,36 +63,39 @@ async function stampPdfBuffer(pdfBuffer: Buffer): Promise<Buffer> {
     const stampImage = await pdfDoc.embedPng(stampBytes);
     const pages = pdfDoc.getPages();
     if (pages.length === 0) return pdfBuffer;
-    // Stamp the last page (mirrors invoice/delivery-note stamping)
+    // Mirror the exact stamping used in invoice/delivery-note PDFs (src/lib/invoice-pdf.ts, delivery-note route):
+    // stamp 185pt wide, placed above the 66pt footer with 24pt gap, right-aligned.
+    // In pdfkit: stampX = pageW - 50 - 185, stampY = pageH - 66 - 24 - stampH (from top).
+    // In pdf-lib (bottom-origin): x = width - 50 - 185, y = 66 + 24 = 90 from bottom.
     const lastPage = pages[pages.length - 1];
     const { width } = lastPage.getSize();
-    // Scale stamp to ~130pt width (keeps file reasonable)
-    const targetW = 130;
-    const scale = targetW / stampImage.width;
-    const targetH = stampImage.height * scale;
-    // Bottom-right corner, 28pt margin
+    const stampW = 185;
+    const stampH = stampW * (stampImage.height / stampImage.width);
+    const stampX = width - 50 - stampW;
+    const stampY = 66 + 24; // 90pt above bottom, just above footer
     lastPage.drawImage(stampImage, {
-      x: width - targetW - 28,
-      y: 28,
-      width: targetW,
-      height: targetH,
+      x: stampX,
+      y: stampY,
+      width: stampW,
+      height: stampH,
       opacity: 0.92,
     });
-    // Date text centered over the stamp area
+    // Date centred over the stamp — same Courier-Bold 14 red as other documents
     try {
-      const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-      const dateStr = new Date()
+      const font = await pdfDoc.embedFont(StandardFonts.CourierBold);
+      const base = orderCreatedAt ? new Date(orderCreatedAt) : new Date();
+      const dateStr = base
         .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
         .toUpperCase();
-      const fontSize = 9;
+      const fontSize = 14;
       const textWidth = font.widthOfTextAtSize(dateStr, fontSize);
       lastPage.drawText(dateStr, {
-        x: width - targetW - 28 + (targetW - textWidth) / 2,
-        y: 28 + targetH / 2 - 4,
+        x: stampX + (stampW - textWidth) / 2,
+        y: stampY + (stampH - fontSize) / 2,
         size: fontSize,
         font,
         color: rgb(0.86, 0.15, 0.15),
-        opacity: 0.95,
+        opacity: 1,
       });
     } catch {}
     const out = await pdfDoc.save();
@@ -162,9 +165,9 @@ export async function POST(req: Request) {
     filename = safeOrderFilename(orderId, type, ".pdf");
   }
 
-  // KRA invoices are stamped with the company seal before saving
+  // KRA invoices are stamped with the company seal before saving (same seal/date as invoices)
   if (type === "kra_invoice") {
-    pdfBuffer = await stampPdfBuffer(pdfBuffer);
+    pdfBuffer = await stampPdfBuffer(pdfBuffer, order.created_at);
   }
 
   // Store in DB-backed file store

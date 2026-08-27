@@ -150,8 +150,10 @@ export default function AdminOrderDetailPage() {
   const canEditRef = !mpesaAutoCaptured && !cardAutoCaptured && (order?.payment === "mpesa" || order?.payment === "card");
   const needsDeliveryNote = order?.status !== "Delivered" && !order?.delivery_note_file;
 
-  const viewAndDownload = (url: string, filename: string) => {
+  const handleView = (url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+  const handleDownload = (url: string, filename: string) => {
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
@@ -185,20 +187,40 @@ export default function AdminOrderDetailPage() {
             <Truck className="h-4 w-4" /> Delivery note (template)
           </a>
           {order?.delivery_note_file && (
-            <button
-              onClick={() => viewAndDownload(order.delivery_note_file!, `kimsafety-signed-delivery-${id}.pdf`)}
-              className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
-            >
-              <FileText className="h-4 w-4" /> Signed delivery note
-            </button>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => handleView(order.delivery_note_file!)}
+                className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+                title="View in new tab"
+              >
+                <FileText className="h-4 w-4" /> View signed note
+              </button>
+              <button
+                onClick={() => handleDownload(order.delivery_note_file!, `kimsafety-signed-delivery-${id}.pdf`)}
+                className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-xs font-bold text-emerald-700 hover:bg-surface"
+                title="Download"
+              >
+                <Download className="h-4 w-4" />
+              </button>
+            </div>
           )}
           {order?.kra_invoice_file && (
-            <button
-              onClick={() => viewAndDownload(order.kra_invoice_file!, `kimsafety-kra-invoice-${id}.pdf`)}
-              className="flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-xs font-bold text-navy-900 hover:bg-surface"
-            >
-              <Receipt className="h-4 w-4" /> KRA Invoice
-            </button>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => handleView(order.kra_invoice_file!)}
+                className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2.5 text-xs font-bold text-navy-900 hover:bg-surface"
+                title="View in new tab"
+              >
+                <Receipt className="h-4 w-4" /> View KRA
+              </button>
+              <button
+                onClick={() => handleDownload(order.kra_invoice_file!, `kimsafety-kra-invoice-${id}.pdf`)}
+                className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2.5 text-xs font-bold text-navy-900 hover:bg-surface"
+                title="Download"
+              >
+                <Download className="h-4 w-4" />
+              </button>
+            </div>
           )}
           <a
             href={`/api/orders/${encodeURIComponent(id)}/invoice`}
@@ -500,9 +522,14 @@ export default function AdminOrderDetailPage() {
                     </p>
                     <p className="text-[11px] text-gray-500">Upload the customer&apos;s signed delivery note. Images (JPG/PNG/WEBP) are auto-converted to PDF.</p>
                     {order.delivery_note_file ? (
-                      <button onClick={() => viewAndDownload(order.delivery_note_file!, `kimsafety-signed-delivery-${id}.pdf`)} className="mt-2 flex w-full items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-left">
-                        <CheckCircle2 className="h-4 w-4" /> View signed delivery note <ExternalLink className="h-3 w-3 ml-auto" />
-                      </button>
+                      <div className="mt-2 flex gap-2">
+                        <button onClick={() => handleView(order.delivery_note_file!)} className="flex flex-1 items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-left">
+                          <CheckCircle2 className="h-4 w-4" /> View <ExternalLink className="h-3 w-3 ml-auto" />
+                        </button>
+                        <button onClick={() => handleDownload(order.delivery_note_file!, `kimsafety-signed-delivery-${id}.pdf`)} className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-surface" title="Download">
+                          <Download className="h-4 w-4" /> Download
+                        </button>
+                      </div>
                     ) : (
                       <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 border border-amber-200">No delivery note uploaded yet — required to mark Delivered.</p>
                     )}
@@ -518,9 +545,14 @@ export default function AdminOrderDetailPage() {
                     </p>
                     <p className="text-[11px] text-gray-500">Optional KRA-compliant invoice PDF for this order.</p>
                     {order.kra_invoice_file ? (
-                      <button onClick={() => viewAndDownload(order.kra_invoice_file!, `kimsafety-kra-invoice-${id}.pdf`)} className="mt-2 flex w-full items-center gap-2 rounded-lg bg-surface px-3 py-2 text-xs font-bold text-navy-900 border border-line hover:bg-white text-left">
-                        <FileText className="h-4 w-4 text-safety-600" /> View KRA invoice <ExternalLink className="h-3 w-3 ml-auto" />
-                      </button>
+                      <div className="mt-2 flex gap-2">
+                        <button onClick={() => handleView(order.kra_invoice_file!)} className="flex flex-1 items-center gap-2 rounded-lg bg-surface px-3 py-2 text-xs font-bold text-navy-900 border border-line hover:bg-white text-left">
+                          <FileText className="h-4 w-4 text-safety-600" /> View <ExternalLink className="h-3 w-3 ml-auto" />
+                        </button>
+                        <button onClick={() => handleDownload(order.kra_invoice_file!, `kimsafety-kra-invoice-${id}.pdf`)} className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-2 text-xs font-bold text-navy-900 hover:bg-surface" title="Download">
+                          <Download className="h-4 w-4" /> Download
+                        </button>
+                      </div>
                     ) : (
                       <p className="mt-2 text-[11px] text-gray-400">No KRA invoice uploaded.</p>
                     )}
