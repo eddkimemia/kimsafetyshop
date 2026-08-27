@@ -37,8 +37,8 @@ export async function GET(_req: Request, { params }: { params: { file: string } 
           "Content-Type": type,
           // PDFs inline so they open in a new tab; other images also inline.
           "Content-Disposition": `inline; filename="${file.replace(/"/g, "")}"`,
-          // Immutable per filename — uploads never change content in place.
-          "Cache-Control": "public, max-age=31536000, immutable",
+          // Order documents are replaceable (same order can get a new delivery note / KRA), so must not be immutable.
+          "Cache-Control": "no-store, must-revalidate",
           "Content-Length": String(stored.data.length),
         },
       });
@@ -64,7 +64,7 @@ export async function GET(_req: Request, { params }: { params: { file: string } 
           : /\.webp$/i.test(file) ? "image/webp"
           : "application/octet-stream",
         "Content-Disposition": `inline; filename="${file.replace(/"/g, "")}"`,
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": "no-store, must-revalidate",
         "Content-Length": String(data.length),
       },
     });

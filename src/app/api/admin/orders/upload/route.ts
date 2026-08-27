@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { getOrderById, setOrderDeliveryNote, setOrderKraInvoice } from "@/lib/db";
-import { saveStoredFile, sniffType } from "@/lib/file-store";
+import { deleteStoredFile, saveStoredFile, sniffType } from "@/lib/file-store";
 import { sendKraInvoiceEmail } from "@/lib/mailer";
 import PDFDocument from "pdfkit";
 import fs from "fs";
@@ -13,7 +13,8 @@ export const dynamic = "force-dynamic";
 
 function safeOrderFilename(orderId: string, type: "delivery_note" | "kra_invoice", ext: string) {
   const suffix = type === "delivery_note" ? "delivery-note" : "kra-invoice";
-  return `${orderId}-${suffix}${ext}`;
+  // Include timestamp so replacing a file yields a new URL and bypasses browser/CDN cache (documents route is no-store, but unique URL is extra safety).
+  return `${orderId}-${suffix}-${Date.now().toString(36)}${ext}`;
 }
 
 async function imageToPdfBuffer(imageBuf: Buffer): Promise<Buffer> {
@@ -185,8 +186,31 @@ export async function POST(req: Request) {
 
   if (type === "delivery_note") {
     await setOrderDeliveryNote(orderId, publicPath);
+    // Clean up previous file so DB doesn't accumulate orphans; best-effort.
+    if (order.delivery_note_file) {
+      const old = path.basename(order.delivery_note_file);
+      if (old !== filename) {
+        try {
+          await deleteStoredFile(old);
+        } catch {}
+        try {
+          fs.unlinkSync(path.join(process.cwd(), "public", "uploads", "documents", old));
+        } catch {}
+      }
+    }
   } else {
     await setOrderKraInvoice(orderId, publicPath);
+    if (order.kra_invoice_file) {
+      const old = path.basename(order.kra_invoice_file);
+      if (old !== filename) {
+        try {
+          await deleteStoredFile(old);
+        } catch {}
+        try {
+          fs.unlinkSync(path.join(process.cwd(), "public", "uploads", "documents", old));
+        } catch {}
+      }
+    }
     // Auto-send the stamped KRA invoice to the customer
     try {
       await sendKraInvoiceEmail({

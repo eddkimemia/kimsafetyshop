@@ -151,8 +151,9 @@ export default function AdminOrderDetailPage() {
   const needsDeliveryNote = order?.status !== "Delivered" && !order?.delivery_note_file;
 
   const handleDownload = (url: string, filename: string) => {
+    const bust = url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
     const a = document.createElement("a");
-    a.href = url;
+    a.href = bust;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
