@@ -78,6 +78,16 @@ export function Modal({
   );
 }
 
+async function safeJson(res: Response): Promise<unknown> {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Invalid JSON response (${res.status})`);
+  }
+}
+
 export function useFetch<T>(url: string) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,8 +96,11 @@ export function useFetch<T>(url: string) {
   const refresh = useCallback(async () => {
     try {
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`Request failed (${res.status})`);
-      const json = await res.json();
+      if (!res.ok) {
+        const body = (await safeJson(res).catch(() => ({}))) as { error?: string };
+        throw new Error(body.error || `Request failed (${res.status})`);
+      }
+      const json = (await safeJson(res)) as T;
       setData(json);
       setError(null);
     } catch (err) {
@@ -102,8 +115,11 @@ export function useFetch<T>(url: string) {
     (async () => {
       try {
         const res = await fetch(url);
-        if (!res.ok) throw new Error(`Request failed (${res.status})`);
-        const json = await res.json();
+        if (!res.ok) {
+          const body = (await safeJson(res).catch(() => ({}))) as { error?: string };
+          throw new Error(body.error || `Request failed (${res.status})`);
+        }
+        const json = (await safeJson(res)) as T;
         if (alive) {
           setData(json);
           setError(null);

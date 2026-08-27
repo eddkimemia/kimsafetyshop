@@ -95,12 +95,14 @@ export default function AdminPaymentsPage() {
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/admin/me")
-      .then((r) => r.json())
-      .then((s) => {
+    (async () => {
+      try {
+        const r = await fetch("/api/admin/me");
+        const text = await r.text();
+        const s = text ? (JSON.parse(text) as { user?: { role?: string } }) : {};
         if (alive) setIsSuperAdmin(s?.user?.role === "superadmin");
-      })
-      .catch(() => {});
+      } catch {}
+    })();
     return () => {
       alive = false;
     };
@@ -112,15 +114,22 @@ export default function AdminPaymentsPage() {
       return;
     }
     let alive = true;
-    fetch("/api/admin/payments")
-      .then((r) => r.json())
-      .then((j) => {
+    (async () => {
+      try {
+        const r = await fetch("/api/admin/payments");
+        const text = await r.text();
+        const j = text ? (JSON.parse(text) as { payments?: PaymentRow[]; error?: string }) : {};
         if (!alive) return;
-        if (!j.payments) throw new Error(j.error || "Failed to load payments");
+        if (!r.ok) throw new Error((j as { error?: string }).error || `Request failed (${r.status})`);
+        if (!j.payments) throw new Error((j as { error?: string }).error || "Failed to load payments");
         setPayments(j.payments as PaymentRow[]);
-      })
-      .catch((e) => alive && setError(e instanceof Error ? e.message : "Failed to load payments"))
-      .finally(() => alive && setLoading(false));
+        setError(null);
+      } catch (e) {
+        if (alive) setError(e instanceof Error ? e.message : "Failed to load payments");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
     return () => {
       alive = false;
     };

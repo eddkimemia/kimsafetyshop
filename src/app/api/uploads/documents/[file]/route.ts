@@ -35,7 +35,8 @@ export async function GET(_req: Request, { params }: { params: { file: string } 
       return new NextResponse(new Uint8Array(stored.data), {
         headers: {
           "Content-Type": type,
-          "Content-Disposition": `${isPdf ? "attachment" : "inline"}; filename="${file.replace(/"/g, "")}"`,
+          // PDFs inline so they open in a new tab; other images also inline.
+          "Content-Disposition": `inline; filename="${file.replace(/"/g, "")}"`,
           // Immutable per filename — uploads never change content in place.
           "Cache-Control": "public, max-age=31536000, immutable",
           "Content-Length": String(stored.data.length),
@@ -62,7 +63,7 @@ export async function GET(_req: Request, { params }: { params: { file: string } 
           : /\.png$/i.test(file) ? "image/png"
           : /\.webp$/i.test(file) ? "image/webp"
           : "application/octet-stream",
-        "Content-Disposition": `${isPdf ? "attachment" : "inline"}; filename="${file.replace(/"/g, "")}"`,
+        "Content-Disposition": `inline; filename="${file.replace(/"/g, "")}"`,
         "Cache-Control": "public, max-age=31536000, immutable",
         "Content-Length": String(data.length),
       },
