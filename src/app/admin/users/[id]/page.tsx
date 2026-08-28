@@ -10,17 +10,17 @@ import {
   Crown,
   Gift,
   KeyRound,
+  Pencil,
   ShieldPlus,
   Trash2,
   User,
-  Save,
   Mail,
   Phone,
   Building2,
   Calendar,
   Package,
 } from "lucide-react";
-import { AdminCard, StatusBadge, orderStatusTones, adminField, useFetch } from "@/components/admin/ui";
+import { AdminCard, StatusBadge, orderStatusTones, useFetch } from "@/components/admin/ui";
 import { formatKES } from "@/lib/utils";
 
 type CorporateInfo = {
@@ -106,8 +106,6 @@ export default function AdminSingleUserPage() {
   const [me, setMe] = useState<{ id: string; role?: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", company: "" });
 
   const user = userData?.user ?? null;
   const orders = useMemo(() => ordersData?.orders ?? [], [ordersData]);
@@ -119,39 +117,11 @@ export default function AdminSingleUserPage() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      setForm({
-        name: user.name ?? "",
-        email: user.email ?? "",
-        phone: user.phone ?? "",
-        company: user.company ?? "",
-      });
-    }
-  }, [user]);
-
   const isSuper = me?.role === "superadmin";
-  const isSelf = me?.id === id;
+  const isSelf = me?.id === user?.id;
 
-  const saveProfile = async () => {
-    if (!user) return;
-    setSaving(true);
-    setError(null);
-    setNotice(null);
-    const res = await fetch("/api/admin/users", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: user.id, ...form }),
-    });
-    const json = await res.json().catch(() => ({}));
-    setSaving(false);
-    if (!res.ok) {
-      setError(json.error ?? "Update failed");
-      return;
-    }
-    setNotice(`${form.name || user.name} updated`);
-    refreshUser();
-  };
+  const userSlug = user ? (user.referral_code ?? user.id.slice(0, 8)) : id;
+  const editHref = `/admin/users/${encodeURIComponent(userSlug)}/edit`;
 
   const setRole = async (role: "user" | "admin" | "superadmin") => {
     if (!user) return;
@@ -309,51 +279,38 @@ export default function AdminSingleUserPage() {
       {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">{error}</p>}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Left: edit form */}
+        {/* Left: profile (view) + orders */}
         <div className="space-y-6 lg:col-span-2">
-          <AdminCard title="Profile" subtitle="Update the account's contact details">
-            <div className="space-y-3.5">
-              <label className="block">
-                <span className="mb-1 block text-xs font-bold text-gray-500">Full name *</span>
-                <input className={adminField} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-bold text-gray-500">Email *</span>
-                <input
-                  type="email"
-                  className={adminField}
-                  value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                />
-              </label>
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                <label className="block">
-                  <span className="mb-1 block text-xs font-bold text-gray-500">Phone</span>
-                  <input
-                    className={adminField}
-                    value={form.phone}
-                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                    placeholder="+254 7…"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-bold text-gray-500">{user.role !== "user" ? "Department" : "Company"}</span>
-                  <input
-                    className={adminField}
-                    value={form.company}
-                    onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
-                    placeholder={user.role !== "user" ? "e.g. Sales" : "e.g. Acme Ltd"}
-                  />
-                </label>
+          <AdminCard
+            title="Profile"
+            subtitle={`${user.name} · ${user.email}`}
+            action={
+              <Link href={editHref} className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-bold text-navy-900 hover:bg-surface">
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </Link>
+            }
+          >
+            <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Full name</dt>
+                <dd className="font-semibold text-navy-900">{user.name}</dd>
               </div>
-              <button
-                onClick={saveProfile}
-                disabled={saving}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-6 py-3 text-sm font-bold text-white hover:bg-safety-500 disabled:opacity-60"
-              >
-                <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save changes"}
-              </button>
-            </div>
+              <div>
+                <dt className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Email</dt>
+                <dd className="font-semibold text-navy-900">{user.email}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Phone</dt>
+                <dd className="font-semibold text-navy-900">{user.phone || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{user.role !== "user" ? "Department" : "Company"}</dt>
+                <dd className="font-semibold text-navy-900">{user.company || "—"}</dd>
+              </div>
+            </dl>
+            <Link href={editHref} className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-4 py-2 text-xs font-bold text-white hover:bg-safety-500">
+              <Pencil className="h-3.5 w-3.5" /> Edit profile
+            </Link>
           </AdminCard>
 
           {/* Orders */}

@@ -289,7 +289,7 @@ export default function AdminUsersPage() {
                           </button>
                           <div className="flex items-center gap-1.5">
                             <Link
-                              href={`/admin/users/${userSlug(u)}`}
+                              href={`/admin/users/${userSlug(u)}/edit`}
                               className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                             >
                               <Pencil className="h-3 w-3" /> Edit
@@ -377,7 +377,7 @@ export default function AdminUsersPage() {
                                   Make user
                                 </button>
                                 <Link
-                                  href={`/admin/users/${userSlug(u)}`}
+                                  href={`/admin/users/${userSlug(u)}/edit`}
                                   className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                                 >
                                   <Pencil className="h-3 w-3" /> Edit
@@ -458,7 +458,7 @@ export default function AdminUsersPage() {
                           </button>
                           <div className="flex items-center gap-1.5">
                             <Link
-                              href={`/admin/users/${userSlug(u)}`}
+                              href={`/admin/users/${userSlug(u)}/edit`}
                               className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                             >
                               <Pencil className="h-3 w-3" /> Edit
@@ -536,7 +536,7 @@ export default function AdminUsersPage() {
                                   Make user
                                 </button>
                                 <Link
-                                  href={`/admin/users/${userSlug(u)}`}
+                                  href={`/admin/users/${userSlug(u)}/edit`}
                                   className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                                 >
                                   <Pencil className="h-3 w-3" /> Edit
@@ -637,7 +637,7 @@ export default function AdminUsersPage() {
                             <BadgeCheck className="h-3.5 w-3.5" /> Verify
                           </button>
                         )}
-                        <Link href={`/admin/users/${userSlug(u)}`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
+                        <Link href={`/admin/users/${userSlug(u)}/edit`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
                           <Pencil className="h-3.5 w-3.5" /> Edit
                         </Link>
                         <button onClick={() => resetPassword(u)} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-safety-600 hover:bg-safety-50">
@@ -711,7 +711,7 @@ export default function AdminUsersPage() {
                                   <BadgeCheck className="h-3.5 w-3.5" /> Verify
                                 </button>
                               )}
-                              <Link href={`/admin/users/${userSlug(u)}`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
+                              <Link href={`/admin/users/${userSlug(u)}/edit`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
                                 <Pencil className="h-3.5 w-3.5" /> Edit
                               </Link>
                               <button onClick={() => resetPassword(u)} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-safety-600 hover:bg-safety-50">
@@ -798,7 +798,7 @@ export default function AdminUsersPage() {
                           </button>
                         )}
                         <Link
-                          href={`/admin/users/${userSlug(u)}`}
+                          href={`/admin/users/${userSlug(u)}/edit`}
                           className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface"
                         >
                           <Pencil className="h-3.5 w-3.5" /> Edit
@@ -892,7 +892,7 @@ export default function AdminUsersPage() {
                                 </button>
                               )}
                               <Link
-                                href={`/admin/users/${userSlug(u)}`}
+                                href={`/admin/users/${userSlug(u)}/edit`}
                                 className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface"
                               >
                                 <Pencil className="h-3.5 w-3.5" /> Edit

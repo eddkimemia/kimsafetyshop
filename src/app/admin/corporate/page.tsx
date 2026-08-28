@@ -114,6 +114,7 @@ export default function AdminCorporatePage() {
   const accounts = accountData?.accounts ?? [];
   const purchaseOrders = poData?.purchaseOrders ?? [];
   const isSuper = me?.role === "superadmin";
+  const isStaff = me?.role === "admin" || isSuper;
 
   useEffect(() => {
     fetch("/api/admin/me").then((r) => r.json()).then((s) => s?.user && setMe(s.user));
@@ -145,7 +146,7 @@ export default function AdminCorporatePage() {
       flash(json.error ?? "Update failed");
     }
     refresh();
-    if (isSuper) refreshAccounts();
+    if (isStaff) refreshAccounts();
   };
 
   const setPoStatus = async (id: string, status: string) => {
@@ -278,10 +279,10 @@ export default function AdminCorporatePage() {
       </div>
       {notice && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{notice}</p>}
 
-      {isSuper && (
+      {isStaff && (
         <AdminCard
           title="Corporate accounts"
-          subtitle="Approved accounts and their configuration — discount rate, credit terms and account manager"
+          subtitle="Approved accounts and their configuration — discount rate, credit terms and account manager (staff/admin may manage)"
           action={
             <button
               onClick={openNew}
@@ -333,7 +334,7 @@ export default function AdminCorporatePage() {
                       </td>
                       <td className="hidden py-3.5 text-gray-500 xl:table-cell">{a.account_manager ?? "—"}</td>
                       <td className="py-3.5">
-                        {isSuper ? (
+                        {isStaff ? (
                           <select
                             value={a.status}
                             onChange={(e) => setAccountStatus(a, e.target.value)}

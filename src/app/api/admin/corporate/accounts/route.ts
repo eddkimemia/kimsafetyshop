@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUser, requireSuperAdmin } from "@/lib/api-helpers";
+import { getSessionUser, requireAdmin } from "@/lib/api-helpers";
 import {
   createCorporateAccount,
   deleteCorporateAccount,
@@ -13,14 +13,14 @@ import { sendCorporateWelcomeEmail } from "@/lib/mailer";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const denied = await requireSuperAdmin();
+  const denied = await requireAdmin();
   if (denied) return denied;
   const accounts = await listCorporateAccounts();
   return NextResponse.json({ accounts });
 }
 
 export async function POST(req: Request) {
-  const denied = await requireSuperAdmin();
+  const denied = await requireAdmin();
   if (denied) return denied;
 
   let body: {
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const denied = await requireSuperAdmin();
+  const denied = await requireAdmin();
   if (denied) return denied;
 
   let body: {
@@ -155,7 +155,7 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const denied = await requireSuperAdmin();
+  const denied = await requireAdmin();
   if (denied) return denied;
 
   const { searchParams } = new URL(req.url);
