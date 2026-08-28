@@ -1,30 +1,84 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, requireSuperAdmin, getSessionUser } from "@/lib/api-helpers";
-import { createUser, deleteUser, listUsers, setUserRole, setUserVerified, getUserById, getUserByEmail, updateUserProfile } from "@/lib/db";
+import { createUser, deleteUser, listUsers, setUserRole, setUserVerified, getUserById, getUserByEmail, updateUserProfile, listCorporateAccounts } from "@/lib/db";
 
-export async function GET() {
+export async function GET(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
   const me = await getSessionUser();
-  // Staff (non-superadmin) can only see customers, never other staff accounts.
   const isSuper = me?.role === "superadmin";
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
   const all = await listUsers();
+  const byId = new Map(all.map((u) => [u.id, u.name]));
+  // Build corporate lookup (by user_id and by email fallback for accounts without user_id or legacy mismatches)
+  const corpByUserId = new Map<string, { id: string; company: string; discount_rate: number; credit_terms: string; status: string; account_manager: string | null; email: string | null }>();
+  const corpByEmail = new Map<string, { id: string; company: string; discount_rate: number; credit_terms: string; status: string; account_manager: string | null; email: string | null }>();
+  try {
+    const corps = await listCorporateAccounts();
+    for (const c of corps) {
+      const slim = { id: c.id, company: c.company, discount_rate: c.discount_rate, credit_terms: c.credit_terms, status: c.status, account_manager: c.account_manager, email: c.email };
+      if (c.user_id) corpByUserId.set(c.user_id, slim);
+      if (c.email) corpByEmail.set(c.email.toLowerCase(), slim);
+    }
+  } catch {
+    // if corporate table missing or error, continue without corporate enrichment
+  }
+  const attachCorporate = (u: { id: string; email: string }) => {
+    const byUser = corpByUserId.get(u.id);
+    if (byUser) return byUser;
+    const byEm = corpByEmail.get(u.email.toLowerCase());
+    return byEm ?? null;
+  };
+
+  // Single-user fetch (used by /admin/users/[id] page)
+  if (id) {
+    const target = all.find((u) => u.id === id);
+    if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    // Staff can only view customers unless superadmin
+    if (!isSuper && target.role !== "user") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const corp = attachCorporate(target);
+    const user = {
+      id: target.id,
+      name: target.name,
+      email: target.email,
+      role: target.role,
+      company: target.company,
+      phone: target.phone,
+      verified: target.verified,
+      referral_code: target.referral_code,
+      referred_by: target.referred_by,
+      referred_by_name: target.referred_by ? (byId.get(target.referred_by) ?? null) : null,
+      created_at: target.created_at,
+      corporate: corp,
+      isCorporate: !!corp && corp.status === "Active",
+    };
+    return NextResponse.json({ user });
+  }
+
+  // Staff (non-superadmin) can only see customers, never other staff accounts.
   const users = all
     .filter((u) => isSuper || u.role === "user")
-    .map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      company: u.company,
-      phone: u.phone,
-      verified: u.verified,
-      referral_code: u.referral_code,
-      referred_by: u.referred_by,
-      created_at: u.created_at,
-    }));
+    .map((u) => {
+      const corp = attachCorporate(u);
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        company: u.company,
+        phone: u.phone,
+        verified: u.verified,
+        referral_code: u.referral_code,
+        referred_by: u.referred_by,
+        created_at: u.created_at,
+        corporate: corp,
+        isCorporate: !!corp && corp.status === "Active",
+      };
+    });
   // Resolve the referrer's name for every user that was referred.
-  const byId = new Map(all.map((u) => [u.id, u.name]));
   const usersWithReferrer = users.map((u) => ({
     ...u,
     referred_by_name: u.referred_by ? (byId.get(u.referred_by) ?? null) : null,

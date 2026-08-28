@@ -2,8 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Crown, Download, Gift, KeyRound, Pencil, ShieldPlus, Trash2, User, UserPlus } from "lucide-react";
-import { useFetch, AdminCard, Modal, adminField } from "@/components/admin/ui";
+import { BadgeCheck, Building2, ChevronRight, Crown, Download, Gift, KeyRound, Pencil, ShieldPlus, Trash2, User, UserPlus } from "lucide-react";
+import { useFetch, AdminCard } from "@/components/admin/ui";
+
+type CorporateInfo = {
+  id: string;
+  company: string;
+  discount_rate: number;
+  credit_terms: string;
+  status: string;
+  account_manager: string | null;
+  email: string | null;
+} | null;
 
 type AdminUser = {
   id: string;
@@ -17,7 +27,25 @@ type AdminUser = {
   referred_by?: string | null;
   referred_by_name?: string | null;
   created_at: string;
+  corporate?: CorporateInfo;
+  isCorporate?: boolean;
 };
+
+function CorporateBadge({ corp }: { corp: CorporateInfo }) {
+  if (!corp) return null;
+  if (corp.status === "Active") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-navy-900 px-2.5 py-1 text-[10px] font-bold text-white">
+        <Building2 className="h-3 w-3" /> Corporate · {corp.id}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+      <Building2 className="h-3 w-3" /> {corp.status} · {corp.id}
+    </span>
+  );
+}
 
 const sorts = [
   { value: "newest", label: "Newest first" },
@@ -50,9 +78,6 @@ export default function AdminUsersPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<(typeof sorts)[number]["value"]>("newest");
-  const [editing, setEditing] = useState<AdminUser | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "", company: "" });
-  const [saving, setSaving] = useState(false);
   const users = useMemo(() => data?.users ?? [], [data]);
 
   useEffect(() => {
@@ -82,6 +107,8 @@ export default function AdminUsersPage() {
   const superadmins = sorted.filter((u) => u.role === "superadmin");
   const staff = sorted.filter((u) => u.role === "admin");
   const customers = sorted.filter((u) => u.role === "user");
+  const corporateCustomers = useMemo(() => customers.filter((c) => c.isCorporate), [customers]);
+  const retailCustomers = useMemo(() => customers.filter((c) => !c.isCorporate), [customers]);
 
   const call = async (fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) => {
     const res = await fn();
@@ -136,31 +163,6 @@ export default function AdminUsersPage() {
     );
   };
 
-  const openEdit = (u: AdminUser) => {
-    setEditForm({ name: u.name, email: u.email, phone: u.phone ?? "", company: u.company ?? "" });
-    setEditing(u);
-  };
-
-  const saveEdit = async () => {
-    if (!editing) return;
-    setSaving(true);
-    setError(null);
-    const res = await fetch("/api/admin/users", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: editing.id, ...editForm }),
-    });
-    const json = await res.json().catch(() => ({}));
-    setSaving(false);
-    if (!res.ok) {
-      setError(json.error ?? "Update failed");
-      return;
-    }
-    setNotice(`${editing.name} updated`);
-    setEditing(null);
-    refresh();
-  };
-
   const removeUser = (u: AdminUser) => {
     if (u.id === me?.id) {
       setNotice("You cannot delete your own account.");
@@ -178,6 +180,8 @@ export default function AdminUsersPage() {
   };
 
   const unverifiedCount = customers.filter((c) => !c.verified).length;
+  const corporateUnverified = corporateCustomers.filter((c) => !c.verified).length;
+  const retailUnverified = retailCustomers.filter((c) => !c.verified).length;
 
   return (
     <div className="space-y-6">
@@ -186,8 +190,10 @@ export default function AdminUsersPage() {
           <h1 className="font-display text-2xl font-extrabold text-navy-900">Users</h1>
           <p className="text-sm text-gray-500">
             {users.length} accounts{isSuper ? ` · ${superadmins.length} superadmin · ${staff.length} staff` : ""} · {customers.length} customers
+            <span className="hidden sm:inline"> · {corporateCustomers.length} corporate · {retailCustomers.length} retail</span>
             {unverifiedCount > 0 && <span className="font-bold text-amber-600"> · {unverifiedCount} pending verification</span>}
           </p>
+          <p className="text-xs text-gray-400 sm:hidden">{corporateCustomers.length} corporate · {retailCustomers.length} retail</p>
         </div>
         <div className="flex items-center gap-2">
           <label className="block">
@@ -278,13 +284,12 @@ export default function AdminUsersPage() {
                             Make user
                           </button>
                           <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => openEdit(u)}
-                              disabled={u.id === me?.id}
-                              className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface disabled:opacity-40"
+                            <Link
+                              href={`/admin/users/${u.id}`}
+                              className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                             >
                               <Pencil className="h-3 w-3" /> Edit
-                            </button>
+                            </Link>
                             <button
                               onClick={() => resetPassword(u)}
                               className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-safety-600 hover:bg-safety-50"
@@ -298,6 +303,13 @@ export default function AdminUsersPage() {
                             >
                               <Trash2 className="h-3 w-3" /> Delete
                             </button>
+                            <Link
+                              href={`/admin/users/${u.id}`}
+                              aria-label={`View ${u.name}`}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600"
+                            >
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </Link>
                           </div>
                         </div>
                       </div>
@@ -360,13 +372,12 @@ export default function AdminUsersPage() {
                                 >
                                   Make user
                                 </button>
-                                <button
-                                  onClick={() => openEdit(u)}
-                                  disabled={u.id === me?.id}
-                                  className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface disabled:opacity-40"
+                                <Link
+                                  href={`/admin/users/${u.id}`}
+                                  className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                                 >
                                   <Pencil className="h-3 w-3" /> Edit
-                                </button>
+                                </Link>
                                 <button
                                   onClick={() => resetPassword(u)}
                                   className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-safety-600 hover:bg-safety-50"
@@ -380,6 +391,13 @@ export default function AdminUsersPage() {
                                 >
                                   <Trash2 className="h-3 w-3" /> Delete
                                 </button>
+                                <Link
+                                  href={`/admin/users/${u.id}`}
+                                  aria-label={`View ${u.name}`}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600"
+                                >
+                                  <ChevronRight className="h-4 w-4" />
+                                </Link>
                               </div>
                             </td>
                           </tr>
@@ -435,13 +453,12 @@ export default function AdminUsersPage() {
                             Make user
                           </button>
                           <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => openEdit(u)}
-                              disabled={u.id === me?.id}
-                              className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface disabled:opacity-40"
+                            <Link
+                              href={`/admin/users/${u.id}`}
+                              className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                             >
                               <Pencil className="h-3 w-3" /> Edit
-                            </button>
+                            </Link>
                             <button
                               onClick={() => resetPassword(u)}
                               className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-safety-600 hover:bg-safety-50"
@@ -455,6 +472,13 @@ export default function AdminUsersPage() {
                             >
                               <Trash2 className="h-3 w-3" /> Delete
                             </button>
+                            <Link
+                              href={`/admin/users/${u.id}`}
+                              aria-label={`View ${u.name}`}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600"
+                            >
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </Link>
                           </div>
                         </div>
                       </div>
@@ -507,13 +531,12 @@ export default function AdminUsersPage() {
                                 >
                                   Make user
                                 </button>
-                                <button
-                                  onClick={() => openEdit(u)}
-                                  disabled={u.id === me?.id}
-                                  className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface disabled:opacity-40"
+                                <Link
+                                  href={`/admin/users/${u.id}`}
+                                  className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                                 >
                                   <Pencil className="h-3 w-3" /> Edit
-                                </button>
+                                </Link>
                                 <button
                                   onClick={() => resetPassword(u)}
                                   className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-safety-600 hover:bg-safety-50"
@@ -527,6 +550,13 @@ export default function AdminUsersPage() {
                                 >
                                   <Trash2 className="h-3 w-3" /> Delete
                                 </button>
+                                <Link
+                                  href={`/admin/users/${u.id}`}
+                                  aria-label={`View ${u.name}`}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600"
+                                >
+                                  <ChevronRight className="h-4 w-4" />
+                                </Link>
                               </div>
                             </td>
                           </tr>
@@ -540,25 +570,188 @@ export default function AdminUsersPage() {
           )}
 
           <AdminCard
-            title="Customers"
-            subtitle={`${customers.length} account${customers.length === 1 ? "" : "s"} · verify new signups to mark them approved`}
+            title={`Corporate customers · ${corporateCustomers.length}`}
+            subtitle={`${corporateCustomers.length} active corporate account${corporateCustomers.length === 1 ? "" : "s"} · linked to corporate_accounts (discount & credit terms)`}
+            action={
+              <div className="flex items-center gap-2">
+                <Link href="/admin/corporate" className="hidden items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-2 text-xs font-bold text-navy-900 hover:bg-surface sm:flex">
+                  <Building2 className="h-3.5 w-3.5" /> Manage corporate
+                </Link>
+                {isSuper && (
+                  <a
+                    href="/api/admin/users/export"
+                    className="flex items-center gap-1.5 rounded-lg border border-safety-300 bg-safety-50 px-3 py-2 text-xs font-bold text-safety-700 hover:bg-safety-100"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Export
+                  </a>
+                )}
+              </div>
+            }
+          >
+            {corporateCustomers.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-400">No corporate customers — approve an application at <Link href="/admin/corporate" className="font-bold text-safety-600 hover:underline">Corporate</Link> or create a corporate account.</p>
+            ) : (
+              <>
+                <div className="space-y-3 md:hidden">
+                  {corporateCustomers.map((u) => (
+                    <div key={u.id} className="rounded-xl border border-navy-900/10 bg-white p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy-900 text-xs font-bold text-white">
+                            <Building2 className="h-4 w-4" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-navy-900">{u.name}</p>
+                            <p className="truncate text-[11px] text-gray-400">{u.email}{u.phone ? ` · ${u.phone}` : ""}</p>
+                            <p className="truncate text-[11px] font-semibold text-navy-700">{u.company ?? u.corporate?.company ?? "—"}</p>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <CorporateBadge corp={u.corporate ?? null} />
+                          {u.verified ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                              <BadgeCheck className="h-3 w-3" /> Verified
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+                              <User className="h-3 w-3" /> Unverified
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <p className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+                        <span>{u.corporate ? `${u.corporate.discount_rate}% off · ${u.corporate.credit_terms}` : "No terms"}</span>
+                        {u.corporate?.account_manager && <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-bold text-gray-600">Mgr: {u.corporate.account_manager}</span>}
+                      </p>
+                      <p className="mt-1 text-[11px] text-gray-400">
+                        Joined {new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
+                        {u.referred_by_name && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-safety-50 px-2 py-0.5 text-[11px] font-bold text-safety-700"><Gift className="h-3 w-3" /> {u.referred_by_name}</span>}
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {!u.verified && (
+                          <button onClick={() => verify(u)} className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700">
+                            <BadgeCheck className="h-3.5 w-3.5" /> Verify
+                          </button>
+                        )}
+                        <Link href={`/admin/users/${u.id}`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </Link>
+                        <button onClick={() => resetPassword(u)} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-safety-600 hover:bg-safety-50">
+                          <KeyRound className="h-3.5 w-3.5" /> Reset
+                        </button>
+                        <Link href={`/admin/users/${u.id}`} aria-label={`View ${u.name}`} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-400 hover:text-safety-600">
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[760px] text-sm">
+                    <thead>
+                      <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                        <th className="pb-3">User</th>
+                        <th className="hidden pb-3 lg:table-cell">Company</th>
+                        <th className="hidden pb-3 xl:table-cell">Corporate account</th>
+                        <th className="hidden pb-3 lg:table-cell">Joined</th>
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {corporateCustomers.map((u) => (
+                        <tr key={u.id} className="border-b border-line/60 last:border-0">
+                          <td className="py-3.5">
+                            <div className="flex items-center gap-3">
+                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy-900 text-xs font-bold text-white">
+                                <Building2 className="h-4 w-4" />
+                              </span>
+                              <div>
+                                <p className="font-semibold text-navy-900">{u.name}</p>
+                                <p className="text-[11px] text-gray-400">{u.email}{u.phone ? ` · ${u.phone}` : ""}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="hidden py-3.5 text-gray-500 lg:table-cell">{u.company ?? u.corporate?.company ?? "—"}</td>
+                          <td className="hidden py-3.5 xl:table-cell">
+                            {u.corporate ? (
+                              <div>
+                                <CorporateBadge corp={u.corporate} />
+                                <p className="mt-1 text-xs text-gray-500">{u.corporate.discount_rate}% off · {u.corporate.credit_terms}{u.corporate.account_manager ? ` · ${u.corporate.account_manager}` : ""}</p>
+                              </div>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </td>
+                          <td className="hidden py-3.5 text-gray-500 lg:table-cell">{new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</td>
+                          <td className="py-3.5">
+                            <div className="flex flex-col gap-1">
+                              {u.verified ? (
+                                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                                  <BadgeCheck className="h-3 w-3" /> Verified
+                                </span>
+                              ) : (
+                                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                                  <User className="h-3 w-3" /> Unverified
+                                </span>
+                              )}
+                              {u.referred_by_name && (
+                                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-safety-50 px-2 py-0.5 text-[10px] font-bold text-safety-700"><Gift className="h-3 w-3" /> {u.referred_by_name}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3.5 text-right">
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              {!u.verified && (
+                                <button onClick={() => verify(u)} className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700">
+                                  <BadgeCheck className="h-3.5 w-3.5" /> Verify
+                                </button>
+                              )}
+                              <Link href={`/admin/users/${u.id}`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
+                                <Pencil className="h-3.5 w-3.5" /> Edit
+                              </Link>
+                              <button onClick={() => resetPassword(u)} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-safety-600 hover:bg-safety-50">
+                                <KeyRound className="h-3.5 w-3.5" /> Reset
+                              </button>
+                              {isSuper && (
+                                <button onClick={() => removeUser(u)} className="flex items-center gap-1 rounded-lg border border-danger/30 px-3 py-1.5 text-xs font-bold text-danger hover:bg-red-50">
+                                  <Trash2 className="h-3.5 w-3.5" /> Delete
+                                </button>
+                              )}
+                              <Link href={`/admin/users/${u.id}`} aria-label={`View ${u.name}`} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600">
+                                <ChevronRight className="h-4 w-4" />
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </AdminCard>
+
+          <AdminCard
+            title={`Retail customers · ${retailCustomers.length}`}
+            subtitle={`${retailCustomers.length} individual/retail account${retailCustomers.length === 1 ? "" : "s"} · ${corporateUnverified + retailUnverified > 0 ? `${retailUnverified} pending verification` : "no corporate link"}`}
             action={
               isSuper ? (
                 <a
                   href="/api/admin/users/export"
                   className="flex items-center gap-1.5 rounded-lg border border-safety-300 bg-safety-50 px-3 py-2 text-xs font-bold text-safety-700 hover:bg-safety-100"
                 >
-                  <Download className="h-3.5 w-3.5" /> Export Excel
+                  <Download className="h-3.5 w-3.5" /> Export retail
                 </a>
               ) : undefined
             }
           >
-            {customers.length === 0 ? (
-              <p className="py-6 text-center text-sm text-gray-400">No customer accounts yet.</p>
+            {retailCustomers.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-400">No retail customers — all customers are corporate.</p>
             ) : (
               <>
                 <div className="space-y-3 md:hidden">
-                  {customers.map((u) => (
+                  {retailCustomers.map((u) => (
                     <div key={u.id} className="rounded-xl border border-line bg-white p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-3">
@@ -583,6 +776,9 @@ export default function AdminUsersPage() {
                       <p className="mt-2 text-[11px] text-gray-400">
                         {u.company ?? "—"} · {new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
                       </p>
+                      {u.referred_by_name && (
+                        <p className="mt-1"><span className="inline-flex items-center gap-1 rounded-full bg-safety-50 px-2 py-0.5 text-[11px] font-bold text-safety-700"><Gift className="h-3 w-3" /> {u.referred_by_name}</span></p>
+                      )}
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {!u.verified && (
                           <button
@@ -597,14 +793,12 @@ export default function AdminUsersPage() {
                             <ShieldPlus className="h-3.5 w-3.5" /> Make staff
                           </button>
                         )}
-                        {isSuper && (
-                          <button
-                            onClick={() => openEdit(u)}
-                            className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface"
-                          >
-                            <Pencil className="h-3.5 w-3.5" /> Edit
-                          </button>
-                        )}
+                        <Link
+                          href={`/admin/users/${u.id}`}
+                          className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </Link>
                         <button
                           onClick={() => resetPassword(u)}
                           className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-safety-600 hover:bg-safety-50"
@@ -619,6 +813,13 @@ export default function AdminUsersPage() {
                             <Trash2 className="h-3.5 w-3.5" /> Delete
                           </button>
                         )}
+                        <Link
+                          href={`/admin/users/${u.id}`}
+                          aria-label={`View ${u.name}`}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-400 hover:text-safety-600"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
                       </div>
                     </div>
                   ))}
@@ -636,7 +837,7 @@ export default function AdminUsersPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {customers.map((u) => (
+                      {retailCustomers.map((u) => (
                         <tr key={u.id} className="border-b border-line/60 last:border-0">
                           <td className="py-3.5">
                             <div className="flex items-center gap-3">
@@ -686,14 +887,12 @@ export default function AdminUsersPage() {
                                   <ShieldPlus className="h-3.5 w-3.5" /> Make staff
                                 </button>
                               )}
-                              {isSuper && (
-                                <button
-                                  onClick={() => openEdit(u)}
-                                  className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" /> Edit
-                                </button>
-                              )}
+                              <Link
+                                href={`/admin/users/${u.id}`}
+                                className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface"
+                              >
+                                <Pencil className="h-3.5 w-3.5" /> Edit
+                              </Link>
                               <button
                                 onClick={() => resetPassword(u)}
                                 className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-safety-600 hover:bg-safety-50"
@@ -708,6 +907,13 @@ export default function AdminUsersPage() {
                                   <Trash2 className="h-3.5 w-3.5" /> Delete
                                 </button>
                               )}
+                              <Link
+                                href={`/admin/users/${u.id}`}
+                                aria-label={`View ${u.name}`}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600"
+                              >
+                                <ChevronRight className="h-4 w-4" />
+                              </Link>
                             </div>
                           </td>
                         </tr>
@@ -720,36 +926,6 @@ export default function AdminUsersPage() {
           </AdminCard>
         </>
       )}
-
-      <Modal open={!!editing} onClose={() => setEditing(null)} title={editing ? `Edit ${editing.name}` : "Edit user"}>
-        <div className="space-y-3.5">
-          <label className="block">
-            <span className="mb-1 block text-xs font-bold text-gray-500">Full name *</span>
-            <input className={adminField} value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-bold text-gray-500">Email *</span>
-            <input type="email" className={adminField} value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
-          </label>
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-bold text-gray-500">Phone</span>
-              <input className={adminField} value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} placeholder="+254 7…" />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-bold text-gray-500">{editing && editing.role !== "user" ? "Department" : "Company"}</span>
-              <input className={adminField} value={editForm.company} onChange={(e) => setEditForm((f) => ({ ...f, company: e.target.value }))} placeholder="e.g. Sales" />
-            </label>
-          </div>
-          <button
-            onClick={saveEdit}
-            disabled={saving}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-6 py-3 text-sm font-bold text-white hover:bg-safety-500 disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Save changes"}
-          </button>
-        </div>
-      </Modal>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { getSessionUser, requireAdmin } from "@/lib/api-helpers";
 import {
   createNotification,
   getOrderById,
+  getUserById,
   listOrders,
   restoreProductStock,
   setMpesaTransaction,
@@ -53,6 +54,20 @@ export async function GET(req: Request) {
     const order = await getOrderById(id);
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     return NextResponse.json({ order: await withItems(order) });
+  }
+
+  const userId = searchParams.get("userId");
+  if (userId) {
+    const targetUser = await getUserById(userId);
+    if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    const all = await listOrders();
+    const emailLower = targetUser.email.toLowerCase();
+    const filtered = all.filter(
+      (o) => o.user_id === userId || (!o.user_id && o.email.toLowerCase() === emailLower) || o.email.toLowerCase() === emailLower
+    );
+    // Deduplicate strictly by user_id match first, else email fallback already handled via filter; just map
+    const orders = await Promise.all(filtered.map(withItems));
+    return NextResponse.json({ orders, user: { id: targetUser.id, name: targetUser.name, email: targetUser.email } });
   }
 
   const orders = await Promise.all((await listOrders()).map(withItems));

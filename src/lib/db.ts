@@ -1076,6 +1076,9 @@ export async function getCorporateAccountByApplicationId(applicationId: string):
 export async function getCorporateAccountByUserId(userId: string): Promise<DbCorporateAccount | undefined> {  return (await q1("SELECT * FROM corporate_accounts WHERE user_id = ?", userId)) as DbCorporateAccount | undefined;
 }
 
+export async function getCorporateAccountByEmail(email: string): Promise<DbCorporateAccount | undefined> {  return (await q1("SELECT * FROM corporate_accounts WHERE LOWER(email) = LOWER(?) LIMIT 1", email)) as DbCorporateAccount | undefined;
+}
+
 export async function updateCorporateAccount(
   id: string,
   input: Partial<{
