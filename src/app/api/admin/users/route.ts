@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, requireSuperAdmin, getSessionUser } from "@/lib/api-helpers";
-import { createUser, deleteUser, listUsers, setUserRole, setUserVerified, getUserById, getUserByEmail, updateUserProfile, listCorporateAccounts } from "@/lib/db";
+import { createUser, deleteUser, listUsers, setUserRole, setUserVerified, getUserById, getUserByEmail, updateUserProfile, listCorporateAccounts, getCorporateAccountByUserId, getCorporateAccountByEmail } from "@/lib/db";
 
 export async function GET(req: Request) {
   const denied = await requireAdmin();
@@ -184,6 +184,24 @@ export async function PATCH(req: Request) {
     const isStaffTarget = target.role !== "user";
     if (isStaffTarget && me?.role !== "superadmin") {
       return NextResponse.json({ error: "Only the superadmin can edit staff accounts" }, { status: 403 });
+    }
+    // Corporate is single-source via /admin/corporate/* — block direct user edits for active corporate accounts
+    let corp: Awaited<ReturnType<typeof getCorporateAccountByUserId>> | undefined;
+    try {
+      corp = (await getCorporateAccountByUserId(target.id)) ?? (target.email ? await getCorporateAccountByEmail(target.email) : undefined);
+    } catch {}
+    const isCorpActive = !!corp && corp.status === "Active";
+    if (isCorpActive) {
+      const wantsCompany = body.company !== undefined && (body.company?.trim() || "") !== (target.company ?? "");
+      const wantsName = body.name !== undefined && body.name.trim() !== target.name;
+      const wantsEmail = body.email !== undefined && body.email.trim().toLowerCase() !== target.email.toLowerCase();
+      const wantsPhone = body.phone !== undefined && (body.phone?.trim() || "") !== (target.phone ?? "");
+      if (wantsCompany || wantsName || wantsEmail || wantsPhone) {
+        return NextResponse.json(
+          { error: `Corporate account ${corp!.id} (${corp!.company}) is managed via Corporate — edit at /admin/corporate/${corp!.id}` },
+          { status: 409 }
+        );
+      }
     }
     const email = body.email?.trim().toLowerCase();
     if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {

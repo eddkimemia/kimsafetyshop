@@ -16,7 +16,7 @@ type AdminUser = {
   verified: number;
   referral_code?: string | null;
   created_at: string;
-  corporate?: { id: string; company: string; status: string } | null;
+  corporate?: { id: string; company: string; status: string; discount_rate?: number; credit_terms?: string } | null;
   isCorporate?: boolean;
 };
 
@@ -47,15 +47,20 @@ export default function AdminUserEditPage() {
     }
   }, [user]);
 
+  const isCorporate = !!user?.isCorporate && !!user?.corporate;
+
   const save = async () => {
     if (!user) return;
+    // Corporate company is single-source via /admin/corporate/* — do not update it from here
+    const payload: Record<string, unknown> = { id: user.id, name: form.name, email: form.email, phone: form.phone };
+    if (!isCorporate) payload.company = form.company;
     setSaving(true);
     setErr(null);
     setNotice(null);
     const res = await fetch("/api/admin/users", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: user.id, ...form }),
+      body: JSON.stringify(payload),
     });
     const json = await res.json().catch(() => ({}));
     setSaving(false);
@@ -64,7 +69,6 @@ export default function AdminUserEditPage() {
       return;
     }
     setNotice(`${form.name || user.name} updated`);
-    // Navigate back to view page using short slug (keeps URL pretty)
     router.push(`/admin/users/${encodeURIComponent(userSlug({ ...user, ...form } as AdminUser))}`);
     router.refresh();
   };
@@ -100,33 +104,70 @@ export default function AdminUserEditPage() {
       {notice && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{notice}</p>}
       {err && <p className="rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">{err}</p>}
 
-      <AdminCard title="Profile" subtitle="Update the account's contact details — saved via /api/admin/users">
+      {isCorporate && user.corporate && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-xs font-bold text-amber-800">Corporate account — company details are managed in one place</p>
+          <p className="mt-1 text-xs text-amber-700">
+            This customer is linked to corporate account{" "}
+            <Link href={`/admin/corporate/${encodeURIComponent(user.corporate.id)}`} className="font-bold underline hover:text-amber-900">
+              {user.corporate.company} · {user.corporate.id}
+            </Link>{" "}
+            — company, KRA PIN, industry, discount and manager are edited there. This form only updates the login (name/email/phone) for the corporate contact.
+          </p>
+        </div>
+      )}
+
+      <AdminCard title="Profile" subtitle={isCorporate ? "Corporate — company managed via Corporate account (see above)" : "Update the account's contact details — saved via /api/admin/users"}>
         <div className="space-y-3.5">
           <label className="block">
-            <span className="mb-1 block text-xs font-bold text-gray-500">Full name *</span>
-            <input className={adminField} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+            <span className="mb-1 block text-xs font-bold text-gray-500">Full name * {isCorporate && <span className="font-normal text-amber-600">· via Corporate</span>}</span>
+            <input className={`${adminField} ${isCorporate ? "bg-gray-100 text-gray-500" : ""}`} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} disabled={!!isCorporate} title={isCorporate ? "Edit contact name via Corporate account" : undefined} />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-bold text-gray-500">Email *</span>
-            <input type="email" className={adminField} value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+            <span className="mb-1 block text-xs font-bold text-gray-500">Email * {isCorporate && <span className="font-normal text-amber-600">· via Corporate</span>}</span>
+            <input type="email" className={`${adminField} ${isCorporate ? "bg-gray-100 text-gray-500" : ""}`} value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} disabled={!!isCorporate} title={isCorporate ? "Edit email via Corporate account" : undefined} />
           </label>
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-xs font-bold text-gray-500">Phone</span>
-              <input className={adminField} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="+254 7…" />
+              <span className="mb-1 block text-xs font-bold text-gray-500">Phone {isCorporate && <span className="font-normal text-amber-600">· via Corporate</span>}</span>
+              <input className={`${adminField} ${isCorporate ? "bg-gray-100 text-gray-500" : ""}`} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="+254 7…" disabled={!!isCorporate} title={isCorporate ? "Edit phone via Corporate account" : undefined} />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-bold text-gray-500">{user.role !== "user" ? "Department" : "Company"}</span>
-              <input className={adminField} value={form.company} onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))} placeholder={user.role !== "user" ? "e.g. Sales" : "e.g. Acme Ltd"} />
+              <span className="mb-1 block text-xs font-bold text-gray-500">
+                {user.role !== "user" ? "Department" : "Company"} {isCorporate && <span className="font-normal text-amber-600">· managed via Corporate</span>}
+              </span>
+              <input
+                className={`${adminField} ${isCorporate ? "bg-gray-100 text-gray-500" : ""}`}
+                value={isCorporate && user.corporate ? user.corporate.company : form.company}
+                onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
+                placeholder={user.role !== "user" ? "e.g. Sales" : "e.g. Acme Ltd"}
+                disabled={!!isCorporate}
+                title={isCorporate ? "Edit company via Corporate account page" : undefined}
+              />
+              {isCorporate && (
+                <p className="mt-1 text-[11px] text-gray-400">
+                  To change company, KRA PIN, industry, discount or manager,{" "}
+                  <Link href={`/admin/corporate/${encodeURIComponent(user.corporate!.id)}`} className="font-bold text-safety-600 hover:underline">
+                    open {user.corporate!.id}
+                  </Link>
+                  .
+                </p>
+              )}
             </label>
           </div>
           <div className="flex gap-2">
             <Link href={backHref} className="flex flex-1 items-center justify-center rounded-xl border border-line px-6 py-3 text-sm font-bold text-navy-900 hover:bg-surface">
               Cancel
             </Link>
-            <button onClick={save} disabled={saving} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-navy-900 px-6 py-3 text-sm font-bold text-white hover:bg-safety-500 disabled:opacity-60">
-              <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save changes"}
-            </button>
+            {isCorporate ? (
+              <Link href={`/admin/corporate/${encodeURIComponent(user.corporate!.id)}`} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-navy-900 px-6 py-3 text-sm font-bold text-white hover:bg-safety-500">
+                <Save className="h-4 w-4" /> Manage in Corporate
+              </Link>
+            ) : (
+              <button onClick={save} disabled={saving} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-navy-900 px-6 py-3 text-sm font-bold text-white hover:bg-safety-500 disabled:opacity-60">
+                <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save changes"}
+              </button>
+            )}
           </div>
         </div>
       </AdminCard>

@@ -7,6 +7,7 @@ import {
   listCorporateAccounts,
   provisionUserLogin,
   updateCorporateAccount,
+  updateUserProfile,
 } from "@/lib/db";
 import { sendCorporateWelcomeEmail } from "@/lib/mailer";
 
@@ -157,6 +158,29 @@ export async function PATCH(req: Request) {
     notes: body.notes === undefined ? undefined : body.notes?.trim() || null,
     status: body.status,
   });
+
+  // Keep linked user in sync — corporate is the single source of truth for
+  // company/contact fields (managed only via /admin/corporate/*).
+  if (existing.user_id) {
+    const sync: { name?: string; email?: string; phone?: string | null; company?: string | null } = {};
+    if (body.contact_name !== undefined) {
+      const n = body.contact_name?.trim();
+      if (n) sync.name = n;
+    }
+    if (email !== undefined) sync.email = email || undefined;
+    if (body.phone !== undefined) sync.phone = body.phone?.trim() || null;
+    if (body.company !== undefined) {
+      const c = body.company?.trim();
+      if (c) sync.company = c;
+    }
+    if (Object.keys(sync).length) {
+      try {
+        await updateUserProfile(existing.user_id, sync);
+      } catch (e) {
+        console.error("[corporate] sync to user failed", e);
+      }
+    }
+  }
 
   return NextResponse.json({ ok: true, account });
 }

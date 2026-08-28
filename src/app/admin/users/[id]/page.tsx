@@ -122,6 +122,8 @@ export default function AdminSingleUserPage() {
 
   const userSlug = user ? (user.referral_code ?? user.id.slice(0, 8)) : id;
   const editHref = `/admin/users/${encodeURIComponent(userSlug)}/edit`;
+  const corpHref = user?.corporate ? `/admin/corporate/${encodeURIComponent(user.corporate.id)}` : null;
+  const isCorporate = !!user?.isCorporate;
 
   const setRole = async (role: "user" | "admin" | "superadmin") => {
     if (!user) return;
@@ -283,11 +285,17 @@ export default function AdminSingleUserPage() {
         <div className="space-y-6 lg:col-span-2">
           <AdminCard
             title="Profile"
-            subtitle={`${user.name} · ${user.email}`}
+            subtitle={`${user.name} · ${user.email}${isCorporate ? " · corporate — company managed via Corporate" : ""}`}
             action={
-              <Link href={editHref} className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-bold text-navy-900 hover:bg-surface">
-                <Pencil className="h-3.5 w-3.5" /> Edit
-              </Link>
+              isCorporate && corpHref ? (
+                <Link href={corpHref} className="inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-safety-500">
+                  <Building2 className="h-3.5 w-3.5" /> Manage corporate
+                </Link>
+              ) : (
+                <Link href={editHref} className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-bold text-navy-900 hover:bg-surface">
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </Link>
+              )
             }
           >
             <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
@@ -305,12 +313,24 @@ export default function AdminSingleUserPage() {
               </div>
               <div>
                 <dt className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{user.role !== "user" ? "Department" : "Company"}</dt>
-                <dd className="font-semibold text-navy-900">{user.company || "—"}</dd>
+                <dd className="font-semibold text-navy-900">
+                  {isCorporate && user.corporate ? user.corporate.company : user.company || "—"}
+                  {isCorporate && <span className="ml-2 text-[10px] font-bold text-amber-600">(via Corporate)</span>}
+                </dd>
               </div>
             </dl>
-            <Link href={editHref} className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-4 py-2 text-xs font-bold text-white hover:bg-safety-500">
-              <Pencil className="h-3.5 w-3.5" /> Edit profile
-            </Link>
+            {isCorporate && corpHref ? (
+              <Link href={corpHref} className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-4 py-2 text-xs font-bold text-white hover:bg-safety-500">
+                <Building2 className="h-3.5 w-3.5" /> Manage {user.corporate!.company} in Corporate
+              </Link>
+            ) : (
+              <Link href={editHref} className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-4 py-2 text-xs font-bold text-white hover:bg-safety-500">
+                <Pencil className="h-3.5 w-3.5" /> Edit profile
+              </Link>
+            )}
+            {isCorporate && (
+              <p className="mt-2 text-xs text-gray-400">Company, KRA PIN, industry, discount and manager are edited only at <Link href={corpHref!} className="font-bold text-safety-600 hover:underline">Corporate → {user.corporate!.id}</Link>.</p>
+            )}
           </AdminCard>
 
           {/* Orders */}
