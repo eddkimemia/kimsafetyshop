@@ -47,6 +47,10 @@ function CorporateBadge({ corp }: { corp: CorporateInfo }) {
   );
 }
 
+function userSlug(u: { id: string; referral_code?: string | null }) {
+  return u.referral_code ?? u.id.slice(0, 8);
+}
+
 const sorts = [
   { value: "newest", label: "Newest first" },
   { value: "oldest", label: "Oldest first" },
@@ -285,7 +289,7 @@ export default function AdminUsersPage() {
                           </button>
                           <div className="flex items-center gap-1.5">
                             <Link
-                              href={`/admin/users/${u.id}`}
+                              href={`/admin/users/${userSlug(u)}`}
                               className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                             >
                               <Pencil className="h-3 w-3" /> Edit
@@ -304,7 +308,7 @@ export default function AdminUsersPage() {
                               <Trash2 className="h-3 w-3" /> Delete
                             </button>
                             <Link
-                              href={`/admin/users/${u.id}`}
+                              href={`/admin/users/${userSlug(u)}`}
                               aria-label={`View ${u.name}`}
                               className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600"
                             >
@@ -373,7 +377,7 @@ export default function AdminUsersPage() {
                                   Make user
                                 </button>
                                 <Link
-                                  href={`/admin/users/${u.id}`}
+                                  href={`/admin/users/${userSlug(u)}`}
                                   className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                                 >
                                   <Pencil className="h-3 w-3" /> Edit
@@ -392,7 +396,7 @@ export default function AdminUsersPage() {
                                   <Trash2 className="h-3 w-3" /> Delete
                                 </button>
                                 <Link
-                                  href={`/admin/users/${u.id}`}
+                                  href={`/admin/users/${userSlug(u)}`}
                                   aria-label={`View ${u.name}`}
                                   className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600"
                                 >
@@ -454,7 +458,7 @@ export default function AdminUsersPage() {
                           </button>
                           <div className="flex items-center gap-1.5">
                             <Link
-                              href={`/admin/users/${u.id}`}
+                              href={`/admin/users/${userSlug(u)}`}
                               className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                             >
                               <Pencil className="h-3 w-3" /> Edit
@@ -473,7 +477,7 @@ export default function AdminUsersPage() {
                               <Trash2 className="h-3 w-3" /> Delete
                             </button>
                             <Link
-                              href={`/admin/users/${u.id}`}
+                              href={`/admin/users/${userSlug(u)}`}
                               aria-label={`View ${u.name}`}
                               className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600"
                             >
@@ -532,7 +536,7 @@ export default function AdminUsersPage() {
                                   Make user
                                 </button>
                                 <Link
-                                  href={`/admin/users/${u.id}`}
+                                  href={`/admin/users/${userSlug(u)}`}
                                   className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                                 >
                                   <Pencil className="h-3 w-3" /> Edit
@@ -551,7 +555,7 @@ export default function AdminUsersPage() {
                                   <Trash2 className="h-3 w-3" /> Delete
                                 </button>
                                 <Link
-                                  href={`/admin/users/${u.id}`}
+                                  href={`/admin/users/${userSlug(u)}`}
                                   aria-label={`View ${u.name}`}
                                   className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600"
                                 >
@@ -633,13 +637,13 @@ export default function AdminUsersPage() {
                             <BadgeCheck className="h-3.5 w-3.5" /> Verify
                           </button>
                         )}
-                        <Link href={`/admin/users/${u.id}`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
+                        <Link href={`/admin/users/${userSlug(u)}`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
                           <Pencil className="h-3.5 w-3.5" /> Edit
                         </Link>
                         <button onClick={() => resetPassword(u)} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-safety-600 hover:bg-safety-50">
                           <KeyRound className="h-3.5 w-3.5" /> Reset
                         </button>
-                        <Link href={`/admin/users/${u.id}`} aria-label={`View ${u.name}`} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-400 hover:text-safety-600">
+                        <Link href={`/admin/users/${userSlug(u)}`} aria-label={`View ${u.name}`} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-400 hover:text-safety-600">
                           <ChevronRight className="h-4 w-4" />
                         </Link>
                       </div>
@@ -707,7 +711,7 @@ export default function AdminUsersPage() {
                                   <BadgeCheck className="h-3.5 w-3.5" /> Verify
                                 </button>
                               )}
-                              <Link href={`/admin/users/${u.id}`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
+                              <Link href={`/admin/users/${userSlug(u)}`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
                                 <Pencil className="h-3.5 w-3.5" /> Edit
                               </Link>
                               <button onClick={() => resetPassword(u)} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-safety-600 hover:bg-safety-50">
@@ -718,7 +722,7 @@ export default function AdminUsersPage() {
                                   <Trash2 className="h-3.5 w-3.5" /> Delete
                                 </button>
                               )}
-                              <Link href={`/admin/users/${u.id}`} aria-label={`View ${u.name}`} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600">
+                              <Link href={`/admin/users/${userSlug(u)}`} aria-label={`View ${u.name}`} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600">
                                 <ChevronRight className="h-4 w-4" />
                               </Link>
                             </div>
@@ -794,7 +798,7 @@ export default function AdminUsersPage() {
                           </button>
                         )}
                         <Link
-                          href={`/admin/users/${u.id}`}
+                          href={`/admin/users/${userSlug(u)}`}
                           className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface"
                         >
                           <Pencil className="h-3.5 w-3.5" /> Edit
@@ -814,7 +818,7 @@ export default function AdminUsersPage() {
                           </button>
                         )}
                         <Link
-                          href={`/admin/users/${u.id}`}
+                          href={`/admin/users/${userSlug(u)}`}
                           aria-label={`View ${u.name}`}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-400 hover:text-safety-600"
                         >
@@ -888,7 +892,7 @@ export default function AdminUsersPage() {
                                 </button>
                               )}
                               <Link
-                                href={`/admin/users/${u.id}`}
+                                href={`/admin/users/${userSlug(u)}`}
                                 className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface"
                               >
                                 <Pencil className="h-3.5 w-3.5" /> Edit
@@ -908,7 +912,7 @@ export default function AdminUsersPage() {
                                 </button>
                               )}
                               <Link
-                                href={`/admin/users/${u.id}`}
+                                href={`/admin/users/${userSlug(u)}`}
                                 aria-label={`View ${u.name}`}
                                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600"
                               >

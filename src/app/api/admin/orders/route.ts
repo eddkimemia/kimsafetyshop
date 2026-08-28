@@ -5,6 +5,7 @@ import {
   getOrderById,
   getUserById,
   listOrders,
+  listUsers,
   restoreProductStock,
   setMpesaTransaction,
   setOrderDelivered,
@@ -58,14 +59,20 @@ export async function GET(req: Request) {
 
   const userId = searchParams.get("userId");
   if (userId) {
-    const targetUser = await getUserById(userId);
+    let targetUser = await getUserById(userId);
+    if (!targetUser) {
+      const allUsers = await listUsers();
+      const lower = userId.toLowerCase();
+      const found = allUsers.find((u) => u.id === userId) ?? allUsers.find((u) => u.referral_code?.toLowerCase() === lower) ?? allUsers.find((u) => u.id.toLowerCase().startsWith(lower));
+      if (found) targetUser = await getUserById(found.id);
+    }
     if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
     const all = await listOrders();
     const emailLower = targetUser.email.toLowerCase();
+    const realId = targetUser.id;
     const filtered = all.filter(
-      (o) => o.user_id === userId || (!o.user_id && o.email.toLowerCase() === emailLower) || o.email.toLowerCase() === emailLower
+      (o) => o.user_id === realId || (!o.user_id && o.email.toLowerCase() === emailLower) || o.email.toLowerCase() === emailLower
     );
-    // Deduplicate strictly by user_id match first, else email fallback already handled via filter; just map
     const orders = await Promise.all(filtered.map(withItems));
     return NextResponse.json({ orders, user: { id: targetUser.id, name: targetUser.name, email: targetUser.email } });
   }

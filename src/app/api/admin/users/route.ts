@@ -32,8 +32,13 @@ export async function GET(req: Request) {
   };
 
   // Single-user fetch (used by /admin/users/[id] page)
+  // id may be full UUID, short 8-char prefix, or referral_code (KS-XXXX)
   if (id) {
-    const target = all.find((u) => u.id === id);
+    const lower = id.toLowerCase();
+    let target = all.find((u) => u.id === id);
+    if (!target) target = all.find((u) => u.referral_code?.toLowerCase() === lower);
+    if (!target) target = all.find((u) => u.id.toLowerCase().startsWith(lower));
+    if (!target) target = all.find((u) => u.id.toLowerCase().slice(0, 8) === lower);
     if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
     // Staff can only view customers unless superadmin
     if (!isSuper && target.role !== "user") {
@@ -138,7 +143,13 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const target = body.id ? await getUserById(body.id) : undefined;
+  let target = body.id ? await getUserById(body.id) : undefined;
+  if (!target && body.id) {
+    const allForPatch = await listUsers();
+    const lower = body.id.toLowerCase();
+    const found = allForPatch.find((u) => u.id === body.id) ?? allForPatch.find((u) => u.referral_code?.toLowerCase() === lower) ?? allForPatch.find((u) => u.id.toLowerCase().startsWith(lower));
+    if (found) target = await getUserById(found.id);
+  }
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   if (body.role !== undefined) {
@@ -199,7 +210,13 @@ export async function DELETE(req: Request) {
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing user id" }, { status: 400 });
 
-  const target = await getUserById(id);
+  let target = await getUserById(id);
+  if (!target) {
+    const allForDel = await listUsers();
+    const lower = id.toLowerCase();
+    const found = allForDel.find((u) => u.id === id) ?? allForDel.find((u) => u.referral_code?.toLowerCase() === lower) ?? allForDel.find((u) => u.id.toLowerCase().startsWith(lower));
+    if (found) target = await getUserById(found.id);
+  }
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   const me = await getSessionUser();
@@ -207,6 +224,6 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "You cannot delete your own account" }, { status: 400 });
   }
 
-  await deleteUser(id);
+  await deleteUser(target.id);
   return NextResponse.json({ ok: true });
 }
