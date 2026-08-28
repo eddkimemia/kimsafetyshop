@@ -9,6 +9,14 @@ export async function GET(req: Request) {
   const isSuper = me?.role === "superadmin";
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
+  // Staff picker for corporate manager — allow any admin to list staff
+  if (searchParams.get("staff") === "1") {
+    const allForStaff = await listUsers();
+    const staff = allForStaff
+      .filter((u) => u.role === "admin" || u.role === "superadmin")
+      .map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, referral_code: u.referral_code }));
+    return NextResponse.json({ users: staff });
+  }
   const all = await listUsers();
   const byId = new Map(all.map((u) => [u.id, u.name]));
   // Build corporate lookup (by user_id and by email fallback for accounts without user_id or legacy mismatches)

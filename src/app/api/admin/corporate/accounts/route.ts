@@ -12,9 +12,16 @@ import { sendCorporateWelcomeEmail } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (id) {
+    const account = await getCorporateAccountById(id);
+    if (!account) return NextResponse.json({ error: "Corporate account not found" }, { status: 404 });
+    return NextResponse.json({ account });
+  }
   const accounts = await listCorporateAccounts();
   return NextResponse.json({ accounts });
 }
