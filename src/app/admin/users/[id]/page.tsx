@@ -122,7 +122,7 @@ export default function AdminSingleUserPage() {
 
   const userSlug = user ? (user.referral_code ?? user.id.slice(0, 8)) : id;
   const editHref = `/admin/users/${encodeURIComponent(userSlug)}/edit`;
-  const corpHref = user?.corporate ? `/admin/corporate/${encodeURIComponent(user.corporate.id)}` : null;
+  const corpEditHref = user?.corporate ? `/admin/corporate/${encodeURIComponent(user.corporate.id)}/edit` : null;
   const isCorporate = !!user?.isCorporate;
 
   const setRole = async (role: "user" | "admin" | "superadmin") => {
@@ -287,9 +287,9 @@ export default function AdminSingleUserPage() {
             title="Profile"
             subtitle={`${user.name} · ${user.email}${isCorporate ? " · corporate — company managed via Corporate" : ""}`}
             action={
-              isCorporate && corpHref ? (
-                <Link href={corpHref} className="inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-safety-500">
-                  <Building2 className="h-3.5 w-3.5" /> Manage corporate
+              isCorporate && corpEditHref ? (
+                <Link href={corpEditHref} className="inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-safety-500">
+                  <Building2 className="h-3.5 w-3.5" /> Edit corporate
                 </Link>
               ) : (
                 <Link href={editHref} className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-bold text-navy-900 hover:bg-surface">
@@ -319,9 +319,9 @@ export default function AdminSingleUserPage() {
                 </dd>
               </div>
             </dl>
-            {isCorporate && corpHref ? (
-              <Link href={corpHref} className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-4 py-2 text-xs font-bold text-white hover:bg-safety-500">
-                <Building2 className="h-3.5 w-3.5" /> Manage {user.corporate!.company} in Corporate
+            {isCorporate && corpEditHref ? (
+              <Link href={corpEditHref} className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-4 py-2 text-xs font-bold text-white hover:bg-safety-500">
+                <Building2 className="h-3.5 w-3.5" /> Edit {user.corporate!.company} in Corporate
               </Link>
             ) : (
               <Link href={editHref} className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-4 py-2 text-xs font-bold text-white hover:bg-safety-500">
@@ -329,7 +329,7 @@ export default function AdminSingleUserPage() {
               </Link>
             )}
             {isCorporate && (
-              <p className="mt-2 text-xs text-gray-400">Company, KRA PIN, industry, discount and manager are edited only at <Link href={corpHref!} className="font-bold text-safety-600 hover:underline">Corporate → {user.corporate!.id}</Link>.</p>
+              <p className="mt-2 text-xs text-gray-400">Company, KRA PIN, industry, discount and manager are edited only at <Link href={corpEditHref!} className="font-bold text-safety-600 hover:underline">Corporate → {user.corporate!.id}/edit</Link>.</p>
             )}
           </AdminCard>
 
@@ -517,8 +517,8 @@ export default function AdminSingleUserPage() {
               title="Corporate account"
               subtitle={`${user.corporate.company} · ${user.corporate.status}`}
               action={
-                <Link href="/admin/corporate" className="inline-flex items-center gap-1 rounded-lg border border-line bg-white px-3 py-1.5 text-[11px] font-bold text-navy-900 hover:bg-surface">
-                  <Building2 className="h-3.5 w-3.5" /> Manage
+                <Link href={`/admin/corporate/${encodeURIComponent(user.corporate.id)}/edit`} className="inline-flex items-center gap-1 rounded-lg bg-navy-900 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-safety-500">
+                  <Pencil className="h-3.5 w-3.5" /> Edit
                 </Link>
               }
             >

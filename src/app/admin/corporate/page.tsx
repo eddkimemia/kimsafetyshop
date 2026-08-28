@@ -227,7 +227,7 @@ export default function AdminCorporatePage() {
                       <td className="py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <Link
-                            href={`/admin/corporate/${encodeURIComponent(a.id)}`}
+                            href={`/admin/corporate/${encodeURIComponent(a.id)}/edit`}
                             className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11px] font-bold text-gray-600 hover:bg-surface"
                           >
                             <Pencil className="h-3 w-3" /> Edit
