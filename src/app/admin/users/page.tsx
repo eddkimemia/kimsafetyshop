@@ -637,13 +637,13 @@ export default function AdminUsersPage() {
                             <BadgeCheck className="h-3.5 w-3.5" /> Verify
                           </button>
                         )}
-                        <Link href={`/admin/users/${userSlug(u)}/edit`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
+                        <Link href={`/admin/corporate/${encodeURIComponent(u.corporate!.id)}/edit`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
                           <Pencil className="h-3.5 w-3.5" /> Edit
                         </Link>
                         <button onClick={() => resetPassword(u)} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-safety-600 hover:bg-safety-50">
                           <KeyRound className="h-3.5 w-3.5" /> Reset
                         </button>
-                        <Link href={`/admin/users/${userSlug(u)}`} aria-label={`View ${u.name}`} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-400 hover:text-safety-600">
+                        <Link href={`/admin/corporate/${encodeURIComponent(u.corporate!.id)}`} aria-label={`View ${u.name}`} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-500 hover:border-safety-400 hover:text-safety-600">
                           <ChevronRight className="h-4 w-4" />
                         </Link>
                       </div>
@@ -711,7 +711,7 @@ export default function AdminUsersPage() {
                                   <BadgeCheck className="h-3.5 w-3.5" /> Verify
                                 </button>
                               )}
-                              <Link href={`/admin/users/${userSlug(u)}/edit`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
+                              <Link href={`/admin/corporate/${encodeURIComponent(u.corporate!.id)}/edit`} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-surface">
                                 <Pencil className="h-3.5 w-3.5" /> Edit
                               </Link>
                               <button onClick={() => resetPassword(u)} className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-bold text-safety-600 hover:bg-safety-50">
@@ -722,7 +722,7 @@ export default function AdminUsersPage() {
                                   <Trash2 className="h-3.5 w-3.5" /> Delete
                                 </button>
                               )}
-                              <Link href={`/admin/users/${userSlug(u)}`} aria-label={`View ${u.name}`} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600">
+                              <Link href={`/admin/corporate/${encodeURIComponent(u.corporate!.id)}`} aria-label={`View ${u.corporate!.company}`} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line text-gray-400 hover:border-safety-400 hover:text-safety-600">
                                 <ChevronRight className="h-4 w-4" />
                               </Link>
                             </div>
