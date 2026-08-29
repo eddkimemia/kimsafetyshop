@@ -201,9 +201,24 @@ let pool: Pool | null = null;
 
 export function getDb(): Pool {
   if (!pool) {
-    const url = process.env.DATABASE_URL;
+    let url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL environment variable is required");
-    const host = new URL(url).hostname;
+    // Prisma Accelerate/Data Proxy URLs (prisma://) are not usable with pg Pool.
+    // Vercel/Prisma Postgres at planLimitReached also surfaces as this URL.
+    // Prefer DIRECT_URL (direct postgres) when available — it bypasses the limit.
+    if (url.startsWith("prisma://")) {
+      const direct = process.env.DIRECT_URL;
+      if (direct) {
+        console.warn("[kimsafety] DATABASE_URL is prisma:// — using DIRECT_URL for pg Pool");
+        url = direct;
+      } else {
+        console.error("[kimsafety] DATABASE_URL is prisma:// and DIRECT_URL not set — DB calls will fail until plan is upgraded or DIRECT_URL is set. Falling back to static catalog where possible.");
+      }
+    }
+    let host = "localhost";
+    try {
+      host = new URL(url).hostname;
+    } catch {}
     const ssl = /sslmode=require|sslmode=verify-full/.test(url) || !["localhost", "127.0.0.1", "::1"].includes(host);
     pool = new Pool({
       connectionString: url,
