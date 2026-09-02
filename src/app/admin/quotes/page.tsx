@@ -11,7 +11,7 @@ type Quote = {
   id: string;
   name: string;
   company: string | null;
-  items: { productId: string; name: string; qty: number; price: number }[];
+  items: { productId: string; name: string; qty: number; price: number; brand?: string | null }[];
   total: number;
   status: string;
   attachment: string | null;
@@ -19,6 +19,8 @@ type Quote = {
   created_by_name: string | null;
   created_at: string;
 };
+
+const isRfq = (q: Quote) => q.items[0]?.productId === "quote-request";
 
 export default function AdminQuotesPage() {
   const params = useSearchParams();
@@ -43,9 +45,13 @@ export default function AdminQuotesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-extrabold text-navy-900">Quotations</h1>
+          <h1 className="font-display text-2xl font-extrabold text-navy-900">Quotes</h1>
           <p className="text-sm text-gray-500">
-            {quotes.length} quotation{quotes.length === 1 ? "" : "s"} — click an item to open it
+            {(() => {
+              const r = quotes.filter(isRfq).length;
+              const q = quotes.filter((x) => !isRfq(x)).length;
+              return `${r} RFQ${r === 1 ? "" : "s"} · ${q} quotation${q === 1 ? "" : "s"} — click an item to open it`;
+            })()}
           </p>
         </div>
         <Link
@@ -60,20 +66,50 @@ export default function AdminQuotesPage() {
       {loading ? (
         <p className="py-10 text-center text-sm text-gray-400">Loading…</p>
       ) : quotes.length === 0 ? (
-        <AdminCard title="All quotations">
-          <p className="py-6 text-center text-sm text-gray-400">No quotations yet.</p>
+        <AdminCard title="All quotes">
+          <p className="py-6 text-center text-sm text-gray-400">No quotations or RFQs yet.</p>
         </AdminCard>
       ) : (
-        <AdminCard title="All quotations" subtitle={`${quotes.length} item${quotes.length === 1 ? "" : "s"} · newest first`}>
-          <div className="space-y-2">
-            {quotes
-              .slice()
-              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-              .map((q) => (
-                <QuoteRow key={q.id} q={q} me={me} onDelete={del} />
-              ))}
-          </div>
-        </AdminCard>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <AdminCard
+            title="RFQs"
+            subtitle={`${quotes.filter(isRfq).length} request${quotes.filter(isRfq).length === 1 ? "" : "s"} · newest first`}
+          >
+            {(() => {
+              const rfqs = quotes
+                .filter(isRfq)
+                .slice()
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+              if (rfqs.length === 0) return <p className="py-6 text-center text-sm text-gray-400">No RFQs.</p>;
+              return (
+                <div className="space-y-2">
+                  {rfqs.map((q) => (
+                    <QuoteRow key={q.id} q={q} me={me} onDelete={del} />
+                  ))}
+                </div>
+              );
+            })()}
+          </AdminCard>
+          <AdminCard
+            title="Quotations"
+            subtitle={`${quotes.filter((q) => !isRfq(q)).length} quotation${quotes.filter((q) => !isRfq(q)).length === 1 ? "" : "s"} · newest first`}
+          >
+            {(() => {
+              const qts = quotes
+                .filter((q) => !isRfq(q))
+                .slice()
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+              if (qts.length === 0) return <p className="py-6 text-center text-sm text-gray-400">No quotations yet.</p>;
+              return (
+                <div className="space-y-2">
+                  {qts.map((q) => (
+                    <QuoteRow key={q.id} q={q} me={me} onDelete={del} />
+                  ))}
+                </div>
+              );
+            })()}
+          </AdminCard>
+        </div>
       )}
     </div>
   );

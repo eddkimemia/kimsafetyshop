@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import { requireAdmin, getSessionUser } from "@/lib/api-helpers";
-import { getQuoteById, getAllSettings } from "@/lib/db";
+import { getAdminProduct, getAllSettings, getQuoteById } from "@/lib/db";
 import { readLogoBytes } from "@/lib/logo";
+import { products as seedProducts } from "@/lib/data/products";
 import { join } from "path";
 import fs from "fs";
 
@@ -48,8 +49,36 @@ export async function GET(req: Request) {
 
   const preparedBy = me?.name ?? "KimSafety Team";
 
-  const items = JSON.parse(quote.items) as { productId: string; name: string; qty: number; price: number }[];
-  const rows = items.filter((r) => r.qty > 0);
+  const items = JSON.parse(quote.items) as {
+    productId: string;
+    name: string;
+    qty: number;
+    price: number;
+    brand?: string | null;
+  }[];
+  let rows = items.filter((r) => r.qty > 0).map((r) => ({
+    ...r,
+    brand: (r.brand?.trim() ? r.brand.trim() : null) as string | null,
+  }));
+  // Backfill brand for legacy quotations that were saved before brand was persisted.
+  // Best-effort lookup: seed catalog first, then admin override table.
+  for (let idx = 0; idx < rows.length; idx++) {
+    const r = rows[idx];
+    if (r.brand || r.productId === "quote-request") continue;
+    const seed = seedProducts.find((p) => p.sku === r.productId);
+    if (seed?.brand) {
+      rows[idx] = { ...r, brand: seed.brand };
+      continue;
+    }
+    try {
+      const admin = await getAdminProduct(r.productId);
+      const b = (admin as { brand?: string } | undefined)?.brand;
+      if (typeof b === "string" && b.trim()) rows[idx] = { ...r, brand: b.trim() };
+    } catch {
+      // ignore – will show as — below
+    }
+  }
+  rows = rows.map((r) => ({ ...r, brand: r.brand || "—" }));
   if (rows.length === 0) return NextResponse.json({ error: "Quote has no items" }, { status: 400 });
 
   const issued = new Date(quote.created_at);
@@ -170,8 +199,14 @@ export async function GET(req: Request) {
     );
 
   // ---- Items table (paginated: rows flow onto new pages, never split mid-row) ----
-  const col = { item: padL, qty: 330, unit: 370, amount: 460 };
-  const colW = { item: col.qty - padL - 20, qty: 40, unit: 90, amount: padR - col.amount - 20 };
+  const col = { item: padL, brand: 260, qty: 340, unit: 380, amount: 465 };
+  const colW = {
+    item: col.brand - padL - 8,
+    brand: col.qty - col.brand - 8,
+    qty: col.unit - col.qty - 8,
+    unit: col.amount - col.unit - 8,
+    amount: padR - col.amount - 8,
+  };
   const tableTop = 196;
   const tableTopNext = 40;
   const rowH = 34;
@@ -180,12 +215,13 @@ export async function GET(req: Request) {
     doc.rect(padL, top, padR - padL, 22).fill(NAVY);
     doc
       .font("Helvetica-Bold")
-      .fontSize(8.5)
+      .fontSize(7.5)
       .fillColor("#FFFFFF");
     doc.text("ITEM NAME", col.item + 8, top + 7, { width: colW.item });
-    doc.text("QTY", col.qty + 8, top + 7, { width: colW.qty });
-    doc.text("UNIT PRICE", col.unit + 8, top + 7, { width: colW.unit });
-    doc.text("AMOUNT", col.amount + 8, top + 7, { width: colW.amount });
+    doc.text("BRAND", col.brand + 6, top + 7, { width: colW.brand });
+    doc.text("QTY", col.qty + 6, top + 7, { width: colW.qty, align: "center" });
+    doc.text("UNIT PRICE", col.unit + 6, top + 7, { width: colW.unit, align: "right" });
+    doc.text("AMOUNT", col.amount + 6, top + 7, { width: colW.amount, align: "right" });
   };
   drawTableHeader(tableTop);
 
@@ -206,11 +242,16 @@ export async function GET(req: Request) {
       .text(row.name, col.item + 8, y + 6, { width: colW.item, lineGap: 2 });
     doc
       .font("Helvetica")
+      .fontSize(8)
+      .fillColor("#374151")
+      .text(String(row.brand ?? "—"), col.brand + 6, y + (rh - 9) / 2, { width: colW.brand, lineGap: 1 });
+    doc
+      .font("Helvetica")
       .fontSize(9)
       .fillColor("#1F2937")
-      .text(String(row.qty), col.qty + 8, y + (rh - 11) / 2, { width: colW.qty });
-    doc.text(money(row.price), col.unit + 8, y + (rh - 11) / 2, { width: colW.unit });
-    doc.font("Helvetica-Bold").text(money(row.price * row.qty), col.amount + 8, y + (rh - 11) / 2, { width: colW.amount });
+      .text(String(row.qty), col.qty + 6, y + (rh - 11) / 2, { width: colW.qty, align: "center" });
+    doc.text(money(row.price), col.unit + 6, y + (rh - 11) / 2, { width: colW.unit, align: "right" });
+    doc.font("Helvetica-Bold").text(money(row.price * row.qty), col.amount + 6, y + (rh - 11) / 2, { width: colW.amount, align: "right" });
     y += rh;
   });
 

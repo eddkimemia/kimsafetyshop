@@ -12,7 +12,7 @@ type Quote = {
   user_id: string | null;
   name: string;
   company: string | null;
-  items: { productId: string; name: string; qty: number; price: number }[];
+  items: { productId: string; name: string; qty: number; price: number; brand?: string | null }[];
   total: number;
   status: string;
   attachment: string | null;
@@ -94,6 +94,7 @@ export default function AdminQuoteDetailPage() {
                   <div key={`${quote.id}-${i.productId}-${idx}`} className="flex items-start justify-between gap-3 rounded-xl border border-line bg-white p-4">
                     <div className="min-w-0">
                       <p className="font-semibold text-navy-900">{i.name}</p>
+                      {i.brand && <p className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-safety-600">{i.brand}</p>}
                       <p className="mt-0.5 text-xs text-gray-500">
                         {i.qty} × {formatKES(i.price)}
                       </p>
@@ -103,10 +104,11 @@ export default function AdminQuoteDetailPage() {
                 ))}
               </div>
               <div className="hidden overflow-x-auto rounded-xl border border-line md:block">
-                <table className="w-full min-w-[420px] text-sm">
+                <table className="w-full min-w-[520px] text-sm">
                   <thead>
                     <tr className="border-b border-line bg-surface text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                       <th className="px-4 py-2">Item name</th>
+                      <th className="px-4 py-2">Brand</th>
                       <th className="px-4 py-2 text-center">Qty</th>
                       <th className="px-4 py-2 text-right">Unit price</th>
                       <th className="px-4 py-2 text-right">Amount</th>
@@ -116,6 +118,7 @@ export default function AdminQuoteDetailPage() {
                     {quote.items.map((i, idx) => (
                       <tr key={`${quote.id}-${i.productId}-${idx}`} className="border-b border-line/60 last:border-0">
                         <td className="px-4 py-2.5 font-semibold text-navy-900">{i.name}</td>
+                        <td className="px-4 py-2.5 text-xs font-semibold text-gray-600">{i.brand ?? "—"}</td>
                         <td className="px-4 py-2.5 text-center text-gray-500">{i.qty}</td>
                         <td className="px-4 py-2.5 text-right text-gray-500">{formatKES(i.price)}</td>
                         <td className="px-4 py-2.5 text-right font-bold text-navy-900">{formatKES(i.price * i.qty)}</td>

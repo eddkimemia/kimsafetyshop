@@ -14,7 +14,7 @@ type CatalogProduct = {
   price: number;
 };
 
-type Line = { sku: string; name: string; qty: number; price: number };
+type Line = { sku: string; name: string; qty: number; price: number; brand: string };
 
 export default function AdminCreateQuotationPage() {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function AdminCreateQuotationPage() {
     setLines((ls) => {
       const existing = ls.find((l) => l.sku === p.sku);
       if (existing) return ls.map((l) => (l.sku === p.sku ? { ...l, qty: l.qty + 1 } : l));
-      return [...ls, { sku: p.sku, name: p.name, qty: 1, price: p.price }];
+      return [...ls, { sku: p.sku, name: p.name, qty: 1, price: p.price, brand: p.brand }];
     });
     setQuery("");
   };
@@ -71,7 +71,7 @@ export default function AdminCreateQuotationPage() {
           company: customer.company,
           email: customer.email,
           phone: customer.phone,
-          items: lines.map((l) => ({ productId: l.sku, name: l.name, qty: l.qty, price: l.price })),
+          items: lines.map((l) => ({ productId: l.sku, name: l.name, qty: l.qty, price: l.price, brand: l.brand })),
           notes: notes.trim() || undefined,
           validDays,
         }),
@@ -185,7 +185,7 @@ export default function AdminCreateQuotationPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="font-semibold text-navy-900">{l.name}</p>
-                          <p className="font-mono text-[11px] text-gray-400">{l.sku}</p>
+                          <p className="font-mono text-[11px] text-gray-400">{l.sku} · {l.brand}</p>
                         </div>
                         <button
                           onClick={() => setLines((ls) => ls.filter((x) => x.sku !== l.sku))}
@@ -224,10 +224,11 @@ export default function AdminCreateQuotationPage() {
                   ))}
                 </div>
                 <div className="mt-4 hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[480px] text-sm">
+                  <table className="w-full min-w-[520px] text-sm">
                     <thead>
                       <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                         <th className="pb-2">Item name</th>
+                        <th className="pb-2">Brand</th>
                         <th className="pb-2 text-center">Qty</th>
                         <th className="pb-2 text-right">Unit price</th>
                         <th className="pb-2 text-right">Amount</th>
@@ -241,6 +242,7 @@ export default function AdminCreateQuotationPage() {
                             <p className="font-semibold text-navy-900">{l.name}</p>
                             <p className="font-mono text-[11px] text-gray-400">{l.sku}</p>
                           </td>
+                          <td className="py-2.5 text-xs font-semibold text-gray-600">{l.brand}</td>
                           <td className="py-2.5 text-center">
                             <input
                               type="number"

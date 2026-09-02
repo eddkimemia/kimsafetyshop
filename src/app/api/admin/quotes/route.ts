@@ -5,7 +5,7 @@ import { sendQuoteStatusEmail } from "@/lib/mailer";
 
 const VALID = ["Open", "Pending", "Sent", "Accepted", "Expired", "Declined"];
 
-type QuoteItem = { productId: string; name: string; qty: number; price: number };
+type QuoteItem = { productId: string; name: string; qty: number; price: number; brand?: string | null };
 
 export async function GET(req: Request) {
   const denied = await requireAdmin();
@@ -54,7 +54,13 @@ export async function POST(req: Request) {
   const name = body.name?.trim();
   const items = (body.items ?? [])
     .filter((i) => i.name?.trim() && i.qty > 0)
-    .map((i) => ({ productId: i.productId ?? "custom", name: i.name.trim(), qty: i.qty, price: Math.max(0, i.price ?? 0) }));
+    .map((i) => ({
+      productId: i.productId ?? "custom",
+      name: i.name.trim(),
+      qty: i.qty,
+      price: Math.max(0, i.price ?? 0),
+      brand: (i.brand?.trim() ? i.brand.trim() : null) as string | null,
+    }));
 
   if (!name) {
     return NextResponse.json({ error: "Customer name is required" }, { status: 400 });
