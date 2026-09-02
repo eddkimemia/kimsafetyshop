@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
 import { htmlToBlocks, type TextRun, type Block } from "@/lib/html-blocks";
-import { getAllSettings, getSetting } from "@/lib/db";
+import { getAllSettings } from "@/lib/db";
 import { readLogoBytes, getLogoSize, DEFAULT_LOGO } from "@/lib/logo";
 import { readPublicFile } from "@/lib/file-store";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
@@ -211,7 +211,7 @@ export async function buildBrandedDatasheetPdf(
     logoWidth = size ? Math.round((size.width / size.height) * 50) : 50 * 3.34;
     headLogo = await downscaleForPdf(logoBuf, 500);
   }
-  const tagline = ((await getSetting("tagline").catch(() => null)) as string | null) || DEFAULT_SETTINGS.tagline || "";
+  const tagline = settings?.tagline || DEFAULT_SETTINGS.tagline || "";
 
   const drawLetterhead = () => {
     if (headLogo && isSupportedImage(headLogo)) {

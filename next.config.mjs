@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  compress: true,
+  poweredByHeader: false,
   async headers() {
     return [
       {
@@ -59,9 +61,12 @@ const nextConfig = {
     // Keep optimized images cached for a week so repeat visits (and other
     // visitors hitting the same sizes) skip on-the-fly re-optimization.
     minimumCacheTTL: 604800,
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
   experimental: {
-    serverComponentsExternalPackages: ["pdfkit"],
+    serverComponentsExternalPackages: ["pdfkit", "sharp"],
+    optimizePackageImports: ["lucide-react", "framer-motion"],
   },
 };
 

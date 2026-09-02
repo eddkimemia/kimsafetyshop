@@ -101,6 +101,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ method: order.payment, paid: false });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Payment could not be started";
-    return NextResponse.json({ error: msg }, { status: 502 });
+    console.error(`[payments/initiate] failed for ${order.id}:`, msg);
+    return NextResponse.json({ error: "Unable to start payment. Please try again or contact support." }, { status: 502 });
   }
 }

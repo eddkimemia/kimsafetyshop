@@ -6,7 +6,7 @@ import path from "path";
 import PDFDocument from "pdfkit";
 import { mergedCatalog } from "@/lib/admin-products";
 import { htmlToBlocks, TextRun, Block } from "@/lib/html-blocks";
-import { getAllSettings, getSetting } from "@/lib/db";
+import { getAllSettings } from "@/lib/db";
 import { readLogoBytes, getLogoSize, DEFAULT_LOGO } from "@/lib/logo";
 import { getStoredFile, readPublicFile } from "@/lib/file-store";
 import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
@@ -172,7 +172,8 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
   drawPageChrome();
 
   // ---- Letterhead ---- fallback to bundled JPG if configured logo is WebP/SVG
-  let logoBuf = await readLogoBytes((await getAllSettings()).logo);
+  const settings = await getAllSettings();
+  let logoBuf = await readLogoBytes(settings.logo);
   if (logoBuf && !isSupportedImage(logoBuf)) {
     try {
       const fb = await readLogoBytes(DEFAULT_LOGO);
@@ -191,7 +192,7 @@ export async function GET(_req: Request, { params }: { params: { sku: string; in
     logoWidth = size ? Math.round((size.width / size.height) * 50) : 50 * 3.34;
   }
   const textLeft = padL + Math.max(logoWidth, 140) + 14;
-  pdf.font("Helvetica-Bold").fontSize(12).fillColor(NAVY).text((await getSetting("tagline")) || DEFAULT_SETTINGS.tagline || "", textLeft, 34, { width: padR - textLeft });
+  pdf.font("Helvetica-Bold").fontSize(12).fillColor(NAVY).text(settings.tagline || DEFAULT_SETTINGS.tagline || "", textLeft, 34, { width: padR - textLeft });
   pdf
     .font("Helvetica")
     .fontSize(10)

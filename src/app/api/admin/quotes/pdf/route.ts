@@ -60,25 +60,22 @@ export async function GET(req: Request) {
     ...r,
     brand: (r.brand?.trim() ? r.brand.trim() : null) as string | null,
   }));
-  // Backfill brand for legacy quotations that were saved before brand was persisted.
-  // Best-effort lookup: seed catalog first, then admin override table.
-  for (let idx = 0; idx < rows.length; idx++) {
-    const r = rows[idx];
-    if (r.brand || r.productId === "quote-request") continue;
-    const seed = seedProducts.find((p) => p.sku === r.productId);
-    if (seed?.brand) {
-      rows[idx] = { ...r, brand: seed.brand };
-      continue;
-    }
-    try {
-      const admin = await getAdminProduct(r.productId);
-      const b = (admin as { brand?: string } | undefined)?.brand;
-      if (typeof b === "string" && b.trim()) rows[idx] = { ...r, brand: b.trim() };
-    } catch {
-      // ignore – will show as — below
-    }
-  }
-  rows = rows.map((r) => ({ ...r, brand: r.brand || "—" }));
+  // Backfill brand for legacy quotations — parallelized to avoid serial DB hits.
+  const brandLookups = await Promise.all(
+    rows.map(async (r) => {
+      if (r.brand || r.productId === "quote-request") return r.brand ?? null;
+      const seed = seedProducts.find((p) => p.sku === r.productId);
+      if (seed?.brand) return seed.brand;
+      try {
+        const admin = await getAdminProduct(r.productId);
+        const b = (admin as { brand?: string } | undefined)?.brand;
+        return typeof b === "string" && b.trim() ? b.trim() : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+  rows = rows.map((r, i) => ({ ...r, brand: r.brand || brandLookups[i] || "—" }));
   if (rows.length === 0) return NextResponse.json({ error: "Quote has no items" }, { status: 400 });
 
   const issued = new Date(quote.created_at);

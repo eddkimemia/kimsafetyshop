@@ -10,8 +10,8 @@ import path from "path";
 // TTL cuts the repeated remote-DB round trips per page render (each serverless
 // cold start has to open a fresh TLS connection to the hosted Postgres), which
 // caused product/category pages to error on first load then work on retry.
-// 5s keeps price changes visible in checkout almost immediately.
-const CATALOG_TTL_MS = 5 * 1000;
+// 30s balances freshness and load — admin saves invalidate explicitly.
+const CATALOG_TTL_MS = 30 * 1000;
 const DB_FAIL_TTL_MS = 10 * 1000;
 let cachedAdminRows: { at: number; rows: Awaited<ReturnType<typeof listAdminProducts>> } | null = null;
 let lastDbFailAt = 0;
@@ -261,8 +261,17 @@ function stableShuffle<T extends { sku: string }>(arr: T[]): T[] {
   return out;
 }
 
+let catalogInflight: Promise<Product[]> | null = null;
+
 export async function liveCatalog(): Promise<Product[]> {
-  return mergedCatalog();
+  if (catalogInflight) return catalogInflight;
+  catalogInflight = mergedCatalog().finally(() => {
+    // clear on next tick so concurrent callers share the same promise
+    setTimeout(() => {
+      catalogInflight = null;
+    }, 0);
+  });
+  return catalogInflight;
 }
 
 /**
@@ -272,7 +281,7 @@ export async function liveCatalog(): Promise<Product[]> {
  */
 export async function getProductCount(): Promise<number> {
   try {
-    return (await mergedCatalog()).length;
+    return (await liveCatalog()).length;
   } catch {
     const { products } = await import("@/lib/data/products");
     return products.length;
@@ -280,15 +289,17 @@ export async function getProductCount(): Promise<number> {
 }
 
 export async function liveGetProduct(id: string): Promise<Product | undefined> {
-  return (await mergedCatalog()).find((p) => p.id === id);
+  const catalog = await liveCatalog();
+  return catalog.find((p) => p.id === id);
 }
 
 export async function liveGetBySlug(slug: string): Promise<Product | undefined> {
-  return (await mergedCatalog()).find((p) => p.slug === slug || p.sku === slug || p.id === slug);
+  const catalog = await liveCatalog();
+  return catalog.find((p) => p.slug === slug || p.sku === slug || p.id === slug);
 }
 
 export async function liveRelatedFor(product: Product, count = 8): Promise<Product[]> {
-  const list = await mergedCatalog();
+  const list = await liveCatalog();
   const sameCat = list.filter(
     (p) => p.id !== product.id && (productInCategory(p, product.category) || (product.categories ?? []).some((c) => productInCategory(p, c)))
   );

@@ -82,6 +82,6 @@ export async function POST(req: Request) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Verification failed";
     console.error(`[paystack] verify failed for ${order.id}:`, msg);
-    return NextResponse.json({ error: msg }, { status: 502 });
+    return NextResponse.json({ error: "Unable to verify payment. Please try again." }, { status: 502 });
   }
 }

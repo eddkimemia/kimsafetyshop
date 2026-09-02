@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { attachGuestOrdersToUser, createOrder, createNotification, getAllSettings, getCorporateAccountByUserId, getOrderById, getSetting, ordersForUser, provisionUserLogin, subscribeNewsletter, adjustProductStock } from "@/lib/db";
-import { invalidateCatalogCache } from "@/lib/catalog";
+import { attachGuestOrdersToUser, createOrder, createNotification, getAllSettings, getCorporateAccountByUserId, getOrderById, ordersForUser, provisionUserLogin, subscribeNewsletter, adjustProductStock } from "@/lib/db";
+import { invalidateCatalogCache, liveCatalog } from "@/lib/catalog";
 import { getSessionUser } from "@/lib/api-helpers";
 import { liveGetProduct } from "@/lib/catalog";
 import { bulkUnitPrice, formatKES } from "@/lib/utils";
@@ -15,10 +15,12 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
+  const catalog = await liveCatalog();
+  const byId = new Map(catalog.map((p) => [p.id, p] as const));
   const enrich = async (o: Awaited<ReturnType<typeof ordersForUser>>[number]) => ({
     ...o,
-    items: await Promise.all(JSON.parse(o.items).map(async (i: { productId: string; qty: number; name?: string; price?: number }) => {
-      const p = await liveGetProduct(i.productId);
+    items: JSON.parse(o.items).map((i: { productId: string; qty: number; name?: string; price?: number }) => {
+      const p = byId.get(i.productId);
       return {
         ...i,
         name: i.name || (p?.name ?? i.productId),
@@ -28,26 +30,33 @@ export async function GET(req: Request) {
         price: typeof i.price === "number" && i.price > 0 ? i.price : p ? bulkUnitPrice(p, i.qty) : undefined,
         datasheetIndex: p?.downloads?.findIndex((d) => /datasheet/i.test(d.name || "")),
       };
-    })),
+    }),
   });
   if (id) {
     const order = await getOrderById(id);
     if (!order || order.user_id !== user.id) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     return NextResponse.json({ order: await enrich(order) });
   }
-  const orders = await Promise.all((await ordersForUser(user.id)).map(enrich));
+  const rawOrders = await ordersForUser(user.id);
+  const orders = await Promise.all(rawOrders.map(enrich));
   return NextResponse.json({ orders });
 }
 
 type OrderItem = { productId: string; qty: number; price?: number };
 
-async function computeTotals(items: OrderItem[]) {
+async function computeTotals(items: OrderItem[], found?: (Awaited<ReturnType<typeof liveGetProduct>> )[]) {
   let subtotal = 0;
   let discount = 0;
-  for (const item of items) {
+  let catalogMap: Map<string, NonNullable<Awaited<ReturnType<typeof liveGetProduct>>>> | null = null;
+  if (!found) {
+    const catalog = await liveCatalog();
+    catalogMap = new Map(catalog.map((p) => [p.id, p] as const));
+  }
+  for (let idx = 0; idx < items.length; idx++) {
+    const item = items[idx];
     const qty = typeof item.qty === "number" && item.qty > 0 ? Math.floor(item.qty) : 0;
     if (qty === 0) continue;
-    const p = await liveGetProduct(item.productId);
+    const p = found ? found[idx] : catalogMap!.get(item.productId) ?? null;
     if (!p) continue;
     const unit = bulkUnitPrice(p, qty);
     const old = p.oldPrice != null && p.oldPrice > p.price ? p.oldPrice : p.price;
@@ -110,23 +119,21 @@ export async function POST(req: Request) {
       );
     }
   }
-  const totals = await computeTotals(items);
+  const totals = await computeTotals(items, found);
   // Snapshot what each unit actually cost AT PURCHASE TIME (incl. bulk tier)
   // into the stored line items. Invoices/receipts/order history render from
   // these frozen prices — later admin price edits must never rewrite history.
   // Client-supplied prices are ignored for the same reason totals are.
-  const pricedItems = await Promise.all(
-    items.map(async (i) => {
-      const qty = typeof i.qty === "number" && i.qty > 0 ? Math.floor(i.qty) : 0;
-      const p = await liveGetProduct(i.productId);
-      return {
-        productId: i.productId,
-        name: p?.name ?? i.productId,
-        qty,
-        price: p ? bulkUnitPrice(p, qty) : 0,
-      };
-    })
-  );
+  const pricedItems = items.map((i, idx) => {
+    const qty = typeof i.qty === "number" && i.qty > 0 ? Math.floor(i.qty) : 0;
+    const p = found[idx];
+    return {
+      productId: i.productId,
+      name: p?.name ?? i.productId,
+      qty,
+      price: p ? bulkUnitPrice(p, qty) : 0,
+    };
+  });
   const subtotal = totals.subtotal;
   let discount = totals.discount;
   let shipping = totals.shipping;
@@ -276,9 +283,9 @@ export async function POST(req: Request) {
   // settings; silently skipped when SMTP is not configured). Awaited so the
   // alerts actually leave the serverless function.
   try {
-    const [email, purchasesEmail] = await Promise.all([getSetting("email"), getSetting("purchases_email")]);
+    const s = await getAllSettings();
     const alert = { orderId: order.id, orderTotal: order.total, customer: order.name, company: order.company, payment: order.payment };
-    const targets = [email, purchasesEmail].filter(Boolean);
+    const targets = [s.email, s.purchases_email].filter(Boolean);
     for (const t of targets) {
       try {
         await sendNewOrderAlert({ to: t as string, ...alert });

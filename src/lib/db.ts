@@ -770,8 +770,9 @@ export async function setQuoteStatus(id: string, status: string) {
 
 // ---- Site settings ----
 
-export async function getSetting(key: string): Promise<string> {  const row = (await q1("SELECT value FROM settings WHERE key = ?", key)) as { value: string } | undefined;
-  return row?.value ?? DEFAULT_SETTINGS[key] ?? "";
+export async function getSetting(key: string): Promise<string> {
+  const all = await getAllSettings();
+  return all[key] ?? DEFAULT_SETTINGS[key] ?? "";
 }
 
 export async function getAllSettings(): Promise<Record<string, string>> {

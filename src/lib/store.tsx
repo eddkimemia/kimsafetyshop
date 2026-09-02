@@ -191,14 +191,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCompare((prev) => {
       if (prev.includes(productId)) return prev.filter((id) => id !== productId);
       if (prev.length >= 4) {
-        // Notify user instead of silently ignoring — keeps UX honest
         if (typeof window !== "undefined") {
-          // Use a lightweight alert; the compare page also shows a banner
           window.dispatchEvent(new CustomEvent("kimsafety:toast", { detail: { message: "Compare limit is 4 items. Remove one to add another.", type: "warning" } }));
-          // Fallback if no toast listener is mounted
-          if (!document.querySelector("[data-toast-root]")) {
-            alert("Compare limit is 4 items. Remove one to add another.");
-          }
         }
         return prev;
       }

@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { Scale, ShoppingCart, X, ArrowRight } from "lucide-react";
 import { useStore } from "@/lib/store";
