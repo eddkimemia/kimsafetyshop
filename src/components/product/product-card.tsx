@@ -112,7 +112,7 @@ export function ProductCard({
               </span>
             )}
           </div>
-          <span className="text-[10px] text-gray-400">{product.sold.toLocaleString()} sold</span>
+          <span className="text-[10px] text-gray-400">{(product.sold ?? 0).toLocaleString()} sold</span>
         </div>
 
         <div className="mt-2 flex items-center gap-1.5">
@@ -126,7 +126,7 @@ export function ProductCard({
           </button>
           <button
             onClick={() => toggleWishlist(product.id)}
-            aria-label="Toggle wishlist"
+            aria-label={inWish ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
             aria-pressed={inWish}
             className={cn(
               "flex h-9 w-9 items-center justify-center rounded-xl border transition-colors",
@@ -139,7 +139,7 @@ export function ProductCard({
           </button>
           <button
             onClick={() => toggleCompare(product.id)}
-            aria-label="Add to compare"
+            aria-label={inCompare ? `Remove ${product.name} from compare` : `Add ${product.name} to compare`}
             aria-pressed={inCompare}
             className={cn(
               "flex h-9 w-9 items-center justify-center rounded-xl border transition-colors",
@@ -155,14 +155,14 @@ export function ProductCard({
 
       <Link
         href={`/product/${product.slug}`}
-        aria-label="Quick view"
+        aria-label={`Quick view ${product.name}`}
         className="absolute right-3 top-1/2 hidden translate-y-[-50%] rounded-xl bg-white/95 p-2.5 shadow-card opacity-0 transition-all duration-200 group-hover:opacity-100 lg:block hover:bg-safety-500 hover:text-white"
       >
         <Eye className="h-4 w-4" />
       </Link>
-      {off && (
+      {off && product.oldPrice != null && product.oldPrice > product.price && (
         <Badge tone="safety" className="absolute bottom-3 left-3 hidden group-hover:flex">
-          Save {formatKES(product.oldPrice! - product.price)}
+          Save {formatKES(product.oldPrice - product.price)}
         </Badge>
       )}
     </div>

@@ -11,7 +11,7 @@ import { getStoredFile } from "@/lib/file-store";
  * PDF letterheads and structured data.
  */
 
-export const DEFAULT_LOGO = "/images/logo/logoy.jpg";
+export const DEFAULT_LOGO = "/images/logo/logoy.png";
 
 /** Public URL/path for the configured logo (falls back to the bundled default). */
 export function resolveLogoUrl(settings?: Partial<Record<string, string>> | null): string {

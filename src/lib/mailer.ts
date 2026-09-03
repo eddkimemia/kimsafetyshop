@@ -129,7 +129,7 @@ async function getSettingSafe(key: string): Promise<string> {
 }
 
 async function getBrand(): Promise<Brand> {
-  const s = await getAllSettings();  const logo = s.logo || "/images/logo/logoy.jpg";
+  const s = await getAllSettings();  const logo = s.logo || "/images/logo/logoy.png";
   const whatsapp = (s.whatsapp || "254715135141").replace(/\D/g, "");
   return {
     logo: logo.startsWith("http") ? logo : `${siteUrl}${logo}`,

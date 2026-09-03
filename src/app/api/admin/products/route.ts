@@ -17,9 +17,13 @@ import { addDeletedSku, removeDeletedSku } from "@/lib/catalog";
  * deals, brands, product/[slug]). Admin saves are rare, so a sitewide bust is
  * the simplest way to guarantee no page anywhere serves a stale price/image —
  * without it, ISR pages would keep old values for up to their revalidate window.
+ * Also busts the specific product path when sku/slug known for immediate refresh.
  */
-function revalidateProductPages() {
+function revalidateProductPages(sku?: string, slug?: string) {
   revalidatePath("/", "layout");
+  if (slug) revalidatePath(`/product/${slug}`);
+  if (sku) revalidatePath(`/product/${sku}`);
+  // Category/search/brands also show product images – layout bust covers them
 }
 
 /**
@@ -108,9 +112,9 @@ export async function POST(req: Request) {
   await upsertAdminProduct(sku, record);
   await removeDeletedSku(sku);
   invalidateCatalogCache();
-  revalidateProductPages();
+  const rec = record as Record<string, unknown>;
+  revalidateProductPages(sku, typeof rec.slug === "string" ? rec.slug : undefined);
   try {
-    const rec = record as Record<string, unknown>;
     await maybeNotifyRestock(sku, Number(rec.stock ?? 0), String(record.name), typeof rec.slug === "string" ? rec.slug : undefined);
   } catch (err) {
     console.error("[admin-products] restock notify failed:", (err as Error).message);
@@ -139,7 +143,7 @@ export async function PATCH(req: Request) {
   await upsertAdminProduct(sku, merged);
   await removeDeletedSku(sku);
   invalidateCatalogCache();
-  revalidateProductPages();
+  revalidateProductPages(sku, typeof merged.slug === "string" ? merged.slug : undefined);
   try {
     await maybeNotifyRestock(sku, Number(merged.stock ?? 0), String(merged.name ?? sku), typeof merged.slug === "string" ? merged.slug : undefined);
   } catch (err) {
@@ -163,6 +167,6 @@ export async function DELETE(req: Request) {
   if (existing) await deleteAdminProduct(sku);
   await addDeletedSku(sku);
   invalidateCatalogCache();
-  revalidateProductPages();
+  revalidateProductPages(sku);
   return NextResponse.json({ ok: true });
 }

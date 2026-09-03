@@ -603,8 +603,16 @@ export async function provisionUserLogin(input: {
 
 // ---- Orders ----
 
-export async function createOrder(input: { user_id?: string | null; name: string; email: string; phone: string; address: string; items: string; total: number; subtotal?: number; discount?: number; shipping?: number; payment: string; po_ref?: string; company?: string; po_file?: string; payment_phone?: string | null; payment_token?: string | null; referrer_code?: string | null }): Promise<DbOrder> {  const order: DbOrder = {
-    id: `KS-${Math.floor(10000 + Math.random() * 89999)}`,
+export async function createOrder(input: { user_id?: string | null; name: string; email: string; phone: string; address: string; items: string; total: number; subtotal?: number; discount?: number; shipping?: number; payment: string; po_ref?: string; company?: string; po_file?: string; payment_phone?: string | null; payment_token?: string | null; referrer_code?: string | null }): Promise<DbOrder> {
+  let orderId = "";
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const cand = `KS-${randomBytes(3).toString("hex").toUpperCase()}`;
+    const clash = await q1("SELECT id FROM orders WHERE id = ?", cand).catch(() => undefined);
+    if (!clash) { orderId = cand; break; }
+  }
+  if (!orderId) orderId = `KS-${randomUUID().slice(0, 8).toUpperCase()}`;
+  const order: DbOrder = {
+    id: orderId,
     user_id: input.user_id ?? null,
     name: input.name,
     email: input.email,
@@ -730,8 +738,16 @@ export async function createQuote(input: {
   valid_until?: string | null;
   created_by_id?: string | null;
   created_by_name?: string | null;
-}): Promise<DbQuote> {  const quote: DbQuote = {
-    id: `QUO-${Math.floor(1000 + Math.random() * 9000)}`,
+}): Promise<DbQuote> {
+  let quoteId = "";
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const cand = `QUO-${randomBytes(3).toString("hex").toUpperCase()}`;
+    const clash = await q1("SELECT id FROM quotes WHERE id = ?", cand).catch(() => undefined);
+    if (!clash) { quoteId = cand; break; }
+  }
+  if (!quoteId) quoteId = `QUO-${randomUUID().slice(0, 8).toUpperCase()}`;
+  const quote: DbQuote = {
+    id: quoteId,
     user_id: input.user_id ?? null,
     name: input.name,
     company: input.company ?? null,

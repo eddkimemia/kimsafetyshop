@@ -83,7 +83,7 @@ export async function GET(req: Request) {
   XLSX.utils.book_append_sheet(wb, ws, "Orders");
   const xlsx = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 
-  const revenue = orders.reduce((s, o) => s + o.total, 0);
+  const revenue = orders.filter((o) => o.paid === 1 && o.status !== "Cancelled").reduce((s, o) => s + o.total, 0);
   const paidCount = orders.filter((o) => o.paid === 1).length;
 
   const to = process.env.DAILY_ORDERS_EMAIL || DEFAULT_TO;

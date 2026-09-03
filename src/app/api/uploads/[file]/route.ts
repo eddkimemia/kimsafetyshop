@@ -11,7 +11,12 @@ import { getStoredFile } from "@/lib/file-store";
 const SAFE_NAME = /^[\w .\-()\[\],&'@+]+\.(jpe?g|png|webp|gif)$/i;
 
 export async function GET(_req: Request, { params }: { params: { file: string } }) {
-  const file = params.file;
+  let file: string;
+  try {
+    file = decodeURIComponent(params.file);
+  } catch {
+    file = params.file;
+  }
   if (!SAFE_NAME.test(file) || file.includes("..")) {
     return NextResponse.json({ error: "Invalid file" }, { status: 400 });
   }

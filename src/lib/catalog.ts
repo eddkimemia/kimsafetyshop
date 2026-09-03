@@ -6,12 +6,11 @@ import { slugify } from "@/lib/utils";
 import type { Product } from "@/lib/types";
 import path from "path";
 
-// The admin product table only changes on admin edits. Caching it with a short
-// TTL cuts the repeated remote-DB round trips per page render (each serverless
-// cold start has to open a fresh TLS connection to the hosted Postgres), which
-// caused product/category pages to error on first load then work on retry.
-// 30s balances freshness and load — admin saves invalidate explicitly.
-const CATALOG_TTL_MS = 30 * 1000;
+// The admin product table only changes on admin edits. Short TTL ensures
+// admin image/price edits appear within seconds on Vercel where each lambda
+// has its own in-memory cache (invalidate on one instance doesn't bust others).
+// 5s keeps storefront snappy while making Vercel edits visible on refresh.
+const CATALOG_TTL_MS = 5 * 1000;
 const DB_FAIL_TTL_MS = 10 * 1000;
 let cachedAdminRows: { at: number; rows: Awaited<ReturnType<typeof listAdminProducts>> } | null = null;
 let lastDbFailAt = 0;

@@ -9,7 +9,7 @@ export async function GET() {
   if (denied) return denied;
 
   const [totals, pendingOrders, customersCount, ordersCount, quotesCount, adminRows] = await Promise.all([
-    q1<{ s: number }>("SELECT COALESCE(SUM(total), 0)::int AS s FROM orders WHERE status != 'Cancelled'"),
+    q1<{ s: number }>("SELECT COALESCE(SUM(total), 0)::int AS s FROM orders WHERE status != 'Cancelled' AND paid = 1"),
     q1<{ c: number }>("SELECT COUNT(*)::int AS c FROM orders WHERE status IN ('Processing', 'In transit')"),
     q1<{ c: number }>("SELECT COUNT(*)::int AS c FROM users WHERE role = 'user'"),
     q1<{ c: number }>("SELECT COUNT(*)::int AS c FROM orders"),

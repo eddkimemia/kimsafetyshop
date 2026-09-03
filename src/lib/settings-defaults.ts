@@ -1,7 +1,7 @@
 export const DEFAULT_SETTINGS: Record<string, string> = {
   site_name: "KimSafety Ltd",
   tagline: "Safety Equipment Kenya",
-  logo: "/images/logo/logoy.jpg",
+  logo: "/images/logo/logoy.png",
   phone: "+254 715135141",
   whatsapp: "254715135141",
   email: "sales@kimsafety.co.ke",

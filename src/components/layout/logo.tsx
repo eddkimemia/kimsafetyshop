@@ -7,7 +7,7 @@ import Link from "next/link";
 
 export function Logo({ light, className }: { light?: boolean; className?: string }) {
   const settings = useSettings();
-  const raw = settings.logo || DEFAULT_SETTINGS.logo || "/images/logo/logoy.jpg";
+  const raw = settings.logo || DEFAULT_SETTINGS.logo || "/images/logo/logoy.png";
   const src = brandedUrl(raw);
   // Upload-backed logos live in DB (rewrite /uploads/documents/* -> /api/uploads/documents/*).
   // Next's optimizer fetch for those fails on serverless (ephemeral disk) and shows a

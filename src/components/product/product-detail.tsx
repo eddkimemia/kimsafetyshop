@@ -31,7 +31,7 @@ import { productInCategory } from "@/lib/data/catalog";
 import { activeBulkTier, bulkUnitPrice, discountPercent, formatKES, cn } from "@/lib/utils";
 import { sanitizePostHtml } from "@/lib/blog";
 import { ProductArt, productImageFor } from "@/components/product/product-art";
-import { productGalleries } from "@/lib/data/product-images";
+import { productGalleries, productImages } from "@/lib/data/product-images";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { ProductCard } from "@/components/product/product-card";
 import { ProductReviews } from "@/components/product/product-reviews";
@@ -46,7 +46,7 @@ export function ProductDetail({
   product: Product;
   related: Product[];
 }) {
-  const { addToCart, toggleWishlist, wishlist, toggleCompare, compare, noteRecentlyViewed, recentlyViewed, liveProduct, refreshCatalog } = useStore();
+  const { addToCart, toggleWishlist, wishlist, toggleCompare, compare, noteRecentlyViewed, recentlyViewed, liveProduct, refreshCatalog, delivery } = useStore();
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState("description");
   const [buyNowLoading, setBuyNowLoading] = useState(false);
@@ -77,18 +77,24 @@ export function ProductDetail({
   const inWish = wishlist.includes(product.id);
   const inCompare = compare.includes(product.id);
   const out = live.stock <= 0;
-  const low = !out && live.stock <= live.lowStockAt;
+  const low = !out && live.stock <= (live.lowStockAt ?? 10);
   const unitPrice = bulkUnitPrice(live, qty);
   const bulkPriceActive = unitPrice < live.price;
   const activeTier = activeBulkTier(live, qty);
 
   const galleryVariants = useMemo(() => {
-    // The live row's admin-edited image wins, then the static photo map. The
-    // merged catalog resolves `image`/`gallery` server-side, so this is final
-    // on first paint.
-    const main = live.image || productImageFor(product.sku);
+    // The live row's admin-edited image wins, then gallery first image, then
+    // static photo map. This prevents the SVG placeholder (sku.jpg fallback)
+    // showing as main when product has gallery images but no explicit image.
+    const fallbackSkuImage = `/images/products/${product.sku}.jpg`;
+    const hasRealImage = live.image && live.image !== fallbackSkuImage;
+    const main = hasRealImage
+      ? live.image!
+      : live.gallery?.[0] || productImages[product.sku] || live.image || productImageFor(product.sku);
     const extras = live.gallery?.length ? live.gallery : productGalleries[product.sku] ?? [];
-    return [main, ...extras.filter((src) => src !== main)];
+    const all = [main, ...extras.filter((src) => src !== main)];
+    // Deduplicate while preserving order
+    return Array.from(new Set(all));
   }, [live, product]);
 
   const [view, setView] = useState(0);
@@ -152,9 +158,9 @@ export function ProductDetail({
                 />
               </motion.div>
               <div className="absolute left-4 top-4 flex gap-2">
-                {off && (
+                {off && live.oldPrice != null && live.oldPrice > live.price && (
                   <span className="rounded-full bg-danger px-3 py-1.5 text-xs font-bold text-white shadow-sm">
-                    Save {formatKES(live.oldPrice! - live.price)} (-{off}%)
+                    Save {formatKES(live.oldPrice - live.price)} (-{off}%)
                   </span>
                 )}
                 {product.new && (
@@ -165,7 +171,7 @@ export function ProductDetail({
             <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-3">
               {galleryVariants.map((image, i) => (
                 <button
-                  key={i}
+                  key={image}
                   onClick={() => setView(i)}
                   aria-label={`View ${i + 1}`}
                   className={cn(
@@ -244,7 +250,9 @@ export function ProductDetail({
               </div>
               <div className="ml-auto text-right">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Incl. 16% VAT</p>
-                <p className="text-[10px] text-gray-400">KES 0 delivery on orders over 10K</p>
+                <p className="text-[10px] text-gray-400">
+                  {delivery.threshold > 0 ? `Free delivery over ${formatKES(delivery.threshold)}` : "Free delivery"}
+                </p>
               </div>
             </div>
 

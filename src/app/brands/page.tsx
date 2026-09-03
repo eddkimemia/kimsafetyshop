@@ -3,9 +3,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import { products } from "@/lib/data/products";
 import { siteUrl } from "@/lib/site";
 import { getLiveBrands } from "@/lib/brands";
+import { liveCatalog } from "@/lib/catalog";
 import fs from "fs";
 import path from "path";
 
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BrandsPage() {
-  const brands = await getLiveBrands();
+  const [brands, catalog] = await Promise.all([getLiveBrands(), liveCatalog()]);
   return (
     <div className="bg-surface pb-20">
       <PageHeader
@@ -61,7 +61,7 @@ export default async function BrandsPage() {
       />
       <div className="mx-auto grid max-w-shell grid-cols-1 gap-5 px-4 pt-8 sm:grid-cols-2 lg:grid-cols-3 lg:px-8">
         {brands.map((brand) => {
-          const count = products.filter((p) => p.brand === brand.name).length;
+          const count = catalog.filter((p) => p.brand === brand.name).length;
           return (
             <Link
               key={brand.slug}

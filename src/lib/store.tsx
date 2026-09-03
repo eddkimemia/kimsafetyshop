@@ -144,7 +144,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const addToCart = useCallback(
     (productId: string, qty = 1) => {
       const p = catalog.find((pr) => pr.id === productId || pr.sku === productId) ?? getProduct(productId);
-      const cap = p?.stock != null && p.stock > 0 ? p.stock : 999;
+      const stock = p?.stock ?? 0;
+      if (stock <= 0) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("kimsafety:toast", { detail: { message: "Out of stock", type: "warning" } }));
+        }
+        return;
+      }
+      const cap = stock;
       const safeQty = Math.min(Math.max(1, Math.floor(qty)), cap);
       setCart((prev) => {
         const existing = prev.find((i) => i.productId === productId);
@@ -166,7 +173,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setQty = useCallback(
     (productId: string, qty: number) => {
       const p = catalog.find((pr) => pr.id === productId || pr.sku === productId) ?? getProduct(productId);
-      const cap = p?.stock != null && p.stock > 0 ? p.stock : 999;
+      const cap = p?.stock ?? 0;
+      if (cap <= 0) {
+        setCart((prev) => prev.filter((i) => i.productId !== productId));
+        return;
+      }
       const safeQty = Math.min(Math.max(0, Math.floor(qty)), cap);
       setCart((prev) =>
         safeQty <= 0

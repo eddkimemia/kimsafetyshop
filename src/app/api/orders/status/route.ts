@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getOrderById, setOrderPaid, setMpesaTransaction } from "@/lib/db";
 import { MPESA_COOLDOWN_MS, MPESA_MAX_ATTEMPTS, mpesaQueryCheckout, mpesaFetchReceipt } from "@/lib/payments/mpesa";
 import { sendPaidInvoiceEmail } from "@/lib/mailer";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,8 @@ const QUERY_MIN_GAP_MS = 15_000;
  * exactly what the callback would have done.
  */
 export async function GET(req: Request) {
+  const rl = rateLimit(req, "orders-status", 30, 60_000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
   const { searchParams } = new URL(req.url);
   const orderId = searchParams.get("orderId") ?? "";
   const token = searchParams.get("token") ?? "";
