@@ -6,6 +6,23 @@ import { PageHeader } from "@/components/layout/page-header";
 import { products } from "@/lib/data/products";
 import { siteUrl } from "@/lib/site";
 import { getLiveBrands } from "@/lib/brands";
+import fs from "fs";
+import path from "path";
+
+function hasLogoFile(image: string): boolean {
+  if (!image) return false;
+  if (image.startsWith("/api/uploads/") || image.startsWith("/uploads/") || image.startsWith("/documents/")) return true;
+  if (image.startsWith("/images/")) {
+    const full = path.join(process.cwd(), "public", image.replace(/^\//, "").split("?")[0]);
+    try {
+      return fs.existsSync(decodeURIComponent(full));
+    } catch {
+      return false;
+    }
+  }
+  if (image.startsWith("http")) return true;
+  return false;
+}
 
 // Re-render at most every 60s so brands added/edited in Admin → Brands
 // (stored in the settings table) appear on the public page without a rebuild.
@@ -52,13 +69,26 @@ export default async function BrandsPage() {
               className="group flex items-center gap-5 rounded-2xl border border-line bg-white p-6 shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-cardHover"
             >
               <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border border-gray-100 bg-white p-3">
-                <Image
-                  src={brand.image}
-                  alt={`${brand.name} logo`}
-                  width={96}
-                  height={96}
-                  className="h-full w-full object-contain"
-                />
+                {hasLogoFile(brand.image) ? (
+                  (() => {
+                    const clean = brand.image.split("?")[0];
+                    const isUpload = clean.startsWith("/api/uploads/") || clean.startsWith("/uploads/") || clean.startsWith("/documents/");
+                    return (
+                      <Image
+                        src={brand.image}
+                        alt={`${brand.name} logo`}
+                        width={96}
+                        height={96}
+                        unoptimized={isUpload}
+                        className="h-full w-full object-contain"
+                      />
+                    );
+                  })()
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center rounded-xl bg-navy-50 text-xs font-bold text-navy-900">
+                    {brand.name.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
               </span>
               <div className="min-w-0 flex-1">
                 <h2 className="font-display text-lg font-extrabold text-navy-900 group-hover:text-safety-600">

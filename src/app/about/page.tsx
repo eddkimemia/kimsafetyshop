@@ -4,6 +4,8 @@ import { ShieldCheck, Truck, BadgeCheck, HeartHandshake, Target, Eye } from "luc
 import { PageHeader } from "@/components/layout/page-header";
 import { siteUrl } from "@/lib/site";
 
+export const revalidate = 86400;
+
 export const metadata: Metadata = {
   title: "About KimSafety — Certified Safety Equipment Supplier Since 2019 | Kenya",
   description:

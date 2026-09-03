@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { listPosts } from "@/lib/db";
 import { siteUrl } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Blog — Safety News & Insights in Kenya | KimSafety",

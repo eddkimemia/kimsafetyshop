@@ -6,6 +6,8 @@ import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 
 import { siteUrl } from "@/lib/site";
 
+export const revalidate = 86400;
+
 export const metadata: Metadata = {
   title: "Help & Support — Delivery, Payment & Returns | KimSafety Kenya",
   description:

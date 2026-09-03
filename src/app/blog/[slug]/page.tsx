@@ -13,7 +13,7 @@ import { ProductCard } from "@/components/product/product-card";
 import { BlogNewsletter } from "@/components/blog/blog-newsletter";
 import { siteUrl } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const post = await getPostBySlug(params.slug);

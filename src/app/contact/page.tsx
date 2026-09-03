@@ -6,6 +6,8 @@ import { ContactForm } from "@/components/contact/contact-form";
 import { getAllSettings } from "@/lib/db";
 import { siteUrl } from "@/lib/site";
 
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: "Contact KimSafety — Nairobi Industrial Area | Sales, Quotes & Support",
   description:

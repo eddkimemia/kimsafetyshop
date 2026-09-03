@@ -1,8 +1,25 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Tag } from "lucide-react";
 import { categories } from "@/lib/data/catalog";
 import { getFeaturedCategories } from "@/lib/db";
+import fs from "fs";
+import path from "path";
+
+function hasImageFile(image: string): boolean {
+  if (!image) return false;
+  if (image.startsWith("/api/uploads/") || image.startsWith("/uploads/") || image.startsWith("/documents/")) return true;
+  if (image.startsWith("/images/")) {
+    const full = path.join(process.cwd(), "public", image.replace(/^\//, "").split("?")[0]);
+    try {
+      return fs.existsSync(decodeURIComponent(full));
+    } catch {
+      return false;
+    }
+  }
+  if (image.startsWith("http")) return true;
+  return false;
+}
 
 export async function CategoryGrid() {
   const spotlight = await getFeaturedCategories();
@@ -31,16 +48,25 @@ export async function CategoryGrid() {
               href={`/category/${item.category}`}
               className="group overflow-hidden rounded-2xl border border-line bg-white shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-cardHover"
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-                {item.image && (
-                  <Image
-                    src={item.image}
-                    alt={item.caption || item.name}
-                    fill
-                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
-                    quality={85}
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+              <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-navy-700 to-navy-900 flex items-center justify-center">
+                {item.image && hasImageFile(item.image) ? (
+                  (() => {
+                    const clean = item.image.split("?")[0];
+                    const isUpload = clean.startsWith("/api/uploads/") || clean.startsWith("/uploads/") || clean.startsWith("/documents/");
+                    return (
+                      <Image
+                        src={item.image}
+                        alt={item.caption || item.name}
+                        fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
+                        quality={85}
+                        unoptimized={isUpload}
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    );
+                  })()
+                ) : (
+                  <Tag className="h-10 w-10 text-white/80" />
                 )}
               </div>
               <div className="p-4">

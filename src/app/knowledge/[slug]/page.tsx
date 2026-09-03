@@ -11,7 +11,7 @@ import { liveCatalog } from "@/lib/catalog";
 import { ProductCard } from "@/components/product/product-card";
 import { siteUrl } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export function generateStaticParams() {
   return guides.map((g) => ({ slug: g.slug }));

@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { mergedGuides } from "@/lib/knowledge";
 import { siteUrl } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Safety Knowledge Center — Guides & Regulations Kenya | KimSafety",

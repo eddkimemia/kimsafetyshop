@@ -69,6 +69,14 @@ export async function readPublicFile(publicPath: string): Promise<Buffer | undef
     return undefined;
   }
   if (publicPath.startsWith("/images/")) {
+    // Allow brands/products uploaded via admin (stored in DB as /api/uploads/<name> but
+    // referenced as /images/brands/<name> in legacy rows) to resolve from DB first.
+    // This keeps legacy manual paths working on Vercel where filesystem is ephemeral.
+    const filename = decodeURIComponent(path.basename(publicPath));
+    try {
+      const stored = await getStoredFile(filename);
+      if (stored) return stored.data;
+    } catch {}
     const local = path.join(process.cwd(), "public", decodeURIComponent(publicPath).replace(/^\//, ""));
     if (fs.existsSync(local)) return fs.readFileSync(local);
     return undefined;

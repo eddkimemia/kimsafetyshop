@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/layout/page-header";
 import { siteUrl } from "@/lib/site";
 
+export const revalidate = 86400;
+
 export const metadata: Metadata = {
   title: "Privacy Policy — KimSafety Kenya",
   description: "KimSafety privacy policy — how we collect, use and protect your personal data under Kenya's Data Protection Act, 2019.",

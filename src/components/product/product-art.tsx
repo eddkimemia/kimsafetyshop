@@ -138,6 +138,12 @@ export function ProductArt({
     setFailed(false);
   }, [imageSrc]);
 
+  const isUpload = (() => {
+    if (!imageSrc) return false;
+    const clean = imageSrc.split("?")[0];
+    return clean.startsWith("/api/uploads/") || clean.startsWith("/uploads/") || clean.startsWith("/documents/");
+  })();
+
   return (
     <div
       className={cn(
@@ -153,6 +159,7 @@ export function ProductArt({
           fill
           sizes={sizes}
           quality={quality}
+          unoptimized={isUpload}
           className="object-cover"
           onError={() => setFailed(true)}
         />

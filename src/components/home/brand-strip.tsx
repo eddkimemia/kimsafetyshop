@@ -59,13 +59,20 @@ export async function BrandStrip() {
             >
               <span className="relative h-14 w-full">
                 {hasLogoFile(brand.image) ? (
-                  <Image
-                    src={brand.image}
-                    alt={`${brand.name} logo`}
-                    fill
-                    sizes="144px"
-                    className="object-contain"
-                  />
+                  (() => {
+                    const clean = brand.image.split("?")[0];
+                    const isUpload = clean.startsWith("/api/uploads/") || clean.startsWith("/uploads/") || clean.startsWith("/documents/");
+                    return (
+                      <Image
+                        src={brand.image}
+                        alt={`${brand.name} logo`}
+                        fill
+                        sizes="144px"
+                        unoptimized={isUpload}
+                        className="object-contain"
+                      />
+                    );
+                  })()
                 ) : (
                   <span className="flex h-full w-full items-center justify-center text-center text-xs font-bold text-navy-900">
                     {brand.name}

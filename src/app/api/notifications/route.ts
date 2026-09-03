@@ -10,10 +10,8 @@ import { getSessionUser } from "@/lib/api-helpers";
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  return NextResponse.json({
-    notifications: await listNotificationsForUser(user.id),
-    unread: await countUnreadNotifications(user.id),
-  });
+  const [notifications, unread] = await Promise.all([listNotificationsForUser(user.id), countUnreadNotifications(user.id)]);
+  return NextResponse.json({ notifications, unread });
 }
 
 export async function POST(req: Request) {
